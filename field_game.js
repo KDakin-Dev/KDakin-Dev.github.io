@@ -3,6 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
+        buildVersion: "0.9.0-supernova-endings",
 
         portfolio: {
             minNodes: 48,
@@ -28,13 +29,13 @@
             coreRadiusScale: 1.62,
             coreRadiusMax: 56.0,
             fusionRadiusBase: 96.0,
-            fusionRadiusScale: 7.8,
-            fusionRadiusMax: 275.0,
+            fusionRadiusScale: 6.0,
+            fusionRadiusMax: 245.0,
 
-            spawnInterval: 1.28,
-            spawnBurstBase: 8,
-            spawnByMassScale: 1.72,
-            spawnMax: 34,
+            spawnInterval: 0.98,
+            spawnBurstBase: 13,
+            spawnByMassScale: 1.85,
+            spawnMax: 42,
             spawnSpeedBase: 11.0,
             spawnSpeedByCoreLevel: 0.65,
 
@@ -42,7 +43,7 @@
             fusionHeatSeconds: 0.68,
             fusionHeatDecay: 1.15,
             validPairAttractRange: 132,
-            validPairAttractForce: 68,
+            validPairAttractForce: 48,
             invalidPairRange: 86,
             invalidPairRepelForce: 135,
 
@@ -71,15 +72,24 @@
             pairFusionZonePadding: 34,
             validPairMinDistance: 18,
             overlapSoftPushForce: 72,
-            insideCoreSpeedScale: 0.46,
+            insideCoreSpeedScale: 0.82,
             insideCoreHeavySpeedPower: 0.16,
-            insideCoreDamping: 0.953,
-            insideCoreOrbitPullScale: 0.12,
-            insideCoreRetainForce: 2.15,
+            insideCoreDamping: 0.985,
+            insideCoreOrbitPullScale: 0.42,
+            insideCoreRetainForce: 1.15,
             insideCoreRetainHeavyPower: 0.34,
-            insideCoreRetainRadiusScale: 0.58,
+            insideCoreRetainRadiusScale: 0.74,
+            insideCoreTangentialForce: 22,
+            innerHydrogenEscapeForce: 38,
+            innerProductOrbitAssist: 18,
             absorbClickRadiusBonus: 22,
-            levelAdvancePulseMass: 0.0
+            levelAdvancePulseMass: 0.0,
+
+            collapseCriticalMass: 100,
+            collapseBlackHoleMass: 118,
+            collapseNeutronStabilityMin: 28,
+            supernovaDuration: 3.2,
+            finalSpawnInterval: 0.72
         },
 
         nuclei: {
@@ -173,6 +183,11 @@
         hotPairs: [],
         invalidPairs: [],
         absorbedProducts: Object.create(null),
+        finalPhase: "fusion",
+        collapseMass: 0,
+        stability: 100,
+        supernovaTimer: 0,
+        endingType: "",
         pointer: {
             x: 0,
             y: 0,
@@ -195,7 +210,11 @@
         levelFlash: 0,
         lastReaction: "READY",
         absorbRoot: null,
-        recipeRoot: null
+        recipeRoot: null,
+        versionRoot: null,
+        unlockRoot: null,
+        unlockTimer: 0,
+        unlockName: ""
     };
 
     function clamp(value, min, max) {
@@ -230,6 +249,8 @@
     }
 
     function getPrimaryRecipe() {
+        if (state.finalPhase !== "fusion") return null;
+
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var reaction = CONFIG.reactions[i];
             if (!state.absorbedProducts[reaction.product]) {
@@ -237,6 +258,22 @@
             }
         }
         return CONFIG.reactions[CONFIG.reactions.length - 1];
+    }
+
+    function isFusionPhase() {
+        return state.finalPhase === "fusion";
+    }
+
+    function isCollapsePhase() {
+        return state.finalPhase === "collapse";
+    }
+
+    function isSupernovaPhase() {
+        return state.finalPhase === "supernova";
+    }
+
+    function isEndingPhase() {
+        return state.finalPhase === "ending";
     }
 
     function getUnlockedRecipeList() {
@@ -280,12 +317,12 @@
 
     function getCoreLevel() {
         var level = 1;
-        for (var i = 0; i < CONFIG.growthStages.length; i += 1) {
-            if (state.coreMass >= CONFIG.growthStages[i].mass) {
-                level = CONFIG.growthStages[i].level;
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            if (state.absorbedProducts[CONFIG.reactions[i].product]) {
+                level = Math.max(level, i + 2);
             }
         }
-        return level;
+        return clamp(level, 1, CONFIG.growthStages.length);
     }
 
     function getGrowthStage() {
@@ -423,6 +460,7 @@
             orbitRot: rand(-0.65, 0.65),
             orbitPhase: rand(0, Math.PI * 2),
             orbitSpeed: orbitSpeed,
+            synthesized: false,
             age: 0,
             unstable: !!nucleus.unstable
         };
@@ -439,6 +477,11 @@
         state.hotPairs = [];
         state.invalidPairs = [];
         state.absorbedProducts = Object.create(null);
+        state.finalPhase = "fusion";
+        state.collapseMass = 0;
+        state.stability = 100;
+        state.supernovaTimer = 0;
+        state.endingType = "";
         state.coreMass = CONFIG.game.initialCoreMass;
         state.coreLevel = 1;
         state.nextNodeId = 1;
@@ -446,6 +489,8 @@
         state.absorbUiTimer = 0;
         state.levelFlash = 0;
         state.lastReaction = "Feed H into the core";
+        state.unlockTimer = 0;
+        state.unlockName = "";
 
         state.nodes.push(createGameNode(0, "CORE", cx, cy, true));
 
@@ -474,13 +519,150 @@
         return count;
     }
 
-    function pickSpawnType() {
-        var level = getCoreLevel();
-        var roll = Math.random();
+    function countNodesByType(typeName) {
+        var count = 0;
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            if (!state.nodes[i].core && state.nodes[i].nucleusName === typeName) {
+                count += 1;
+            }
+        }
+        return count;
+    }
 
-        if (level >= 5 && roll > 0.965) return "He4";
-        if (level >= 3 && roll > 0.93) return "D";
-        return "H";
+    function hasAbsorbed(typeName) {
+        return !!state.absorbedProducts[typeName];
+    }
+
+    function isSpawnableSupport(typeName) {
+        if (typeName === "H") return true;
+        if (typeName === "D") return hasAbsorbed("D");
+        if (typeName === "He3") return hasAbsorbed("He3");
+        if (typeName === "He4") return hasAbsorbed("He4");
+        return hasAbsorbed(typeName);
+    }
+
+    function getCurrentRecipe() {
+        if (state.finalPhase !== "fusion") {
+            return null;
+        }
+
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            var reaction = CONFIG.reactions[i];
+            if (isReactionUnlocked(reaction) && !state.absorbedProducts[reaction.product]) {
+                return reaction;
+            }
+        }
+        return CONFIG.reactions[CONFIG.reactions.length - 1];
+    }
+
+    function pushWeightedSpawn(list, typeName, weight) {
+        if (weight <= 0) return;
+        if (!isSpawnableSupport(typeName)) return;
+        list.push({ type: typeName, weight: weight });
+    }
+
+    function pickWeightedSpawn(list) {
+        var total = 0;
+        for (var i = 0; i < list.length; i += 1) {
+            total += list[i].weight;
+        }
+        if (total <= 0) return "H";
+
+        var roll = Math.random() * total;
+        for (var j = 0; j < list.length; j += 1) {
+            roll -= list[j].weight;
+            if (roll <= 0) return list[j].type;
+        }
+
+        return list[list.length - 1].type;
+    }
+
+    function pickCollapseSpawnType() {
+        var list = [];
+
+        list.push({ type: "H", weight: 80 });
+        list.push({ type: "D", weight: 16 });
+        list.push({ type: "He3", weight: 10 });
+        list.push({ type: "He4", weight: 34 });
+        list.push({ type: "C12", weight: 14 });
+        list.push({ type: "O16", weight: 13 });
+        list.push({ type: "Si28", weight: 9 });
+        list.push({ type: "Fe52", weight: 7 });
+        list.push({ type: "Fe56", weight: 5 });
+
+        if (state.stability < 35) {
+            list.push({ type: "H", weight: 55 });
+            list.push({ type: "He4", weight: 28 });
+        }
+
+        if (state.collapseMass > 72) {
+            list.push({ type: "Fe56", weight: 8 });
+            list.push({ type: "Si28", weight: 8 });
+        }
+
+        return pickWeightedSpawn(list);
+    }
+
+    function pickSpawnType() {
+        if (isCollapsePhase()) {
+            return pickCollapseSpawnType();
+        }
+
+        var recipe = getCurrentRecipe();
+        var level = getCoreLevel();
+        var hCount = countNodesByType("H");
+        var dCount = countNodesByType("D");
+        var he4Count = countNodesByType("He4");
+        var list = [];
+
+        // Hydrogen stays the main fuel. On late stages we add helper nuclei,
+        // but we do not flood the field with D because too much D slows flow.
+        var hWeight = 100 + level * 7;
+        if (hCount < 8 + level) {
+            hWeight += 90;
+        }
+        pushWeightedSpawn(list, "H", hWeight);
+
+        if (level >= 2 && dCount < 2) {
+            pushWeightedSpawn(list, "D", 6);
+        }
+
+        if (level >= 3 && hasAbsorbed("He3")) {
+            pushWeightedSpawn(list, "He3", recipe.a === "He3" || recipe.b === "He3" ? 10 : 3);
+        }
+
+        if (level >= 4 && hasAbsorbed("He4")) {
+            var he4Need = recipe.a === "He4" || recipe.b === "He4";
+            var he4Weight = he4Need ? 24 : 10;
+            if (he4Count < 2) {
+                he4Weight += 24;
+            }
+            pushWeightedSpawn(list, "He4", he4Weight);
+        }
+
+        // After a heavy nucleus was discovered, it may reappear as a rare seed.
+        // This keeps late progression moving without making the game automatic.
+        if (level >= 5) {
+            if (recipe.a !== "He4") {
+                pushWeightedSpawn(list, recipe.a, 16);
+            }
+            if (recipe.b !== "He4") {
+                pushWeightedSpawn(list, recipe.b, 16);
+            }
+        }
+
+        // Very rare previous-stage helpers. These are only for recovery.
+        if (level >= 6) {
+            pushWeightedSpawn(list, "C12", 2);
+        }
+        if (level >= 7) {
+            pushWeightedSpawn(list, "O16", 2);
+        }
+        if (level >= 8) {
+            pushWeightedSpawn(list, "Ne20", 2);
+        }
+
+        return pickWeightedSpawn(list);
     }
 
     function spawnNucleus(nucleusName, origin) {
@@ -586,6 +768,9 @@
         }
 
         ensureRecipeUi();
+        ensureVersionUi();
+        ensureUnlockUi();
+        configureLegacyGameHud(true);
         hideAbsorbUi();
 
         if (document.documentElement.requestFullscreen) {
@@ -602,6 +787,9 @@
         state.invalidPairs = [];
         hideAbsorbUi();
         hideRecipeUi();
+        hideVersionUi();
+        hideUnlockUi();
+        configureLegacyGameHud(false);
         rebuildPortfolioNodes();
         updateGameStats();
 
@@ -737,11 +925,12 @@
             var dx = target.x - n.x;
             var dy = target.y - n.y;
 
+            var pd = Infinity;
             var controlDamp = 1.0;
             if (state.pointer.active) {
                 var pdx = n.x - state.pointer.x;
                 var pdy = n.y - state.pointer.y;
-                var pd = Math.sqrt(pdx * pdx + pdy * pdy);
+                pd = Math.sqrt(pdx * pdx + pdy * pdy);
                 var radius = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
                 if (pd < radius) {
                     var f = 1 - pd / radius;
@@ -750,33 +939,45 @@
             }
 
             if (insideCore) {
-                controlDamp *= CONFIG.game.insideCoreOrbitPullScale / Math.pow(Math.max(1, n.mass), 0.18);
+                controlDamp *= CONFIG.game.insideCoreOrbitPullScale;
             }
 
             var pull = CONFIG.game.orbitPullBase * controlDamp / Math.pow(Math.max(1, n.mass), 0.20);
             n.vx += dx * pull * dt;
             n.vy += dy * pull * dt;
 
-            if (insideCore) {
-                var cdx = core.x - n.x;
-                var cdy = core.y - n.y;
-                var cd = Math.sqrt(cdx * cdx + cdy * cdy) + 0.001;
-                var targetR = Math.max(
-                    coreRadius() + n.radius * CONFIG.game.visualScale + 28,
-                    fusionRadius() * CONFIG.game.insideCoreRetainRadiusScale
-                );
+            var cdx = core.x - n.x;
+            var cdy = core.y - n.y;
+            var cd = Math.sqrt(cdx * cdx + cdy * cdy) + 0.001;
+            var tx = -cdy / cd;
+            var ty = cdx / cd;
 
-                if (cd > targetR) {
-                    var retain = (cd - targetR) * CONFIG.game.insideCoreRetainForce * Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreRetainHeavyPower);
-                    n.vx += (cdx / cd) * retain * dt / Math.pow(Math.max(1, n.mass), 0.20);
-                    n.vy += (cdy / cd) * retain * dt / Math.pow(Math.max(1, n.mass), 0.20);
+            if (insideCore) {
+                var orbitAssist = CONFIG.game.insideCoreTangentialForce / Math.pow(Math.max(1, n.mass), 0.16);
+                n.vx += tx * orbitAssist * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+                n.vy += ty * orbitAssist * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+
+                if (n.synthesized && n.nucleusName !== "H") {
+                    var keep = CONFIG.game.innerProductOrbitAssist / Math.pow(Math.max(1, n.mass), 0.12);
+                    n.vx += (cdx / cd) * keep * dt;
+                    n.vy += (cdy / cd) * keep * dt;
+                }
+
+                if (!n.synthesized && n.nucleusName === "H" && pd > CONFIG.game.pointerRadius * 0.72) {
+                    var escape = CONFIG.game.innerHydrogenEscapeForce / Math.pow(Math.max(1, n.mass), 0.10);
+                    n.vx -= (cdx / cd) * escape * dt;
+                    n.vy -= (cdy / cd) * escape * dt;
+                }
+            } else if (!n.synthesized && n.nucleusName === "H") {
+                var minOrbit = fusionRadius() * 1.28;
+                if (cd < minOrbit && pd > CONFIG.game.pointerRadius * 0.65) {
+                    var away = (minOrbit - cd) * 0.85;
+                    n.vx -= (cdx / cd) * away * dt;
+                    n.vy -= (cdy / cd) * away * dt;
                 }
             }
 
             var noise = CONFIG.game.orbitNoise / Math.pow(Math.max(1, n.mass), 0.45);
-            if (insideCore) {
-                noise *= 0.45;
-            }
             n.vx += Math.sin(time * 0.0011 + n.pulse) * noise * dt;
             n.vy += Math.cos(time * 0.0009 + n.pulse) * noise * dt;
         }
@@ -787,6 +988,7 @@
     }
 
     function findReaction(a, b) {
+        if (!isFusionPhase()) return null;
         if (a.core || b.core) return null;
 
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
@@ -961,6 +1163,7 @@
         state.nextNodeId += 1;
         product.vx = vx + rand(-8, 8);
         product.vy = vy + rand(-8, 8);
+        product.synthesized = true;
         product.age = 0;
         state.nodes.push(product);
 
@@ -978,26 +1181,95 @@
     }
 
     function absorbNode(node) {
-        if (!node || node.core) return;
+        if (!isNodeAbsorbable(node)) return;
+
+        if (isCollapsePhase()) {
+            absorbCollapseNode(node);
+            return;
+        }
 
         var nucleus = getNucleus(node.nucleusName);
         var oldLevel = getCoreLevel();
+        var wasNew = !state.absorbedProducts[node.nucleusName];
         var value = nucleus.absorb || nucleus.mass || 1;
 
         state.coreMass += value;
         state.absorbedProducts[node.nucleusName] = (state.absorbedProducts[node.nucleusName] || 0) + 1;
-        state.lastReaction = "Absorbed " + nucleus.name + " +" + value.toFixed(1);
         removeNode(node);
-        addPulse(node.x, node.y, 130 + Math.min(240, value * 1.5));
+
+        if (wasNew) {
+            showUnlock(nucleus.name);
+            state.lastReaction = "Unlocked " + nucleus.name;
+        } else {
+            state.lastReaction = "Absorbed " + nucleus.name + " +" + value.toFixed(1);
+        }
+
+        addPulse(node.x, node.y, 150 + Math.min(260, value * 1.45));
 
         var newLevel = getCoreLevel();
         if (newLevel > oldLevel) {
             state.levelFlash = 1.0;
-            state.lastReaction = "Core stage " + newLevel + " unlocked";
+        }
+
+        if (node.nucleusName === "Fe56") {
+            triggerIronCoreCollapse();
         }
 
         updateAbsorbButtons(true);
         updateGameStats();
+    }
+
+    function getCollapseAbsorbValue(typeName) {
+        var nucleus = getNucleus(typeName);
+        var mass = nucleus.mass || 1;
+
+        if (typeName === "H") return { core: 0.25, collapse: 0.6, stability: 7.0 };
+        if (typeName === "D") return { core: 0.45, collapse: 0.9, stability: 9.0 };
+        if (typeName === "He3") return { core: 0.65, collapse: 1.2, stability: 8.0 };
+        if (typeName === "He4") return { core: 0.9, collapse: 1.8, stability: 6.0 };
+
+        if (mass >= 52) return { core: 5.0, collapse: 22.0, stability: -18.0 };
+        if (mass >= 40) return { core: 4.2, collapse: 17.0, stability: -13.0 };
+        if (mass >= 28) return { core: 3.4, collapse: 12.0, stability: -9.0 };
+        if (mass >= 16) return { core: 2.4, collapse: 7.2, stability: -5.0 };
+        if (mass >= 12) return { core: 1.8, collapse: 5.0, stability: -3.0 };
+
+        return { core: 1.0, collapse: 2.6, stability: 0.0 };
+    }
+
+    function absorbCollapseNode(node) {
+        var nucleus = getNucleus(node.nucleusName);
+        var effect = getCollapseAbsorbValue(node.nucleusName);
+
+        state.coreMass += effect.core;
+        state.collapseMass += effect.collapse;
+        state.stability = clamp(state.stability + effect.stability, 0, 100);
+        state.lastReaction = "Core feed " + nucleus.name;
+
+        removeNode(node);
+        addPulse(node.x, node.y, 170 + Math.min(260, effect.collapse * 6));
+
+        if (state.collapseMass >= CONFIG.game.collapseCriticalMass || state.stability <= 0) {
+            triggerSupernova();
+        }
+
+        updateAbsorbButtons(true);
+        updateGameStats();
+    }
+
+    function isNodeAbsorbable(n) {
+        if (!n || n.core) return false;
+        if (!isInsideFusionZone(n)) return false;
+
+        if (isCollapsePhase()) {
+            return true;
+        }
+
+        if (!isFusionPhase()) return false;
+
+        if (!n.synthesized) return false;
+        if (n.nucleusName === "H") return false;
+        return true;
     }
 
     function getAbsorbableNodesByType() {
@@ -1005,8 +1277,7 @@
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
-            if (n.core) continue;
-            if (!isInsideFusionZone(n)) continue;
+            if (!isNodeAbsorbable(n)) continue;
 
             if (!groups[n.nucleusName]) {
                 groups[n.nucleusName] = [];
@@ -1025,8 +1296,7 @@
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
-            if (n.core) continue;
-            if (!isInsideFusionZone(n)) continue;
+            if (!isNodeAbsorbable(n)) continue;
 
             var dx = x - n.x;
             var dy = y - n.y;
@@ -1059,19 +1329,19 @@
         root.id = "fusion-recipe-hud";
         root.style.position = "fixed";
         root.style.left = "50%";
-        root.style.top = "96px";
+        root.style.top = "18px";
         root.style.transform = "translateX(-50%)";
         root.style.zIndex = "12";
         root.style.display = "none";
-        root.style.minWidth = "min(420px, calc(100vw - 36px))";
-        root.style.padding = "10px 14px";
+        root.style.minWidth = "min(620px, calc(100vw - 36px))";
+        root.style.padding = "14px 18px";
         root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
         root.style.borderRadius = "18px";
         root.style.background = "rgba(5, 10, 16, 0.78)";
         root.style.backdropFilter = "blur(14px)";
         root.style.boxShadow = "0 16px 60px rgba(0, 0, 0, 0.36)";
         root.style.color = "rgba(215, 227, 244, 0.96)";
-        root.style.font = "800 13px SFMono-Regular, Consolas, monospace";
+        root.style.font = "800 14px SFMono-Regular, Consolas, monospace";
         root.style.letterSpacing = "0.06em";
         root.style.textAlign = "center";
         root.style.pointerEvents = "none";
@@ -1090,7 +1360,7 @@
         var n = getNucleus(name);
         var opacity = dimmed ? "0.38" : "0.92";
         var border = dimmed ? "0.16" : "0.46";
-        return "<span style='display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:30px;margin:0 4px;padding:0 10px;border-radius:999px;border:1px solid rgba(" + n.color + "," + border + ");background:rgba(" + n.color + ",0.14);color:rgba(235,245,255," + opacity + ");box-shadow:0 0 18px rgba(" + n.color + ",0.18);'>" + n.name + "</span>";
+        return "<span style='display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:38px;margin:0 4px;padding:0 13px;border-radius:999px;border:1px solid rgba(" + n.color + "," + border + ");background:rgba(" + n.color + ",0.14);color:rgba(235,245,255," + opacity + ");box-shadow:0 0 24px rgba(" + n.color + ",0.24);font-size:15px;'>" + n.name + "</span>";
     }
 
     function updateRecipeUi() {
@@ -1101,24 +1371,173 @@
 
         ensureRecipeUi();
 
+        if (isCollapsePhase()) {
+            var massPct = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass * 100, 0, 100);
+            var stabilityPct = clamp(state.stability, 0, 100);
+            state.recipeRoot.innerHTML = ""
+                + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;'>"
+                + "<span style='color:rgba(255,107,139,0.92);font-size:11px;letter-spacing:0.18em;'>IRON CORE</span>"
+                + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>FEED LIGHT = STABILITY / FEED HEAVY = COLLAPSE</span>"
+                + "</div>"
+                + finalBarHtml("Collapse", massPct, "255,107,139")
+                + finalBarHtml("Stability", stabilityPct, "143,214,255");
+            state.recipeRoot.style.display = "block";
+            return;
+        }
+
+        if (isSupernovaPhase()) {
+            state.recipeRoot.innerHTML = ""
+                + "<div style='text-align:center;color:rgba(255,245,190,0.98);font:900 24px Inter,Arial,sans-serif;letter-spacing:0.10em;'>SUPERNOVA</div>"
+                + "<div style='margin-top:8px;text-align:center;color:rgba(139,155,176,0.82);font:800 11px SFMono-Regular,Consolas,monospace;'>REMNANT: " + state.endingType + "</div>";
+            state.recipeRoot.style.display = "block";
+            return;
+        }
+
+        if (isEndingPhase()) {
+            state.recipeRoot.innerHTML = ""
+                + "<div style='text-align:center;color:rgba(255,209,102,0.92);font:900 11px SFMono-Regular,Consolas,monospace;letter-spacing:0.20em;'>FINAL REMNANT</div>"
+                + "<div style='margin-top:8px;text-align:center;color:rgba(235,245,255,0.98);font:900 26px Inter,Arial,sans-serif;letter-spacing:0.06em;'>" + state.endingType + "</div>";
+            state.recipeRoot.style.display = "block";
+            return;
+        }
+
         var recipe = getPrimaryRecipe();
         var unlocked = isReactionUnlocked(recipe);
-        var nextMass = getNextStageMass();
-        var massText = state.coreMass.toFixed(0) + "/" + nextMass.toFixed(0);
-        var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font-size:11px;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
+        var stage = getGrowthStage();
+        var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font-size:10px;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
         var html = ""
-            + "<div style='display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;'>"
+            + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px;'>"
+            + "<span style='color:rgba(143,214,255,0.86);font-size:11px;letter-spacing:0.18em;'>LV " + pad2(getCoreLevel()) + "</span>"
+            + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + stage.title + "</span>"
+            + "<span style='color:rgba(255,209,102,0.86);font-size:11px;'>M " + state.coreMass.toFixed(0) + "</span>"
+            + "</div>"
+            + "<div style='display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;'>"
             + nucleusChipHtml(recipe.a, !unlocked)
-            + "<span style='color:rgba(139,155,176,0.82);font-size:17px;'>+</span>"
+            + "<span style='color:rgba(139,155,176,0.82);font-size:20px;'>+</span>"
             + nucleusChipHtml(recipe.b, !unlocked)
-            + "<span style='color:rgba(255,209,102,0.92);font-size:18px;margin:0 2px;'>=> </span>"
+            + "<span style='color:rgba(255,209,102,0.95);font-size:24px;margin:0 4px;'>=> </span>"
             + nucleusChipHtml(recipe.product, !unlocked)
             + lockText
-            + "</div>"
-            + "<div style='margin-top:6px;color:rgba(139,155,176,0.82);font-size:10px;letter-spacing:0.12em;'>CORE " + massText + " / CLICK GLOWING NUCLEUS TO ABSORB</div>";
+            + "</div>";
 
         state.recipeRoot.innerHTML = html;
         state.recipeRoot.style.display = "block";
+    }
+
+    function finalBarHtml(label, pct, color) {
+        return ""
+            + "<div style='display:grid;grid-template-columns:88px 1fr 42px;align-items:center;gap:10px;margin:7px 0;'>"
+            + "<span style='color:rgba(139,155,176,0.86);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;text-transform:uppercase;'>" + label + "</span>"
+            + "<span style='height:9px;border:1px solid rgba(" + color + ",0.26);border-radius:999px;background:rgba(5,10,16,0.62);overflow:hidden;display:block;'>"
+            + "<i style='display:block;height:100%;width:" + pct.toFixed(1) + "%;background:linear-gradient(90deg,rgba(" + color + ",0.45),rgba(" + color + ",0.95));box-shadow:0 0 16px rgba(" + color + ",0.48);'></i>"
+            + "</span>"
+            + "<b style='color:rgba(215,227,244,0.86);font:900 10px SFMono-Regular,Consolas,monospace;text-align:right;'>" + pct.toFixed(0) + "%</b>"
+            + "</div>";
+    }
+
+    function configureLegacyGameHud(enabled) {
+        var stats = document.querySelectorAll(".game-stat");
+        for (var i = 0; i < stats.length; i += 1) {
+            stats[i].style.display = enabled ? "none" : "";
+        }
+
+        var progress = document.querySelector(".game-progress");
+        if (progress) progress.style.display = enabled ? "none" : "";
+
+        var topbar = document.querySelector(".game-topbar");
+        if (topbar) {
+            topbar.style.gridTemplateColumns = enabled ? "auto" : "";
+            topbar.style.justifyContent = enabled ? "end" : "";
+            topbar.style.pointerEvents = enabled ? "none" : "";
+        }
+
+        var exit = document.getElementById("exit-game");
+        if (exit) {
+            exit.style.minHeight = enabled ? "42px" : "";
+            exit.style.minWidth = enabled ? "78px" : "";
+            exit.style.padding = enabled ? "0 14px" : "";
+            exit.style.pointerEvents = "auto";
+        }
+    }
+
+    function ensureVersionUi() {
+        if (state.versionRoot) {
+            state.versionRoot.style.display = state.gameMode ? "block" : "none";
+            return;
+        }
+
+        var root = document.createElement("div");
+        root.id = "build-version-badge";
+        root.textContent = "build " + CONFIG.buildVersion;
+        root.style.position = "fixed";
+        root.style.left = "18px";
+        root.style.bottom = "18px";
+        root.style.zIndex = "12";
+        root.style.padding = "8px 10px";
+        root.style.border = "1px solid rgba(99, 166, 255, 0.16)";
+        root.style.borderRadius = "12px";
+        root.style.background = "rgba(5, 10, 16, 0.58)";
+        root.style.color = "rgba(139, 155, 176, 0.86)";
+        root.style.font = "700 11px SFMono-Regular, Consolas, monospace";
+        root.style.letterSpacing = "0.08em";
+        root.style.pointerEvents = "none";
+        root.style.display = "none";
+        document.body.appendChild(root);
+        state.versionRoot = root;
+    }
+
+    function hideVersionUi() {
+        if (state.versionRoot) state.versionRoot.style.display = "none";
+    }
+
+    function ensureUnlockUi() {
+        if (state.unlockRoot) return;
+
+        var root = document.createElement("div");
+        root.id = "unlock-banner";
+        root.style.position = "fixed";
+        root.style.left = "50%";
+        root.style.top = "42%";
+        root.style.transform = "translate(-50%, -50%)";
+        root.style.zIndex = "14";
+        root.style.pointerEvents = "none";
+        root.style.display = "none";
+        root.style.textAlign = "center";
+        root.style.padding = "20px 28px";
+        root.style.border = "1px solid rgba(255, 209, 102, 0.46)";
+        root.style.borderRadius = "24px";
+        root.style.background = "rgba(5, 10, 16, 0.76)";
+        root.style.backdropFilter = "blur(14px)";
+        root.style.boxShadow = "0 0 70px rgba(255, 209, 102, 0.22)";
+        document.body.appendChild(root);
+        state.unlockRoot = root;
+    }
+
+    function hideUnlockUi() {
+        if (state.unlockRoot) state.unlockRoot.style.display = "none";
+    }
+
+    function showUnlock(name) {
+        ensureUnlockUi();
+        state.unlockTimer = 2.2;
+        state.unlockName = name;
+        state.unlockRoot.innerHTML = ""
+            + "<div style='color:rgba(255,209,102,0.94);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.22em;margin-bottom:8px;'>NEW NUCLEUS</div>"
+            + "<div style='color:rgba(235,245,255,0.98);font:900 38px Inter,Arial,sans-serif;letter-spacing:0.02em;text-shadow:0 0 24px rgba(255,209,102,0.35);'>" + name + "</div>"
+            + "<div style='color:rgba(139,155,176,0.82);font:800 11px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;margin-top:8px;'>RECIPE UNLOCKED</div>";
+        state.unlockRoot.style.opacity = "1";
+        state.unlockRoot.style.display = "block";
+    }
+
+    function updateUnlockUi(dt) {
+        if (!state.unlockRoot || state.unlockTimer <= 0) return;
+        state.unlockTimer -= dt;
+        var t = clamp(state.unlockTimer / 2.2, 0, 1);
+        state.unlockRoot.style.opacity = String(clamp(t * 1.35, 0, 1));
+        state.unlockRoot.style.transform = "translate(-50%, -50%) scale(" + (1 + (1 - t) * 0.08).toFixed(3) + ")";
+        if (state.unlockTimer <= 0) {
+            state.unlockRoot.style.display = "none";
+        }
     }
 
     function ensureAbsorbUi() {
@@ -1238,7 +1657,11 @@
         state.spawnTimer -= dt;
         if (state.spawnTimer > 0) return;
 
-        state.spawnTimer = Math.max(0.38, CONFIG.game.spawnInterval - Math.sqrt(state.coreMass) * 0.014);
+        if (isCollapsePhase()) {
+            state.spawnTimer = CONFIG.game.finalSpawnInterval;
+        } else {
+            state.spawnTimer = Math.max(0.38, CONFIG.game.spawnInterval - Math.sqrt(state.coreMass) * 0.014);
+        }
         spawnNucleus(pickSpawnType(), null);
     }
 
@@ -1265,6 +1688,9 @@
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
+                if (n.synthesized && n.nucleusName !== "H") {
+                    maxSpeed *= 1.18;
+                }
             }
             var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
             if (speed > maxSpeed) {
@@ -1331,17 +1757,105 @@
         }
     }
 
+    function triggerIronCoreCollapse() {
+        if (!isFusionPhase()) return;
+
+        state.finalPhase = "collapse";
+        state.collapseMass = 0;
+        state.stability = 76;
+        state.supernovaTimer = 0;
+        state.endingType = "";
+        state.lastReaction = "IRON CORE COLLAPSE";
+        state.levelFlash = 1.0;
+
+        showUnlock("IRON CORE");
+        addPulse(getCore().x, getCore().y, 300);
+    }
+
+    function triggerSupernova() {
+        if (!isCollapsePhase()) return;
+
+        state.finalPhase = "supernova";
+        state.supernovaTimer = CONFIG.game.supernovaDuration;
+        state.endingType = chooseEndingType();
+        state.lastReaction = "SUPERNOVA";
+
+        showUnlock("SUPERNOVA");
+        addPulse(getCore().x, getCore().y, 520);
+    }
+
+    function chooseEndingType() {
+        if (state.stability <= CONFIG.game.collapseNeutronStabilityMin) {
+            return "BLACK HOLE";
+        }
+        if (state.collapseMass >= CONFIG.game.collapseBlackHoleMass) {
+            return "BLACK HOLE";
+        }
+        return "NEUTRON STAR";
+    }
+
+    function updateSupernova(dt) {
+        state.supernovaTimer -= dt;
+        state.collapseMass = Math.min(CONFIG.game.collapseBlackHoleMass, state.collapseMass + dt * 4.0);
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+
+            var core = getCore();
+            var dx = n.x - core.x;
+            var dy = n.y - core.y;
+            var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+            var push = 420 * dt / Math.pow(Math.max(1, n.mass), 0.32);
+            n.vx += (dx / d) * push;
+            n.vy += (dy / d) * push;
+        }
+
+        integrateGameNodes(dt);
+
+        if (state.supernovaTimer <= 0) {
+            state.finalPhase = "ending";
+            state.lastReaction = state.endingType + " FORMED";
+            state.nodes = state.nodes.length > 0 ? [state.nodes[0]] : state.nodes;
+            showUnlock(state.endingType);
+        }
+    }
+
     function updateGamePhysics(dt, time) {
         state.absorbUiTimer -= dt;
+        updateUnlockUi(dt);
         state.levelFlash = Math.max(0, state.levelFlash - dt * 1.8);
+
+        if (isEndingPhase()) {
+            updateAbsorbButtons(false);
+            return;
+        }
+
+        if (isSupernovaPhase()) {
+            updateSupernova(dt);
+            updateAbsorbButtons(false);
+            return;
+        }
 
         updateSpawner(dt);
         applyOrbitForces(dt, time);
         applyGamePointerForces(dt);
         applyPulseForces(dt);
-        applyPairForcesAndFusion(dt);
+
+        if (isFusionPhase()) {
+            applyPairForcesAndFusion(dt);
+        } else {
+            state.hotPairs = [];
+            state.invalidPairs = [];
+            state.linkCount = 0;
+        }
+
         integrateGameNodes(dt);
-        decayUnstableNuclei();
+
+        if (isFusionPhase()) {
+            decayUnstableNuclei();
+        }
+
         updateAbsorbButtons(false);
     }
 
@@ -1350,6 +1864,14 @@
 
         var level = getCoreLevel();
         var darkness = clamp(0.62 - level * 0.026, 0.32, 0.62);
+
+        if (isCollapsePhase()) {
+            darkness = 0.42;
+        } else if (isSupernovaPhase()) {
+            darkness = 0.22;
+        } else if (isEndingPhase()) {
+            darkness = state.endingType === "BLACK HOLE" ? 0.78 : 0.34;
+        }
 
         ctx.save();
         ctx.fillStyle = "rgba(0, 0, 0, " + darkness.toFixed(4) + ")";
@@ -1404,11 +1926,23 @@
         var cr = coreRadius();
         var level = getCoreLevel();
         var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.coreMass) * 0.006, 0.12, 0.48);
+        var coreColor = "255, 209, 102";
+
+        if (isCollapsePhase()) {
+            coreColor = "255, 107, 139";
+            glow = 0.42 + (1 - state.stability / 100) * 0.26;
+        } else if (isSupernovaPhase()) {
+            coreColor = "255, 245, 190";
+            glow = 0.92;
+        } else if (isEndingPhase()) {
+            coreColor = state.endingType === "BLACK HOLE" ? "8, 12, 20" : "143, 214, 255";
+            glow = state.endingType === "BLACK HOLE" ? 0.42 : 0.72;
+        }
 
         ctx.save();
 
         var gradient = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, fr);
-        gradient.addColorStop(0, "rgba(255, 209, 102, " + glow.toFixed(4) + ")");
+        gradient.addColorStop(0, "rgba(" + coreColor + ", " + glow.toFixed(4) + ")");
         gradient.addColorStop(0.32, "rgba(99, 166, 255, 0.075)");
         gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
         ctx.fillStyle = gradient;
@@ -1416,7 +1950,7 @@
         ctx.arc(core.x, core.y, fr, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "rgba(255, 209, 102, 0.22)";
+        ctx.strokeStyle = isCollapsePhase() ? "rgba(255, 107, 139, 0.34)" : "rgba(255, 209, 102, 0.22)";
         ctx.lineWidth = 1;
         ctx.setLineDash([6, 10]);
         ctx.beginPath();
@@ -1426,16 +1960,27 @@
         ctx.setLineDash([]);
         ctx.beginPath();
         ctx.arc(core.x, core.y, cr, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(255, 209, 102, 0.62)";
-        ctx.shadowColor = "rgba(255, 209, 102, 0.58)";
-        ctx.shadowBlur = 26 + level * 4;
-        ctx.fill();
 
+        if (isEndingPhase() && state.endingType === "BLACK HOLE") {
+            var black = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, cr * 2.2);
+            black.addColorStop(0, "rgba(0, 0, 0, 1)");
+            black.addColorStop(0.62, "rgba(2, 5, 12, 1)");
+            black.addColorStop(0.72, "rgba(255, 160, 82, 0.75)");
+            black.addColorStop(1, "rgba(255, 107, 139, 0)");
+            ctx.fillStyle = black;
+            ctx.shadowColor = "rgba(255, 107, 139, 0.62)";
+            ctx.shadowBlur = 38;
+        } else {
+            ctx.fillStyle = "rgba(" + coreColor + ", 0.68)";
+            ctx.shadowColor = "rgba(" + coreColor + ", 0.58)";
+            ctx.shadowBlur = isEndingPhase() ? 58 : 26 + level * 4;
+        }
+
+        ctx.fill();
         ctx.shadowBlur = 0;
         ctx.strokeStyle = "rgba(255, 245, 190, 0.64)";
         ctx.lineWidth = 1.4;
         ctx.stroke();
-
 
         ctx.restore();
     }
@@ -1541,7 +2086,7 @@
             var radius = (n.radius || n.size || 2) * (state.gameMode ? CONFIG.game.visualScale : 1.0);
             var size = radius + pulse * (state.gameMode ? 1.35 : 0.8);
             var alpha = state.gameMode ? 0.84 : 0.42;
-            var absorbable = state.gameMode && isInsideFusionZone(n);
+            var absorbable = state.gameMode && isNodeAbsorbable(n);
 
             if (n.unstable) {
                 alpha = 0.56 + Math.sin(time * 0.018) * 0.18;
@@ -1639,6 +2184,47 @@
         ctx.restore();
     }
 
+    function drawSupernovaOverlay(time) {
+        if (!state.gameMode) return;
+        if (!isSupernovaPhase() && !isEndingPhase()) return;
+
+        var core = getCore();
+        if (!core) return;
+
+        ctx.save();
+
+        if (isSupernovaPhase()) {
+            var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+            for (var i = 0; i < 4; i += 1) {
+                var r = (t * 900) + i * 120;
+                ctx.beginPath();
+                ctx.arc(core.x, core.y, r, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 209, 102, " + (0.42 * (1 - t) / (i + 1)).toFixed(4) + ")";
+                ctx.lineWidth = 2 + i;
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = "rgba(255, 245, 190, " + (0.26 * (1 - Math.abs(t - 0.45))).toFixed(4) + ")";
+            ctx.fillRect(0, 0, state.width, state.height);
+        }
+
+        if (isEndingPhase()) {
+            ctx.textAlign = "center";
+            ctx.font = "900 46px Inter, Arial, sans-serif";
+            ctx.fillStyle = state.endingType === "BLACK HOLE" ? "rgba(255, 180, 130, 0.98)" : "rgba(180, 225, 255, 0.98)";
+            ctx.shadowColor = state.endingType === "BLACK HOLE" ? "rgba(255, 107, 139, 0.55)" : "rgba(143, 214, 255, 0.55)";
+            ctx.shadowBlur = 28;
+            ctx.fillText(state.endingType, state.width * 0.5, state.height * 0.5 - 92);
+
+            ctx.font = "800 13px SFMono-Regular, Consolas, monospace";
+            ctx.fillStyle = "rgba(215, 227, 244, 0.78)";
+            ctx.shadowBlur = 0;
+            ctx.fillText("SUPERNOVA REMNANT FORMED", state.width * 0.5, state.height * 0.5 - 58);
+        }
+
+        ctx.restore();
+    }
+
     function updateMetrics() {
         var input = "IDLE";
         if (state.pointer.down) {
@@ -1672,7 +2258,15 @@
         }
 
         if (dom.gameMessage && state.gameMode) {
-            dom.gameMessage.textContent = state.lastReaction + " | Heavy products feed the core better than raw H.";
+            if (isCollapsePhase()) {
+                dom.gameMessage.textContent = state.lastReaction + " | Light nuclei raise stability. Heavy nuclei drive collapse.";
+            } else if (isSupernovaPhase()) {
+                dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
+            } else if (isEndingPhase()) {
+                dom.gameMessage.textContent = "Final remnant formed: " + state.endingType;
+            } else {
+                dom.gameMessage.textContent = state.lastReaction + " | Click glowing fused nuclei to absorb. Raw H is fuel, not food.";
+            }
         }
 
         updateRecipeUi();
@@ -1736,6 +2330,7 @@
         }
 
         drawNodes(time);
+        drawSupernovaOverlay(time);
         updateGameStats();
 
         window.requestAnimationFrame(frame);
