@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.12-iron-core-eject",
+        buildVersion: "0.11.14-particle-gradient",
 
         portfolio: {
             minNodes: 48,
@@ -95,13 +95,13 @@
             supernovaDuration: 4.4,
             finalSpawnInterval: 3.12,
 
-            ironCoreInfallForce: 58,
+            ironCoreInfallForce: 82,
             ironCoreInfallHeavyBoost: 0.82,
             ironCoreTangentialForce: 9,
-            ironCoreDeflectRadius: 108,
-            ironCoreDeflectPushRadius: 108,
-            ironCoreDeflectForce: 320,
-            ironCoreDeflectPushForce: 320,
+            ironCoreDeflectRadius: 85,
+            ironCoreDeflectPushRadius: 85,
+            ironCoreDeflectForce: 300,
+            ironCoreDeflectPushForce: 300,
             ironCoreDeflectMotionForce: 1.45,
             ironCorePaddleCooldown: 0.10,
             ironCoreDeflectHoldForce: 980,
@@ -114,23 +114,30 @@
 
         nuclei: {
             CORE: { name: "CORE", mass: 9999, radius: 7.0, color: "143, 214, 255", absorb: 0 },
-            H: { name: "H", mass: 1, radius: 2.7, color: "99, 166, 255", absorb: 0.6 },
-            D: { name: "D", mass: 2, radius: 3.0, color: "126, 242, 176", absorb: 1.7 },
-            He3: { name: "He3", mass: 3, radius: 3.4, color: "120, 210, 255", absorb: 3.4 },
-            He4: { name: "He4", mass: 4, radius: 3.7, color: "255, 209, 102", absorb: 8.5 },
-            Be8: { name: "Be8", mass: 8, radius: 4.3, color: "255, 160, 82", absorb: 13.0, unstable: true },
-            C12: { name: "C12", mass: 12, radius: 4.7, color: "185, 148, 255", absorb: 32.0 },
-            O16: { name: "O16", mass: 16, radius: 5.0, color: "255, 116, 116", absorb: 52.0 },
-            Ne20: { name: "Ne20", mass: 20, radius: 5.3, color: "125, 190, 255", absorb: 74.0 },
-            Mg24: { name: "Mg24", mass: 24, radius: 5.6, color: "120, 220, 190", absorb: 98.0 },
-            Si28: { name: "Si28", mass: 28, radius: 5.9, color: "255, 145, 77", absorb: 130.0 },
-            S32: { name: "S32", mass: 32, radius: 6.1, color: "255, 230, 96", absorb: 164.0 },
-            Ar36: { name: "Ar36", mass: 36, radius: 6.3, color: "145, 210, 255", absorb: 202.0 },
-            Ca40: { name: "Ca40", mass: 40, radius: 6.5, color: "160, 255, 180", absorb: 245.0 },
-            Ti44: { name: "Ti44", mass: 44, radius: 6.7, color: "210, 180, 255", absorb: 292.0 },
-            Cr48: { name: "Cr48", mass: 48, radius: 6.9, color: "190, 190, 210", absorb: 344.0 },
-            Fe52: { name: "Fe52", mass: 52, radius: 7.1, color: "255, 120, 120", absorb: 402.0 },
-            Fe56: { name: "Fe56", mass: 56, radius: 7.3, color: "255, 107, 139", absorb: 470.0 }
+
+            // Gameplay visual gradient:
+            // light/stability nuclei are smaller and cold-blue;
+            // balanced nuclei move through white/yellow;
+            // mass/collapse nuclei become larger and redder.
+            H: { name: "H", mass: 1, radius: 3.1, color: "170, 230, 255", absorb: 0.6 },
+            D: { name: "D", mass: 2, radius: 3.2, color: "159, 224, 252", absorb: 1.7 },
+            He3: { name: "He3", mass: 3, radius: 3.3, color: "148, 219, 249", absorb: 3.4 },
+            He4: { name: "He4", mass: 4, radius: 3.4, color: "138, 213, 246", absorb: 8.5 },
+
+            Be8: { name: "Be8", mass: 8, radius: 3.8, color: "156, 219, 232", absorb: 13.0, unstable: true },
+            C12: { name: "C12", mass: 12, radius: 4.1, color: "180, 225, 214", absorb: 32.0 },
+            O16: { name: "O16", mass: 16, radius: 4.5, color: "207, 231, 192", absorb: 52.0 },
+            Ne20: { name: "Ne20", mass: 20, radius: 4.8, color: "232, 226, 165", absorb: 74.0 },
+            Mg24: { name: "Mg24", mass: 24, radius: 5.2, color: "248, 212, 132", absorb: 98.0 },
+
+            Si28: { name: "Si28", mass: 28, radius: 5.6, color: "255, 190, 104", absorb: 130.0 },
+            S32: { name: "S32", mass: 32, radius: 5.9, color: "253, 165, 88", absorb: 164.0 },
+            Ar36: { name: "Ar36", mass: 36, radius: 6.3, color: "246, 138, 78", absorb: 202.0 },
+            Ca40: { name: "Ca40", mass: 40, radius: 6.7, color: "232, 111, 72", absorb: 245.0 },
+            Ti44: { name: "Ti44", mass: 44, radius: 7.1, color: "211, 84, 69", absorb: 292.0 },
+            Cr48: { name: "Cr48", mass: 48, radius: 7.5, color: "188, 63, 67", absorb: 344.0 },
+            Fe52: { name: "Fe52", mass: 52, radius: 8.3, color: "158, 43, 61", absorb: 402.0 },
+            Fe56: { name: "Fe56", mass: 56, radius: 9.1, color: "118, 24, 44", absorb: 470.0 }
         },
 
         growthStages: [
@@ -990,7 +997,7 @@
             var fallDx = cx - node.x;
             var fallDy = cy - node.y;
             var fallD = Math.sqrt(fallDx * fallDx + fallDy * fallDy) + 0.001;
-            var fallSpeed = rand(18.0, 34.0) / Math.pow(Math.max(1, node.mass), 0.08);
+            var fallSpeed = rand(26.0, 48.0) / Math.pow(Math.max(1, node.mass), 0.08);
             var tangentSign = Math.random() < 0.5 ? -1 : 1;
             var tangent = rand(5.0, 18.0) * tangentSign;
 
@@ -2356,7 +2363,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (isCollapsePhase()) {
-                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 7.0 : 0.62;
+                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 7.0 : 0.92;
             }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
@@ -2567,9 +2574,9 @@ function getFusionAbsorbProfileValue(typeName) {
     function applyIronCoreDeflection(dt) {
         if (!state.pointer.active) return;
 
-        var core = getCore();
         var radius = CONFIG.game.ironCoreDeflectRadius;
         var hitSpeed = CONFIG.game.ironCoreDeflectForce;
+        var pointerSpeed = Math.sqrt(state.pointer.vx * state.pointer.vx + state.pointer.vy * state.pointer.vy);
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
@@ -2583,55 +2590,39 @@ function getFusionAbsorbProfileValue(typeName) {
             var t = 1 - d / radius;
             var falloff = Math.pow(t, 0.70);
             var massScale = Math.pow(Math.max(1, n.mass), 0.025);
-            var nx = dx / d;
-            var ny = dy / d;
+            var hitX;
+            var hitY;
 
-            if (core) {
-                var ox = n.x - core.x;
-                var oy = n.y - core.y;
-                var od = Math.sqrt(ox * ox + oy * oy) + 0.001;
-                ox /= od;
-                oy /= od;
-
-                var dot = nx * ox + ny * oy;
-                if (dot < 0.35) {
-                    var blend = clamp((0.35 - dot) / 1.35, 0, 1);
-                    nx = nx * (1 - blend) + ox * blend;
-                    ny = ny * (1 - blend) + oy * blend;
-                    var nd = Math.sqrt(nx * nx + ny * ny) + 0.001;
-                    nx /= nd;
-                    ny /= nd;
-                }
+            if (pointerSpeed > 1.8) {
+                hitX = state.pointer.vx / pointerSpeed;
+                hitY = state.pointer.vy / pointerSpeed;
+            } else {
+                hitX = dx / d;
+                hitY = dy / d;
             }
 
             var hold = CONFIG.game.ironCoreDeflectHoldForce * falloff / massScale;
-            n.vx += nx * hold * dt;
-            n.vy += ny * hold * dt;
+            n.vx += hitX * hold * dt;
+            n.vy += hitY * hold * dt;
 
             if (n.paddleCooldown && n.paddleCooldown > 0) {
                 continue;
             }
 
-            var motionX = 0;
-            var motionY = 0;
-            if (state.pointer.speed > 0.25) {
-                motionX = clamp(state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce, -150, 150);
-                motionY = clamp(state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce, -150, 150);
-            }
+            var pointerBoost = clamp(pointerSpeed * 0.36, 0, 95);
+            var speed = (hitSpeed + pointerBoost) * (0.62 + falloff * 1.10) / massScale;
+            var currentInHitDir = n.vx * hitX + n.vy * hitY;
+            var desired = Math.max(currentInHitDir, speed);
 
-            var speed = hitSpeed * (0.62 + falloff * 1.10) / massScale;
-            var currentOut = n.vx * nx + n.vy * ny;
-            var desiredOut = Math.max(currentOut, speed);
-
-            var tangentX = -ny;
-            var tangentY = nx;
+            var tangentX = -hitY;
+            var tangentY = hitX;
             var currentTangent = n.vx * tangentX + n.vy * tangentY;
-            var keepTangent = currentTangent * 0.22;
+            var keepTangent = currentTangent * 0.18;
 
-            n.vx = nx * desiredOut + tangentX * keepTangent + motionX;
-            n.vy = ny * desiredOut + tangentY * keepTangent + motionY;
+            n.vx = hitX * desired + tangentX * keepTangent;
+            n.vy = hitY * desired + tangentY * keepTangent;
 
-            n.deflectedTimer = 3.4;
+            n.deflectedTimer = 3.0;
             n.paddleCooldown = CONFIG.game.ironCorePaddleCooldown;
         }
     }
@@ -3264,7 +3255,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = "IRON CORE FILTER: move the cursor through unwanted nuclei to eject them. Click charge is disabled here.";
+                dom.gameMessage.textContent = "IRON CORE FILTER: sweep the cursor to direct nuclei. Push unwanted ones out or nudge useful ones inward.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
