@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.6-core-zone-growth",
+        buildVersion: "0.11.8-paddle-deflect",
 
         portfolio: {
             minNodes: 48,
@@ -93,19 +93,21 @@
             collapseBlackHoleMass: 380,
             collapseNeutronStabilityMin: 50,
             supernovaDuration: 4.4,
-            finalSpawnInterval: 1.25,
+            finalSpawnInterval: 0.78,
 
-            ironCoreInfallForce: 42,
+            ironCoreInfallForce: 58,
             ironCoreInfallHeavyBoost: 0.82,
-            ironCoreTangentialForce: 11,
-            ironCoreDeflectRadius: 163,
-            ironCoreDeflectPushRadius: 237,
-            ironCoreDeflectForce: 3750,
-            ironCoreDeflectPushForce: 7350,
-            ironCoreDeflectMotionForce: 90,
+            ironCoreTangentialForce: 9,
+            ironCoreDeflectRadius: 145,
+            ironCoreDeflectPushRadius: 205,
+            ironCoreDeflectForce: 64,
+            ironCoreDeflectPushForce: 112,
+            ironCoreDeflectMotionForce: 1.15,
+            ironCorePaddleCooldown: 0.16,
+            ironCoreDeflectHoldForce: 260,
             ironCoreAutoAbsorbPadding: 6,
             ironCoreMaxAutoAbsorbsPerFrame: 1,
-            ironCoreAbsorbRadiusScale: 0.58,
+            ironCoreAbsorbRadiusScale: 0.92,
             ironCoreEscapeMargin: 160
         },
 
@@ -345,10 +347,10 @@
 
         if (isCollapsePhase()) {
             var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
-            radius *= 1.12 + collapse01 * 0.34;
+            radius *= 1.20 + collapse01 * 0.28;
 
             if (state.ironCoreEntryCoreRadius > 0) {
-                radius = Math.max(radius, state.ironCoreEntryCoreRadius * (1.03 + collapse01 * 0.18));
+                radius = Math.max(radius, state.ironCoreEntryCoreRadius * (1.55 + collapse01 * 0.18));
             }
         } else if (isSupernovaPhase()) {
             var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
@@ -364,7 +366,7 @@
         return clamp(
             radius,
             CONFIG.game.coreRadiusBase,
-            isFusionPhase() ? 260 : 420
+            isFusionPhase() ? 260 : 520
         );
     }
 
@@ -987,9 +989,9 @@
             var fallDx = cx - node.x;
             var fallDy = cy - node.y;
             var fallD = Math.sqrt(fallDx * fallDx + fallDy * fallDy) + 0.001;
-            var fallSpeed = rand(7.5, 16.0) / Math.pow(Math.max(1, node.mass), 0.10);
+            var fallSpeed = rand(18.0, 34.0) / Math.pow(Math.max(1, node.mass), 0.08);
             var tangentSign = Math.random() < 0.5 ? -1 : 1;
-            var tangent = rand(-7.0, 7.0) * tangentSign;
+            var tangent = rand(5.0, 18.0) * tangentSign;
 
             node.vx = (fallDx / fallD) * fallSpeed + (-fallDy / fallD) * tangent;
             node.vy = (fallDy / fallD) * fallSpeed + (fallDx / fallD) * tangent;
@@ -2317,6 +2319,9 @@ function getFusionAbsorbProfileValue(typeName) {
             if (n.deflectedTimer && n.deflectedTimer > 0) {
                 n.deflectedTimer = Math.max(0, n.deflectedTimer - dt);
             }
+            if (n.paddleCooldown && n.paddleCooldown > 0) {
+                n.paddleCooldown = Math.max(0, n.paddleCooldown - dt);
+            }
 
             var insideCoreZone = isInsideFusionZone(n);
             var damping = insideCoreZone ? CONFIG.game.insideCoreDamping : CONFIG.game.baseDamping;
@@ -2328,7 +2333,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (isCollapsePhase()) {
-                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 2.35 : 0.44;
+                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 4.2 : 0.62;
             }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
@@ -2460,18 +2465,13 @@ function getFusionAbsorbProfileValue(typeName) {
     }
 
     function prepareIronCoreField() {
+        var core = getCore();
+
+        state.nodes = core ? [core] : state.nodes;
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
         state.invalidPairs = [];
-
-        var seeds = ["H", "H", "He4", "He4", "C12", "O16", "Si28", "Fe52"];
-
-        for (var i = 0; i < seeds.length; i += 1) {
-            if (countNonCoreNodes() < particleCapacity() + 8) {
-                spawnNucleus(seeds[i], null);
-            }
-        }
-
+        state.linkCount = 0;
         state.spawnTimer = 0.18;
     }
 
@@ -2486,19 +2486,16 @@ function getFusionAbsorbProfileValue(typeName) {
         var total = countNonCoreNodes();
         var cap = particleCapacity();
 
-        if (light < 4 && heavy >= 5 && total <= cap + 10) {
-            var support = light < 2 ? ["H", "He4"] : ["H"];
-            for (var i = 0; i < support.length; i += 1) {
-                spawnNucleus(support[i], null);
-            }
+        if (light < 3 && heavy >= 5 && total <= cap + 6) {
+            spawnNucleus(light < 1 ? "He4" : "H", null);
             state.lastReaction = "Light support injected";
-            state.ironCoreSupportTimer = 2.4;
+            state.ironCoreSupportTimer = 3.2;
             return;
         }
 
-        if (total >= cap && light < 3 && total <= cap + 6) {
+        if (total >= cap && light < 2 && total <= cap + 4) {
             spawnNucleus("H", null);
-            state.ironCoreSupportTimer = 2.8;
+            state.ironCoreSupportTimer = 3.6;
             return;
         }
 
@@ -2543,7 +2540,7 @@ function getFusionAbsorbProfileValue(typeName) {
         if (!state.pointer.active) return;
 
         var radius = state.pointer.down ? CONFIG.game.ironCoreDeflectPushRadius : CONFIG.game.ironCoreDeflectRadius;
-        var strength = state.pointer.down ? CONFIG.game.ironCoreDeflectPushForce : CONFIG.game.ironCoreDeflectForce;
+        var hitSpeed = state.pointer.down ? CONFIG.game.ironCoreDeflectPushForce : CONFIG.game.ironCoreDeflectForce;
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
@@ -2555,21 +2552,42 @@ function getFusionAbsorbProfileValue(typeName) {
             if (d > radius) continue;
 
             var t = 1 - d / radius;
-            var falloff = Math.pow(t, 1.35);
-            var massScale = Math.pow(Math.max(1, n.mass), 0.20);
-            var force = strength * falloff / massScale;
+            var falloff = Math.pow(t, 0.55);
+            var massScale = Math.pow(Math.max(1, n.mass), 0.11);
+            var nx = dx / d;
+            var ny = dy / d;
 
-            n.vx += (dx / d) * force * dt;
-            n.vy += (dy / d) * force * dt;
+            // A small continuous hold force keeps the paddle feeling solid,
+            // but the main effect is the cooldown-gated direct hit below.
+            var hold = CONFIG.game.ironCoreDeflectHoldForce * falloff / massScale;
+            n.vx += nx * hold * dt;
+            n.vy += ny * hold * dt;
 
-            if (falloff > 0.08) {
-                n.deflectedTimer = 1.65;
+            if (n.paddleCooldown && n.paddleCooldown > 0) {
+                continue;
             }
 
+            var motionX = 0;
+            var motionY = 0;
             if (state.pointer.speed > 0.25) {
-                n.vx += state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
-                n.vy += state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
+                motionX = clamp(state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce, -92, 92);
+                motionY = clamp(state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce, -92, 92);
             }
+
+            var speed = hitSpeed * (0.48 + falloff * 0.82) / massScale;
+            var currentOut = n.vx * nx + n.vy * ny;
+            var desiredOut = Math.max(currentOut, speed);
+
+            var tangentX = -ny;
+            var tangentY = nx;
+            var currentTangent = n.vx * tangentX + n.vy * tangentY;
+            var keepTangent = currentTangent * 0.35;
+
+            n.vx = nx * desiredOut + tangentX * keepTangent + motionX;
+            n.vy = ny * desiredOut + tangentY * keepTangent + motionY;
+
+            n.deflectedTimer = 2.2;
+            n.paddleCooldown = CONFIG.game.ironCorePaddleCooldown;
         }
     }
 
@@ -2787,9 +2805,6 @@ function getFusionAbsorbProfileValue(typeName) {
 
         var fr = fusionRadius();
         var cr = coreRadius();
-        if (isCollapsePhase()) {
-            cr *= 1.9;
-        }
         var level = getCoreLevel();
         var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.visualCoreMass) * 0.006, 0.12, 0.48);
         var coreColor = getStarProfileCoreColor();
@@ -3204,7 +3219,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = "IRON CORE FILTER: nuclei fall from the edges. Deflect what you do not want to feed; escaped particles are discarded.";
+                dom.gameMessage.textContent = "IRON CORE FILTER: paddle-hit unwanted nuclei away from the star. Click/hold gives a harder hit.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
