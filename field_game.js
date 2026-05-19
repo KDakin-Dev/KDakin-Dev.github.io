@@ -3,6 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
+
         portfolio: {
             minNodes: 48,
             maxNodes: 130,
@@ -14,35 +15,66 @@
             pointerForce: 170,
             pointerPushForce: 360
         },
+
         game: {
-            baseNodes: 5,
-            nodesPerLevel: 3,
-            maxNodes: 42,
-            baseTarget: 4,
-            targetPerLevel: 2,
-            linkDistance: 165,
-            collectRadius: 12,
             playAreaLeft: 18,
             playAreaRight: 18,
             playAreaTop: 124,
             playAreaBottom: 26,
-            chaosStart: 1.25,
-            chaosDecayPerLevel: 0.08,
-            chaosMin: 0.42,
-            orbitPullBase: 0.15,
-            orbitPullPerLevel: 0.035,
-            orbitPullMax: 0.48,
-            speedBase: 70,
-            speedPerLevel: 7,
-            levelAdvanceDelayMs: 260
+
+            connectDistance: 76,
+            meshDistance: 96,
+            collectDelayMs: 850,
+
+            pointerRadius: 150,
+            pointerPushRadius: 235,
+            pointerForce: 230,
+            pointerPushForce: 520,
+            pulseForce: 210,
+
+            springStiffness: 8.5,
+            springDamping: 1.15,
+            coreSpringBonus: 1.25,
+
+            baseDamping: 0.987,
+            connectedDamping: 0.982,
+            maxSpeedBase: 46,
+            maxSpeedPerLevel: 2.0,
+            spawnSpeedBase: 5.5,
+            spawnSpeedPerLevel: 0.55,
+
+            previewAlpha: 0.13,
+            bondAlpha: 0.72
         },
-        atoms: [
-            { name: "H", mass: 1, radius: 2.2, color: "99, 166, 255", unlock: 1 },
-            { name: "He", mass: 4, radius: 2.8, color: "126, 242, 176", unlock: 2 },
-            { name: "C", mass: 12, radius: 3.4, color: "180, 136, 255", unlock: 3 },
-            { name: "O", mass: 16, radius: 3.8, color: "255, 209, 102", unlock: 4 },
-            { name: "Si", mass: 28, radius: 4.4, color: "255, 145, 77", unlock: 5 },
-            { name: "Fe", mass: 56, radius: 5.2, color: "255, 107, 139", unlock: 6 }
+
+        atoms: {
+            CORE: { name: "CORE", mass: 9999, radius: 7.0, color: "143, 214, 255" },
+            H: { name: "H", mass: 1, radius: 2.5, color: "99, 166, 255" },
+            He: { name: "He", mass: 4, radius: 3.0, color: "126, 242, 176" },
+            Li: { name: "Li", mass: 7, radius: 3.3, color: "198, 154, 255" },
+            Be: { name: "Be", mass: 9, radius: 3.5, color: "120, 220, 190" },
+            B: { name: "B", mass: 11, radius: 3.7, color: "255, 170, 104" },
+            C: { name: "C", mass: 12, radius: 3.9, color: "185, 148, 255" },
+            N: { name: "N", mass: 14, radius: 4.0, color: "125, 190, 255" },
+            O: { name: "O", mass: 16, radius: 4.2, color: "255, 209, 102" },
+            Si: { name: "Si", mass: 28, radius: 4.9, color: "255, 145, 77" },
+            Fe: { name: "Fe", mass: 56, radius: 5.8, color: "255, 107, 139" }
+        },
+
+        stages: [
+            { label: "H seed", atoms: ["H", "H", "H"], connectDistance: 82, meshDistance: 104, target: 3 },
+            { label: "H2 chain", atoms: ["H", "H", "H", "H"], connectDistance: 82, meshDistance: 104, target: 4 },
+            { label: "He cluster", atoms: ["H", "H", "He", "He"], connectDistance: 80, meshDistance: 102, target: 4 },
+            { label: "Li lattice", atoms: ["H", "H", "He", "Li", "Li"], connectDistance: 78, meshDistance: 100, target: 5 },
+            { label: "Be ring", atoms: ["H", "He", "Li", "Be", "Be", "H"], connectDistance: 78, meshDistance: 98, target: 6 },
+            { label: "B web", atoms: ["H", "He", "Li", "Be", "B", "B", "H"], connectDistance: 76, meshDistance: 98, target: 7 },
+            { label: "C frame", atoms: ["H", "H", "He", "B", "C", "C", "C"], connectDistance: 76, meshDistance: 98, target: 7 },
+            { label: "CH4 molecule", atoms: ["C", "H", "H", "H", "H", "He", "H"], connectDistance: 78, meshDistance: 100, target: 7 },
+            { label: "N bridge", atoms: ["C", "N", "N", "H", "H", "He", "Li"], connectDistance: 76, meshDistance: 98, target: 7 },
+            { label: "O mesh", atoms: ["O", "O", "C", "H", "H", "N", "He", "Li"], connectDistance: 76, meshDistance: 98, target: 8 },
+            { label: "H2O cluster", atoms: ["O", "H", "H", "O", "H", "H", "He", "C"], connectDistance: 78, meshDistance: 100, target: 8 },
+            { label: "Si grid", atoms: ["Si", "Si", "O", "O", "C", "H", "H", "N", "He"], connectDistance: 76, meshDistance: 98, target: 9 },
+            { label: "Fe core", atoms: ["Fe", "Fe", "Si", "O", "O", "C", "C", "H", "He", "N"], connectDistance: 76, meshDistance: 98, target: 10 }
         ]
     };
 
@@ -76,8 +108,9 @@
         dpr: 1,
         lastTime: 0,
         nodes: [],
+        bonds: [],
+        bondKeys: Object.create(null),
         pulses: [],
-        collectedLinkKeys: Object.create(null),
         pointer: {
             x: 0,
             y: 0,
@@ -91,10 +124,11 @@
         linkCount: 0,
         gameMode: false,
         level: 1,
-        collectedThisLevel: 0,
-        totalCollected: 0,
-        target: 6,
-        levelAdvancePending: false
+        stage: null,
+        connectedCount: 0,
+        target: 3,
+        levelAdvancePending: false,
+        portfolioNodes: []
     };
 
     function clamp(value, min, max) {
@@ -113,6 +147,12 @@
         return String(value).padStart(2, "0");
     }
 
+    function distSq(a, b) {
+        var dx = a.x - b.x;
+        var dy = a.y - b.y;
+        return dx * dx + dy * dy;
+    }
+
     function resize() {
         state.dpr = clamp(window.devicePixelRatio || 1, 1, CONFIG.canvasDprMax);
         state.width = Math.max(1, window.innerWidth);
@@ -122,7 +162,12 @@
         canvas.style.width = state.width + "px";
         canvas.style.height = state.height + "px";
         ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-        rebuildNodes(true);
+
+        if (state.gameMode) {
+            keepGameInsideBounds();
+        } else {
+            rebuildPortfolioNodes();
+        }
     }
 
     function getGameBounds() {
@@ -134,36 +179,13 @@
         };
     }
 
-    function wantedNodeCount() {
-        if (state.gameMode) {
-            return clamp(
-                CONFIG.game.baseNodes + state.level * CONFIG.game.nodesPerLevel,
-                CONFIG.game.baseNodes,
-                CONFIG.game.maxNodes
-            );
-        }
+    function wantedPortfolioNodeCount() {
         var area = state.width * state.height;
         return clamp(
             Math.floor(area / CONFIG.portfolio.areaPerNode),
             CONFIG.portfolio.minNodes,
             CONFIG.portfolio.maxNodes
         );
-    }
-
-    function availableAtoms() {
-        return CONFIG.atoms.filter(function (atom) {
-            return atom.unlock <= state.level;
-        });
-    }
-
-    function pickAtom() {
-        var atoms = availableAtoms();
-        var levelBias = clamp(state.level - 1, 0, atoms.length - 1);
-        var roll = Math.random();
-        if (roll < 0.58) return atoms[0];
-        if (roll < 0.82) return atoms[Math.min(1, atoms.length - 1)];
-        if (roll < 0.94) return atoms[Math.min(levelBias, atoms.length - 1)];
-        return atoms[Math.floor(Math.random() * atoms.length)];
     }
 
     function getOrbitCenter(time) {
@@ -173,14 +195,13 @@
         };
     }
 
-    function getOrbitParams(index) {
+    function getOrbitParams(index, scale) {
         var group = index % 5;
         var minDim = Math.min(state.width, state.height);
-        var gameScale = state.gameMode ? 0.72 : 1.0;
         return {
             group: group,
-            a: minDim * (0.30 + group * 0.075) * (1.54 - group * 0.055) * gameScale,
-            b: minDim * (0.115 + group * 0.045) * gameScale,
+            a: minDim * (0.30 + group * 0.075) * (1.54 - group * 0.055) * scale,
+            b: minDim * (0.115 + group * 0.045) * scale,
             rot: -0.42 + group * 0.29,
             speed: (group % 2 === 0 ? 1 : -1) * rand(0.10, 0.24) * (1 + group * 0.08)
         };
@@ -197,59 +218,131 @@
         };
     }
 
-    function createNode(index) {
+    function createPortfolioNode(index) {
         var center = getOrbitCenter(0);
-        var params = getOrbitParams(index);
+        var params = getOrbitParams(index, 1.0);
         var phase = rand(0, Math.PI * 2);
         var point = orbitPoint(center.x, center.y, params.a, params.b, params.rot, phase);
-        var atom = pickAtom();
-        var bounds = getGameBounds();
-        var margin = 34;
-        var minY = state.gameMode ? bounds.top + margin : margin;
-        var maxY = state.gameMode ? bounds.bottom - margin : state.height - margin;
         return {
             id: index,
-            x: clamp(point.x, margin, state.width - margin),
-            y: clamp(point.y, minY, maxY),
+            x: point.x,
+            y: point.y,
             a: params.a,
             b: params.b,
             rot: params.rot,
             speed: params.speed,
             orbitGroup: params.group,
             phase: phase,
-            ox: state.gameMode ? rand(-55, 55) : rand(-5, 5),
-            oy: state.gameMode ? rand(-55, 55) : rand(-5, 5),
-            ovx: state.gameMode ? rand(-28, 28) : 0,
-            ovy: state.gameMode ? rand(-28, 28) : 0,
-            freeVx: rand(-22, 22),
-            freeVy: rand(-22, 22),
-            size: atom.radius,
-            mass: atom.mass,
-            atom: atom,
-            hue: rand(0.75, 1.0)
+            ox: rand(-5, 5),
+            oy: rand(-5, 5),
+            ovx: 0,
+            ovy: 0,
+            size: rand(1.1, 2.7),
+            atom: CONFIG.atoms.H
         };
     }
 
-    function rebuildNodes(keepExisting) {
-        var count = wantedNodeCount();
-        if (!keepExisting) {
-            state.nodes = [];
+    function rebuildPortfolioNodes() {
+        var count = wantedPortfolioNodeCount();
+        if (state.portfolioNodes.length > count) {
+            state.portfolioNodes.length = count;
         }
-        if (state.nodes.length > count) {
-            state.nodes.length = count;
+        while (state.portfolioNodes.length < count) {
+            state.portfolioNodes.push(createPortfolioNode(state.portfolioNodes.length));
         }
-        while (state.nodes.length < count) {
-            state.nodes.push(createNode(state.nodes.length));
+        state.nodes = state.portfolioNodes;
+        if (dom.metricNodes) dom.metricNodes.textContent = pad3(state.nodes.length);
+    }
+
+    function getStage(level) {
+        var base = CONFIG.stages[Math.min(level - 1, CONFIG.stages.length - 1)];
+        if (level <= CONFIG.stages.length) {
+            return base;
         }
-        dom.metricNodes.textContent = pad3(state.nodes.length);
-        dom.gameNodes.textContent = pad3(state.nodes.length);
+
+        var extraCount = Math.min(8, level - CONFIG.stages.length);
+        var atoms = base.atoms.slice();
+        var extraPool = ["H", "H", "He", "C", "O", "Si", "Fe"];
+        for (var i = 0; i < extraCount; i += 1) {
+            atoms.push(extraPool[i % extraPool.length]);
+        }
+
+        return {
+            label: base.label + "+",
+            atoms: atoms,
+            connectDistance: base.connectDistance,
+            meshDistance: base.meshDistance,
+            target: atoms.length
+        };
+    }
+
+    function createGameNode(id, atomName, x, y, connected, core) {
+        var atom = CONFIG.atoms[atomName];
+        var speed = CONFIG.game.spawnSpeedBase + state.level * CONFIG.game.spawnSpeedPerLevel;
+        var speedScale = 1 / Math.sqrt(Math.max(1, atom.mass));
+        return {
+            id: id,
+            atom: atom,
+            atomName: atomName,
+            x: x,
+            y: y,
+            vx: core ? 0 : rand(-speed, speed) * speedScale,
+            vy: core ? 0 : rand(-speed, speed) * speedScale,
+            connected: connected,
+            core: core,
+            radius: atom.radius,
+            mass: atom.mass,
+            pulse: rand(0, Math.PI * 2)
+        };
+    }
+
+    function beginLevel(level) {
+        var stage = getStage(level);
+        var bounds = getGameBounds();
+        var cx = (bounds.left + bounds.right) * 0.5;
+        var cy = (bounds.top + bounds.bottom) * 0.5;
+
+        state.level = level;
+        state.stage = stage;
+        state.nodes = [];
+        state.bonds = [];
+        state.bondKeys = Object.create(null);
+        state.connectedCount = 0;
+        state.target = stage.target || stage.atoms.length;
+        state.levelAdvancePending = false;
+
+        state.nodes.push(createGameNode(0, "CORE", cx, cy, true, true));
+
+        var count = stage.atoms.length;
+        for (var i = 0; i < count; i += 1) {
+            var angle = (Math.PI * 2 * i) / Math.max(1, count) + rand(-0.32, 0.32);
+            var ring = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) * rand(0.26, 0.45);
+            var x = cx + Math.cos(angle) * ring + rand(-34, 34);
+            var y = cy + Math.sin(angle) * ring + rand(-34, 34);
+            x = clamp(x, bounds.left + 36, bounds.right - 36);
+            y = clamp(y, bounds.top + 36, bounds.bottom - 36);
+            state.nodes.push(createGameNode(i + 1, stage.atoms[i], x, y, false, false));
+        }
+
+        updateConnectedCount();
+        updateGameStats();
+    }
+
+    function keepGameInsideBounds() {
+        var bounds = getGameBounds();
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            var margin = 22 + n.radius;
+            n.x = clamp(n.x, bounds.left + margin, bounds.right - margin);
+            n.y = clamp(n.y, bounds.top + margin, bounds.bottom - margin);
+        }
     }
 
     function updateScroll() {
         var doc = document.documentElement;
         var maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
         state.scroll01 = state.gameMode ? 0 : clamp(window.scrollY / maxScroll, 0, 1);
-        dom.metricScroll.textContent = state.scroll01.toFixed(2);
+        if (dom.metricScroll) dom.metricScroll.textContent = state.scroll01.toFixed(2);
     }
 
     function setPointer(x, y, active) {
@@ -277,20 +370,10 @@
         }
     }
 
-    function beginLevel(level) {
-        state.level = level;
-        state.collectedThisLevel = 0;
-        state.target = CONFIG.game.baseTarget + level * CONFIG.game.targetPerLevel;
-        state.collectedLinkKeys = Object.create(null);
-        state.levelAdvancePending = false;
-        rebuildNodes(false);
-    }
-
     function enterGameMode() {
         state.gameMode = true;
         document.body.classList.add("game-mode");
         beginLevel(1);
-        updateGameStats();
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(function () {});
         }
@@ -299,116 +382,17 @@
     function exitGameMode() {
         state.gameMode = false;
         document.body.classList.remove("game-mode");
-        state.collectedLinkKeys = Object.create(null);
-        state.levelAdvancePending = false;
-        rebuildNodes(false);
+        state.nodes = state.portfolioNodes;
+        state.bonds = [];
+        state.bondKeys = Object.create(null);
+        rebuildPortfolioNodes();
         updateGameStats();
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(function () {});
         }
     }
 
-    function updateNode(node, dt, time) {
-        if (state.gameMode) {
-            updateGameNode(node, dt, time);
-            return;
-        }
-
-        var margin = 26 + node.size;
-        var center = getOrbitCenter(time);
-        var energy = 1 + state.scroll01 * 1.65;
-        var rot = node.rot + Math.sin(time * 0.00006 + node.orbitGroup) * 0.035;
-        var t = node.phase + time * 0.001 * node.speed * energy;
-        var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
-
-        var ax = -node.ox * 1.8;
-        var ay = -node.oy * 1.8;
-
-        applyPointerForce(node, target.x, target.y, function (fx, fy) {
-            ax += fx;
-            ay += fy;
-        });
-
-        node.ovx += ax * dt;
-        node.ovy += ay * dt;
-        node.ovx *= Math.pow(0.90, dt * 60);
-        node.ovy *= Math.pow(0.90, dt * 60);
-        node.ox += node.ovx * dt;
-        node.oy += node.ovy * dt;
-
-        var maxOffset = state.pointer.down ? 140 : 95;
-        var offsetLen = Math.sqrt(node.ox * node.ox + node.oy * node.oy);
-        if (offsetLen > maxOffset) {
-            node.ox = node.ox / offsetLen * maxOffset;
-            node.oy = node.oy / offsetLen * maxOffset;
-        }
-
-        node.x = clamp(target.x + node.ox, margin, state.width - margin);
-        node.y = clamp(target.y + node.oy, margin, state.height - margin);
-    }
-
-    function updateGameNode(node, dt, time) {
-        var bounds = getGameBounds();
-        var margin = 26 + node.size;
-        var chaos = clamp(
-            CONFIG.game.chaosStart - state.level * CONFIG.game.chaosDecayPerLevel,
-            CONFIG.game.chaosMin,
-            CONFIG.game.chaosStart
-        );
-        var center = getOrbitCenter(time);
-        var rot = node.rot + Math.sin(time * 0.00004 + node.orbitGroup) * 0.05;
-        var t = node.phase + time * 0.001 * node.speed * (0.65 + state.level * 0.09);
-        var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
-        var pull = clamp(
-            CONFIG.game.orbitPullBase + state.level * CONFIG.game.orbitPullPerLevel,
-            CONFIG.game.orbitPullBase,
-            CONFIG.game.orbitPullMax
-        );
-        var ax = (target.x - node.x) * pull;
-        var ay = (target.y - node.y) * pull;
-
-        ax += Math.sin(time * 0.0012 + node.phase) * 32 * chaos;
-        ay += Math.cos(time * 0.0010 + node.phase) * 32 * chaos;
-
-        applyPointerForce(node, node.x, node.y, function (fx, fy) {
-            ax += fx * 1.45;
-            ay += fy * 1.45;
-        });
-
-        node.freeVx += ax * dt / Math.sqrt(node.mass);
-        node.freeVy += ay * dt / Math.sqrt(node.mass);
-        node.freeVx *= Math.pow(0.975, dt * 60);
-        node.freeVy *= Math.pow(0.975, dt * 60);
-
-        var maxSpeed = CONFIG.game.speedBase + state.level * CONFIG.game.speedPerLevel;
-        var speed = Math.sqrt(node.freeVx * node.freeVx + node.freeVy * node.freeVy);
-        if (speed > maxSpeed) {
-            node.freeVx = node.freeVx / speed * maxSpeed;
-            node.freeVy = node.freeVy / speed * maxSpeed;
-        }
-
-        node.x += node.freeVx * dt;
-        node.y += node.freeVy * dt;
-
-        if (node.x < bounds.left + margin) {
-            node.x = bounds.left + margin;
-            node.freeVx = Math.abs(node.freeVx) * 0.92;
-        }
-        if (node.x > bounds.right - margin) {
-            node.x = bounds.right - margin;
-            node.freeVx = -Math.abs(node.freeVx) * 0.92;
-        }
-        if (node.y < bounds.top + margin) {
-            node.y = bounds.top + margin;
-            node.freeVy = Math.abs(node.freeVy) * 0.92;
-        }
-        if (node.y > bounds.bottom - margin) {
-            node.y = bounds.bottom - margin;
-            node.freeVy = -Math.abs(node.freeVy) * 0.92;
-        }
-    }
-
-    function applyPointerForce(node, baseX, baseY, applyForce) {
+    function applyPortfolioPointerForce(node, baseX, baseY, applyForce) {
         if (state.pointer.active) {
             var px = baseX - state.pointer.x;
             var py = baseY - state.pointer.y;
@@ -434,6 +418,308 @@
         }
     }
 
+    function updatePortfolioNode(node, dt, time) {
+        var margin = 26 + node.size;
+        var center = getOrbitCenter(time);
+        var energy = 1 + state.scroll01 * 1.65;
+        var rot = node.rot + Math.sin(time * 0.00006 + node.orbitGroup) * 0.035;
+        var t = node.phase + time * 0.001 * node.speed * energy;
+        var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
+
+        var ax = -node.ox * 1.8;
+        var ay = -node.oy * 1.8;
+
+        applyPortfolioPointerForce(node, target.x, target.y, function (fx, fy) {
+            ax += fx;
+            ay += fy;
+        });
+
+        node.ovx += ax * dt;
+        node.ovy += ay * dt;
+        node.ovx *= Math.pow(0.90, dt * 60);
+        node.ovy *= Math.pow(0.90, dt * 60);
+        node.ox += node.ovx * dt;
+        node.oy += node.ovy * dt;
+
+        var maxOffset = state.pointer.down ? 140 : 95;
+        var offsetLen = Math.sqrt(node.ox * node.ox + node.oy * node.oy);
+        if (offsetLen > maxOffset) {
+            node.ox = node.ox / offsetLen * maxOffset;
+            node.oy = node.oy / offsetLen * maxOffset;
+        }
+
+        node.x = clamp(target.x + node.ox, margin, state.width - margin);
+        node.y = clamp(target.y + node.oy, margin, state.height - margin);
+    }
+
+    function applyGamePointerForces(dt) {
+        if (!state.pointer.active) return;
+
+        var radius = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
+        var strength = state.pointer.down ? CONFIG.game.pointerPushForce : CONFIG.game.pointerForce;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+
+            var dx = n.x - state.pointer.x;
+            var dy = n.y - state.pointer.y;
+            var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+            if (d > radius) continue;
+
+            var falloff = 1 - d / radius;
+            var massScale = Math.pow(Math.max(1, n.mass), 0.72);
+            var force = strength * falloff / massScale;
+            n.vx += (dx / d) * force * dt;
+            n.vy += (dy / d) * force * dt;
+        }
+    }
+
+    function applyPulseForces(dt) {
+        for (var p = state.pulses.length - 1; p >= 0; p -= 1) {
+            var pulse = state.pulses[p];
+
+            for (var i = 0; i < state.nodes.length; i += 1) {
+                var n = state.nodes[i];
+                if (n.core) continue;
+
+                var dx = n.x - pulse.x;
+                var dy = n.y - pulse.y;
+                var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+                var band = Math.abs(d - pulse.r);
+                if (band > 92) continue;
+
+                var falloff = (1 - band / 92) * pulse.life;
+                var massScale = Math.pow(Math.max(1, n.mass), 0.72);
+                var force = pulse.power * falloff / massScale;
+                n.vx += (dx / d) * force * dt;
+                n.vy += (dy / d) * force * dt;
+            }
+        }
+    }
+
+    function bondKey(a, b) {
+        return a.id < b.id ? a.id + ":" + b.id : b.id + ":" + a.id;
+    }
+
+    function hasBond(a, b) {
+        return !!state.bondKeys[bondKey(a, b)];
+    }
+
+    function addBond(a, b, restLength, source) {
+        var key = bondKey(a, b);
+        if (state.bondKeys[key]) return false;
+
+        state.bondKeys[key] = true;
+        state.bonds.push({
+            a: a.id,
+            b: b.id,
+            rest: restLength,
+            source: source || "mesh",
+            age: 0
+        });
+        return true;
+    }
+
+    function getNodeById(id) {
+        return state.nodes[id] || null;
+    }
+
+    function applyBondForces(dt) {
+        for (var i = 0; i < state.bonds.length; i += 1) {
+            var bond = state.bonds[i];
+            var a = getNodeById(bond.a);
+            var b = getNodeById(bond.b);
+            if (!a || !b) continue;
+
+            var dx = b.x - a.x;
+            var dy = b.y - a.y;
+            var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+            var nx = dx / d;
+            var ny = dy / d;
+
+            var stretch = d - bond.rest;
+            var stiffness = CONFIG.game.springStiffness * (bond.source === "core" ? CONFIG.game.coreSpringBonus : 1.0);
+            var spring = stretch * stiffness;
+
+            var rvx = b.vx - a.vx;
+            var rvy = b.vy - a.vy;
+            var rel = rvx * nx + rvy * ny;
+            var damp = rel * CONFIG.game.springDamping;
+
+            var force = spring + damp;
+
+            if (!a.core) {
+                a.vx += force * nx * dt / Math.max(1, a.mass);
+                a.vy += force * ny * dt / Math.max(1, a.mass);
+            }
+            if (!b.core) {
+                b.vx -= force * nx * dt / Math.max(1, b.mass);
+                b.vy -= force * ny * dt / Math.max(1, b.mass);
+            }
+
+            bond.age += dt;
+        }
+    }
+
+    function applyGameAmbientForces(dt, time) {
+        var bounds = getGameBounds();
+        var cx = (bounds.left + bounds.right) * 0.5;
+        var cy = (bounds.top + bounds.bottom) * 0.5;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) {
+                n.x = cx;
+                n.y = cy;
+                n.vx = 0;
+                n.vy = 0;
+                continue;
+            }
+
+            var loose = n.connected ? 0.25 : 1.0;
+            var noise = 6.5 * loose;
+            n.vx += Math.sin(time * 0.0009 + n.pulse) * noise * dt / Math.sqrt(n.mass);
+            n.vy += Math.cos(time * 0.0008 + n.pulse) * noise * dt / Math.sqrt(n.mass);
+
+            if (n.connected) {
+                var dx = cx - n.x;
+                var dy = cy - n.y;
+                n.vx += dx * 0.012 * dt / Math.sqrt(n.mass);
+                n.vy += dy * 0.012 * dt / Math.sqrt(n.mass);
+            }
+        }
+    }
+
+    function integrateGameNodes(dt) {
+        var bounds = getGameBounds();
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+
+            var damping = n.connected ? CONFIG.game.connectedDamping : CONFIG.game.baseDamping;
+            n.vx *= Math.pow(damping, dt * 60);
+            n.vy *= Math.pow(damping, dt * 60);
+
+            var maxSpeed = CONFIG.game.maxSpeedBase + state.level * CONFIG.game.maxSpeedPerLevel;
+            var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+            if (speed > maxSpeed) {
+                n.vx = n.vx / speed * maxSpeed;
+                n.vy = n.vy / speed * maxSpeed;
+            }
+
+            n.x += n.vx * dt;
+            n.y += n.vy * dt;
+
+            var margin = 22 + n.radius;
+            if (n.x < bounds.left + margin) {
+                n.x = bounds.left + margin;
+                n.vx = Math.abs(n.vx) * 0.72;
+            }
+            if (n.x > bounds.right - margin) {
+                n.x = bounds.right - margin;
+                n.vx = -Math.abs(n.vx) * 0.72;
+            }
+            if (n.y < bounds.top + margin) {
+                n.y = bounds.top + margin;
+                n.vy = Math.abs(n.vy) * 0.72;
+            }
+            if (n.y > bounds.bottom - margin) {
+                n.y = bounds.bottom - margin;
+                n.vy = -Math.abs(n.vy) * 0.72;
+            }
+        }
+    }
+
+    function detectConnections() {
+        var stage = state.stage || getStage(state.level);
+        var connectDistance = stage.connectDistance || CONFIG.game.connectDistance;
+        var meshDistance = stage.meshDistance || CONFIG.game.meshDistance;
+        var connectSq = connectDistance * connectDistance;
+        var meshSq = meshDistance * meshDistance;
+
+        var connected = [];
+        var loose = [];
+        var i;
+
+        for (i = 0; i < state.nodes.length; i += 1) {
+            if (state.nodes[i].connected) {
+                connected.push(state.nodes[i]);
+            } else {
+                loose.push(state.nodes[i]);
+            }
+        }
+
+        for (i = 0; i < loose.length; i += 1) {
+            var n = loose[i];
+            var best = null;
+            var bestSq = connectSq;
+
+            for (var c = 0; c < connected.length; c += 1) {
+                var candidate = connected[c];
+                var dSq = distSq(n, candidate);
+                if (dSq < bestSq) {
+                    bestSq = dSq;
+                    best = candidate;
+                }
+            }
+
+            if (best) {
+                n.connected = true;
+                connected.push(n);
+                var rest = 42 + n.radius + best.radius;
+                addBond(n, best, rest, best.core ? "core" : "mesh");
+                addPulse((n.x + best.x) * 0.5, (n.y + best.y) * 0.5, 70);
+            }
+        }
+
+        for (i = 0; i < connected.length; i += 1) {
+            for (var j = i + 1; j < connected.length; j += 1) {
+                var a = connected[i];
+                var b = connected[j];
+                if (a.core && b.core) continue;
+                if (hasBond(a, b)) continue;
+                if (distSq(a, b) < meshSq) {
+                    addBond(a, b, 44 + a.radius + b.radius, a.core || b.core ? "core" : "mesh");
+                }
+            }
+        }
+
+        updateConnectedCount();
+
+        if (!state.levelAdvancePending && state.connectedCount >= state.target) {
+            state.levelAdvancePending = true;
+            window.setTimeout(function () {
+                if (state.gameMode) {
+                    beginLevel(state.level + 1);
+                }
+            }, CONFIG.game.collectDelayMs);
+        }
+    }
+
+    function updateConnectedCount() {
+        var count = 0;
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            if (!state.nodes[i].core && state.nodes[i].connected) {
+                count += 1;
+            }
+        }
+        state.connectedCount = count;
+    }
+
+    function updateGamePhysics(dt, time) {
+        applyGameAmbientForces(dt, time);
+        applyGamePointerForces(dt);
+        applyPulseForces(dt);
+
+        applyBondForces(dt);
+        applyBondForces(dt);
+
+        integrateGameNodes(dt);
+        detectConnections();
+    }
+
     function drawGrid(time) {
         var grid = state.gameMode ? 70 : 80;
         var offset = (time * 0.006) % grid;
@@ -442,8 +728,10 @@
         ctx.lineWidth = 1;
         ctx.strokeStyle = "rgba(99, 166, 255, 0.055)";
         ctx.beginPath();
+
         var x;
         var y;
+
         for (x = -grid + offset; x < state.width + grid; x += grid) {
             ctx.moveTo(x, 0);
             ctx.lineTo(x + state.scroll01 * 50, state.height);
@@ -452,6 +740,7 @@
             ctx.moveTo(0, y);
             ctx.lineTo(state.width, y + state.scroll01 * 30);
         }
+
         ctx.stroke();
         ctx.restore();
     }
@@ -469,66 +758,30 @@
 
     function drawOrbitTraces(time) {
         var center = getOrbitCenter(time);
-        var count = state.gameMode ? clamp(2 + Math.floor(state.level / 2), 2, 5) : 5;
+        var count = state.gameMode ? 2 : 5;
         ctx.save();
+
         for (var i = 0; i < count; i += 1) {
-            var params = getOrbitParams(i);
+            var params = getOrbitParams(i, state.gameMode ? 0.72 : 1.0);
             var rot = params.rot + Math.sin(time * 0.00006 + params.group) * 0.035;
             ctx.beginPath();
             ctx.ellipse(center.x, center.y, params.a, params.b, rot, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(99, 166, 255, " + (state.gameMode ? 0.09 : 0.13 - i * 0.015) + ")";
+            ctx.strokeStyle = "rgba(99, 166, 255, " + (state.gameMode ? 0.06 : 0.13 - i * 0.015) + ")";
             ctx.lineWidth = 1;
             ctx.stroke();
         }
+
         ctx.restore();
     }
 
-    function linkKey(a, b) {
-        return a.id < b.id ? a.id + ":" + b.id : b.id + ":" + a.id;
-    }
-
-    function pointSegmentDistance(px, py, ax, ay, bx, by) {
-        var vx = bx - ax;
-        var vy = by - ay;
-        var wx = px - ax;
-        var wy = py - ay;
-        var lenSq = vx * vx + vy * vy;
-        if (lenSq <= 0.001) return Math.sqrt(wx * wx + wy * wy);
-        var t = clamp((wx * vx + wy * vy) / lenSq, 0, 1);
-        var dx = px - (ax + vx * t);
-        var dy = py - (ay + vy * t);
-        return Math.sqrt(dx * dx + dy * dy);
-    }
-
-    function tryCollectLink(a, b, key) {
-        if (!state.gameMode || !state.pointer.active) return false;
-        if (state.collectedLinkKeys[key]) return true;
-        if (state.levelAdvancePending) return false;
-
-        var d = pointSegmentDistance(state.pointer.x, state.pointer.y, a.x, a.y, b.x, b.y);
-        if (d >= CONFIG.game.collectRadius) return false;
-
-        state.collectedLinkKeys[key] = true;
-        state.collectedThisLevel += 1;
-        state.totalCollected += 1;
-        addPulse((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 90);
-
-        if (state.collectedThisLevel >= state.target) {
-            state.levelAdvancePending = true;
-            window.setTimeout(function () {
-                if (state.gameMode) beginLevel(state.level + 1);
-            }, CONFIG.game.levelAdvanceDelayMs);
-        }
-
-        return true;
-    }
-
-    function drawLinks() {
-        var limit = state.gameMode ? CONFIG.game.linkDistance : (state.width < 700 ? CONFIG.portfolio.linkDistanceMobile : CONFIG.portfolio.linkDistanceDesktop);
+    function drawPortfolioLinks() {
+        var limit = state.width < 700 ? CONFIG.portfolio.linkDistanceMobile : CONFIG.portfolio.linkDistanceDesktop;
         var limitSq = limit * limit;
         var count = 0;
+
         ctx.save();
-        ctx.lineWidth = state.gameMode ? 1.4 : 1;
+        ctx.lineWidth = 1;
+
         for (var i = 0; i < state.nodes.length; i += 1) {
             var a = state.nodes[i];
             for (var j = i + 1; j < state.nodes.length; j += 1) {
@@ -537,17 +790,8 @@
                 var dy = a.y - b.y;
                 var dSq = dx * dx + dy * dy;
                 if (dSq < limitSq) {
-                    var key = linkKey(a, b);
-                    var collected = tryCollectLink(a, b, key);
-                    var alpha = (1 - dSq / limitSq) * (state.gameMode ? 0.44 : 0.22);
-                    if (collected) {
-                        ctx.strokeStyle = "rgba(126, 242, 176, " + clamp(alpha + 0.28, 0.34, 0.82).toFixed(4) + ")";
-                        ctx.shadowColor = "rgba(126, 242, 176, 0.35)";
-                        ctx.shadowBlur = 9;
-                    } else {
-                        ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
-                        ctx.shadowBlur = 0;
-                    }
+                    var alpha = (1 - dSq / limitSq) * 0.22;
+                    ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
                     ctx.beginPath();
                     ctx.moveTo(a.x, a.y);
                     ctx.lineTo(b.x, b.y);
@@ -556,63 +800,145 @@
                 }
             }
         }
+
         ctx.restore();
         state.linkCount = count;
-        dom.metricLinks.textContent = pad3(count);
-        dom.gameLinks.textContent = pad3(count);
+        if (dom.metricLinks) dom.metricLinks.textContent = pad3(count);
+        if (dom.gameLinks) dom.gameLinks.textContent = pad3(count);
+    }
+
+    function drawGamePreviewLinks() {
+        var stage = state.stage || getStage(state.level);
+        var limit = stage.meshDistance || CONFIG.game.meshDistance;
+        var limitSq = limit * limit;
+
+        ctx.save();
+        ctx.lineWidth = 1;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var a = state.nodes[i];
+            for (var j = i + 1; j < state.nodes.length; j += 1) {
+                var b = state.nodes[j];
+                if (hasBond(a, b)) continue;
+
+                var dSq = distSq(a, b);
+                if (dSq < limitSq) {
+                    var alpha = (1 - dSq / limitSq) * CONFIG.game.previewAlpha;
+                    ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        ctx.restore();
+    }
+
+    function drawGameBonds() {
+        ctx.save();
+        ctx.lineWidth = 1.8;
+
+        for (var i = 0; i < state.bonds.length; i += 1) {
+            var bond = state.bonds[i];
+            var a = getNodeById(bond.a);
+            var b = getNodeById(bond.b);
+            if (!a || !b) continue;
+
+            var glow = Math.max(0, 1 - bond.age * 2.2);
+            var alpha = CONFIG.game.bondAlpha + glow * 0.22;
+            if (bond.source === "core") {
+                ctx.strokeStyle = "rgba(143, 214, 255, " + alpha.toFixed(4) + ")";
+                ctx.shadowColor = "rgba(143, 214, 255, 0.38)";
+            } else {
+                ctx.strokeStyle = "rgba(126, 242, 176, " + alpha.toFixed(4) + ")";
+                ctx.shadowColor = "rgba(126, 242, 176, 0.32)";
+            }
+
+            ctx.shadowBlur = 8 + glow * 14;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+        }
+
+        ctx.restore();
+
+        state.linkCount = state.bonds.length;
+        if (dom.metricLinks) dom.metricLinks.textContent = pad3(state.linkCount);
+        if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
     }
 
     function drawNodes(time) {
         ctx.save();
+
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
-            var pulse = 0.75 + Math.sin(time * 0.002 + n.phase) * 0.25;
-            var atomColor = n.atom.color;
+            var atomColor = n.atom.color || "99, 166, 255";
+            var pulse = 0.75 + Math.sin(time * 0.002 + (n.pulse || n.phase || 0)) * 0.25;
+            var size = n.core ? n.radius + pulse * 1.2 : (n.radius || n.size || 2) + pulse * (state.gameMode ? 1.1 : 0.8);
+            var alpha = state.gameMode ? (n.connected ? 0.86 : 0.54) : 0.42;
+
             ctx.beginPath();
-            ctx.arc(n.x, n.y, n.size + pulse * (state.gameMode ? 1.2 : 0.8), 0, Math.PI * 2);
-            ctx.fillStyle = "rgba(" + atomColor + ", " + (state.gameMode ? 0.72 : 0.42).toFixed(4) + ")";
+            ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(" + atomColor + ", " + alpha.toFixed(4) + ")";
             ctx.shadowColor = "rgba(" + atomColor + ", 0.45)";
             ctx.shadowBlur = state.gameMode ? 18 : 10;
             ctx.fill();
+
             ctx.shadowBlur = 0;
             ctx.beginPath();
-            ctx.arc(n.x, n.y, (n.size + 5) * pulse, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(" + atomColor + ", " + (state.gameMode ? 0.18 : 0.08).toFixed(4) + ")";
-            ctx.lineWidth = 1;
+            ctx.arc(n.x, n.y, size + (n.connected ? 6 : 4), 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(" + atomColor + ", " + (state.gameMode ? (n.connected ? 0.26 : 0.12) : 0.08).toFixed(4) + ")";
+            ctx.lineWidth = n.core ? 1.6 : 1;
             ctx.stroke();
-            if (state.gameMode && n.size >= 3.3) {
-                ctx.fillStyle = "rgba(215, 227, 244, 0.72)";
-                ctx.font = "10px SFMono-Regular, Consolas, monospace";
+
+            if (state.gameMode) {
+                ctx.fillStyle = n.connected ? "rgba(215, 227, 244, 0.82)" : "rgba(139, 155, 176, 0.72)";
+                ctx.font = n.core ? "11px SFMono-Regular, Consolas, monospace" : "10px SFMono-Regular, Consolas, monospace";
                 ctx.textAlign = "center";
-                ctx.fillText(n.atom.name, n.x, n.y - n.size - 8);
+                ctx.fillText(n.atom.name, n.x, n.y - size - 8);
             }
         }
+
         ctx.restore();
     }
 
     function drawPulses(dt) {
         ctx.save();
+
         for (var i = state.pulses.length - 1; i >= 0; i -= 1) {
             var p = state.pulses[i];
-            p.r += (260 + p.power * 0.7) * dt;
+            p.r += (230 + p.power * 0.55) * dt;
             p.life -= 0.72 * dt;
+
             if (p.life <= 0) {
                 state.pulses.splice(i, 1);
                 continue;
             }
+
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
             ctx.strokeStyle = "rgba(255, 209, 102, " + (p.life * 0.32).toFixed(4) + ")";
             ctx.lineWidth = 1.5;
             ctx.stroke();
         }
+
         ctx.restore();
     }
 
     function drawPointerField() {
         if (!state.pointer.active) return;
+
+        var r;
+        if (state.gameMode) {
+            r = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
+        } else {
+            r = state.pointer.down ? CONFIG.portfolio.pointerPushRadius : CONFIG.portfolio.pointerRadius;
+        }
+
         ctx.save();
-        var r = state.pointer.down ? CONFIG.portfolio.pointerPushRadius : CONFIG.portfolio.pointerRadius;
         var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, r);
         gradient.addColorStop(0, "rgba(99, 166, 255, 0.18)");
         gradient.addColorStop(0.44, "rgba(99, 166, 255, 0.06)");
@@ -621,6 +947,7 @@
         ctx.beginPath();
         ctx.arc(state.pointer.x, state.pointer.y, r, 0, Math.PI * 2);
         ctx.fill();
+
         ctx.beginPath();
         ctx.arc(state.pointer.x, state.pointer.y, 12, 0, Math.PI * 2);
         ctx.strokeStyle = "rgba(143, 214, 255, 0.55)";
@@ -636,22 +963,27 @@
         } else if (state.pointer.active) {
             input = state.pointer.speed > 18 ? "VECTOR" : "TRACK";
         }
-        dom.metricInput.textContent = input;
-        dom.gameInput.textContent = input;
+
+        if (dom.metricInput) dom.metricInput.textContent = input;
+        if (dom.gameInput) dom.gameInput.textContent = input;
     }
 
     function updateGameStats() {
-        dom.gameLevel.textContent = pad2(state.level);
-        dom.gameCollected.textContent = pad3(state.collectedThisLevel);
-        dom.gameTarget.textContent = pad3(state.target);
-        dom.gameLinks.textContent = pad3(state.linkCount);
-        dom.gameNodes.textContent = pad3(state.nodes.length);
-        dom.gameAtoms.textContent = availableAtoms().map(function (atom) { return atom.name; }).join("+");
-        dom.gameProgressFill.style.width = clamp(state.collectedThisLevel / Math.max(1, state.target) * 100, 0, 100).toFixed(2) + "%";
+        var stage = state.stage || getStage(state.level);
+        if (dom.gameLevel) dom.gameLevel.textContent = pad2(state.level);
+        if (dom.gameCollected) dom.gameCollected.textContent = pad3(state.connectedCount);
+        if (dom.gameTarget) dom.gameTarget.textContent = pad3(state.target);
+        if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
+        if (dom.gameNodes) dom.gameNodes.textContent = pad3(state.gameMode ? state.nodes.length : state.portfolioNodes.length);
+        if (dom.gameAtoms) dom.gameAtoms.textContent = stage.label;
+        if (dom.gameProgressFill) {
+            dom.gameProgressFill.style.width = clamp(state.connectedCount / Math.max(1, state.target) * 100, 0, 100).toFixed(2) + "%";
+        }
     }
 
     function updateMiniOrbitProbe(time) {
         if (!dom.miniProbe || !dom.miniOrbitBox) return;
+
         var rect = dom.miniOrbitBox.getBoundingClientRect();
         var cx = rect.width * 0.5;
         var cy = rect.height * 0.5;
@@ -665,6 +997,7 @@
         var s = Math.sin(rot);
         var px = cx + x * c - y * s;
         var py = cy + x * s + y * c;
+
         dom.miniProbe.style.transform = "translate(" + px.toFixed(2) + "px, " + py.toFixed(2) + "px) translate(-50%, -50%)";
     }
 
@@ -676,7 +1009,6 @@
         updateScroll();
         updateMetrics();
         updateMiniOrbitProbe(time);
-        updateGameStats();
 
         ctx.clearRect(0, 0, state.width, state.height);
         drawGrid(time);
@@ -684,15 +1016,27 @@
         drawOrbitTraces(time);
 
         if (!reduceMotion) {
-            for (var i = 0; i < state.nodes.length; i += 1) {
-                updateNode(state.nodes[i], dt, time);
+            if (state.gameMode) {
+                updateGamePhysics(dt, time);
+            } else {
+                for (var i = 0; i < state.nodes.length; i += 1) {
+                    updatePortfolioNode(state.nodes[i], dt, time);
+                }
             }
         }
 
         drawPointerField();
         drawPulses(dt);
-        drawLinks();
+
+        if (state.gameMode) {
+            drawGamePreviewLinks();
+            drawGameBonds();
+        } else {
+            drawPortfolioLinks();
+        }
+
         drawNodes(time);
+        updateGameStats();
 
         window.requestAnimationFrame(frame);
     }
@@ -700,9 +1044,12 @@
     function setupReveal() {
         var items = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
         if (!("IntersectionObserver" in window)) {
-            items.forEach(function (item) { item.classList.add("visible"); });
+            items.forEach(function (item) {
+                item.classList.add("visible");
+            });
             return;
         }
+
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 if (entry.isIntersecting) {
@@ -711,31 +1058,40 @@
                 }
             });
         }, { threshold: 0.12 });
-        items.forEach(function (item) { observer.observe(item); });
+
+        items.forEach(function (item) {
+            observer.observe(item);
+        });
     }
 
     window.addEventListener("resize", resize, { passive: true });
     window.addEventListener("scroll", updateScroll, { passive: true });
+
     window.addEventListener("pointermove", function (event) {
         setPointer(event.clientX, event.clientY, true);
     }, { passive: true });
+
     window.addEventListener("pointerleave", function () {
         state.pointer.active = false;
     }, { passive: true });
+
     window.addEventListener("pointerdown", function (event) {
         state.pointer.down = true;
         setPointer(event.clientX, event.clientY, true);
-        addPulse(event.clientX, event.clientY, state.gameMode ? 220 : 180);
+        addPulse(event.clientX, event.clientY, state.gameMode ? CONFIG.game.pulseForce : 180);
     });
+
     window.addEventListener("pointerup", function (event) {
         state.pointer.down = false;
         setPointer(event.clientX, event.clientY, true);
     }, { passive: true });
+
     window.addEventListener("keydown", function (event) {
         if (event.key === "Escape" && state.gameMode) {
             exitGameMode();
         }
     });
+
     document.addEventListener("fullscreenchange", function () {
         if (!document.fullscreenElement && state.gameMode) {
             exitGameMode();
@@ -745,6 +1101,7 @@
     if (dom.enterGameButton) {
         dom.enterGameButton.addEventListener("click", enterGameMode);
     }
+
     if (dom.exitGameButton) {
         dom.exitGameButton.addEventListener("click", exitGameMode);
     }
