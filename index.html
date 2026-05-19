@@ -387,8 +387,8 @@
 
         .orbit-ring {
             position: absolute;
-            left: 8%;
-            top: 16%;
+            left: 7%;
+            top: 21%;
             width: 86%;
             height: 58%;
             border: 1px solid rgba(143, 214, 255, 0.34);
@@ -399,7 +399,7 @@
 
         .orbit-ring.r2 {
             left: 13%;
-            top: 22%;
+            top: 26%;
             width: 74%;
             height: 48%;
             opacity: 0.6;
@@ -408,14 +408,16 @@
 
         .core-dot {
             position: absolute;
-            left: 50%;
-            top: 50%;
-            width: 12px;
-            height: 12px;
-            margin: -6px 0 0 -6px;
+            left: 0;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            margin: 0;
             border-radius: 999px;
             background: var(--accent);
             box-shadow: 0 0 30px rgba(99, 166, 255, 0.9);
+            transform: translate(-50%, -50%);
+            will-change: transform;
         }
 
         .probe-dot {
@@ -916,8 +918,7 @@
             </a>
             <nav class="nav" aria-label="Primary navigation">
                 <a href="#projects">Projects</a>
-                <a href="#systems">Systems</a>
-                <a href="#stack">Stack</a>
+                <a href="#skills">Skills</a>
                 <a href="#contact">Contact</a>
             </nav>
         </header>
@@ -931,12 +932,12 @@
                     procedural UX.
                 </h1>
                 <p class="lead">
-                    I design and prototype dynamic systems: orbital prediction, modular spaceships,
-                    runtime architecture, tools, UI layers, and real-time procedural visualization.
+                    Game systems, simulation prototypes, tooling, architecture cleanup,
+                    rendering logic, and QA-oriented analysis.
                 </p>
                 <div class="hero-actions">
                     <a class="button" href="#projects">View projects</a>
-                    <a class="button secondary" href="#systems">Architecture focus</a>
+                    <a class="button secondary" href="#skills">Skills</a>
                 </div>
             </div>
 
@@ -977,12 +978,12 @@
         <section id="projects">
             <div class="section-head reveal">
                 <div>
-                    <div class="section-kicker">Project layer</div>
-                    <h2>Playable prototypes and system research.</h2>
+                    <div class="section-kicker">Projects</div>
+                    <h2>Main prototypes.</h2>
                 </div>
                 <p>
-                    The portfolio is built around real engineering problems: trajectory prediction,
-                    control feel, modular object data, rendering layers, and simulation-friendly UI.
+                    Practical work around simulation, ship control, modular object data,
+                    rendering layers, debug tooling, and gameplay-facing systems.
                 </p>
             </div>
 
@@ -996,13 +997,12 @@
                     </div>
                     <h3>SpaceSim2D</h3>
                     <p>
-                        A 2D orbital simulation prototype focused on maneuver planning,
-                        prediction rendering, local map logic, warp safety, and flight feedback.
+                        2D orbital prototype with maneuver planning, prediction rendering,
+                        map/live transitions, warp safety, and flight feedback.
                     </p>
                     <div class="project-lines">
-                        <div><b>Core</b><span>Trajectory prediction, maneuver nodes, rail logic, event markers.</span></div>
-                        <div><b>Problem</b><span>Stable long-horizon planning without overloading CPU and rendering.</span></div>
-                        <div><b>Focus</b><span>Single source of truth, render contracts, debug metrics, clean planner state.</span></div>
+                        <div><b>Work</b><span>Trajectory logic, planner state, debug metrics, render contracts.</span></div>
+                        <div><b>Focus</b><span>Stable simulation behavior and readable player feedback.</span></div>
                     </div>
                 </article>
 
@@ -1015,81 +1015,60 @@
                     </div>
                     <h3>3D Space Adventure</h3>
                     <p>
-                        A 3D space prototype with modular ships, docking rules, object definitions,
-                        zone transitions, save data validation, RCS control, and render cleanup.
+                        3D space prototype with modular ships, docking, assemblies,
+                        zone transitions, object definitions, save validation, and RCS control.
                     </p>
                     <div class="project-lines">
-                        <div><b>Core</b><span>Command module, assemblies, local zones, transit mode, docking.</span></div>
-                        <div><b>Problem</b><span>Keep physical ownership, camera state, and controlled assemblies deterministic.</span></div>
-                        <div><b>Focus</b><span>Clean architecture, typed object state, JSON contracts, no legacy fallbacks.</span></div>
+                        <div><b>Work</b><span>Camera/control logic, object architecture, JSON contracts, cleanup passes.</span></div>
+                        <div><b>Focus</b><span>Deterministic ownership, clean state, and controlled technical debt.</span></div>
                     </div>
                 </article>
             </div>
         </section>
 
-        <section id="systems">
+        <section id="skills">
             <div class="section-head reveal">
                 <div>
-                    <div class="section-kicker">Architecture layer</div>
-                    <h2>What this site is demonstrating.</h2>
+                    <div class="section-kicker">Skills</div>
+                    <h2>What I do.</h2>
                 </div>
                 <p>
-                    The background is not a video. It is a browser-side procedural simulation running
-                    on Canvas, connected to pointer input and scroll state.
+                    Short version: I work with game systems, simulation rules, tools,
+                    architecture, QA analysis, and technical presentation.
                 </p>
             </div>
 
             <div class="systems-grid">
                 <article class="panel system-card reveal">
-                    <div class="system-index">01 / FIELD</div>
-                    <h3>Procedural background</h3>
-                    <p>
-                        Nodes move in a vector field, form temporary links, and react to the pointer.
-                        The page keeps the visual layer live without heavy media assets.
-                    </p>
+                    <div class="system-index">01 / SYSTEMS</div>
+                    <h3>Game systems</h3>
+                    <p>Designing rules, state flows, progression logic, player feedback, and edge-case behavior.</p>
                 </article>
                 <article class="panel system-card reveal">
-                    <div class="system-index">02 / INPUT</div>
-                    <h3>Real-time interaction</h3>
-                    <p>
-                        Mouse movement bends trajectories, clicks inject impulses, and scroll changes
-                        the energy profile of the system behind the content.
-                    </p>
+                    <div class="system-index">02 / SIM</div>
+                    <h3>Simulation prototypes</h3>
+                    <p>Orbital prediction, ship movement, RCS control, docking, local zones, and dynamic objects.</p>
                 </article>
                 <article class="panel system-card reveal">
-                    <div class="system-index">03 / LAYERS</div>
-                    <h3>HUD composition</h3>
-                    <p>
-                        Canvas, scanline overlay, vignette, sticky navigation, and glass panels are
-                        separated into clear visual layers with predictable z-index behavior.
-                    </p>
+                    <div class="system-index">03 / CODE</div>
+                    <h3>Python tooling</h3>
+                    <p>Debug scripts, validation checks, file audits, automation helpers, and project cleanup tools.</p>
                 </article>
-            </div>
-        </section>
-
-        <section id="stack">
-            <div class="section-head reveal">
-                <div>
-                    <div class="section-kicker">Technology layer</div>
-                    <h2>Tools and engineering areas.</h2>
-                </div>
-                <p>
-                    The page is static and deployable to GitHub Pages, but the presentation is dynamic:
-                    no GIF background, no video loop, no backend requirement.
-                </p>
-            </div>
-
-            <div class="panel stack-panel reveal">
-                <div class="stack-map">
-                    <div class="stack-item"><b>Canvas API</b><span>Procedural field, particles, links, orbit traces, input response.</span></div>
-                    <div class="stack-item"><b>JavaScript</b><span>Animation loop, delta time, resize handling, telemetry, scroll state.</span></div>
-                    <div class="stack-item"><b>CSS Layers</b><span>Glass panels, responsive layout, HUD styling, readable depth.</span></div>
-                    <div class="stack-item"><b>GitHub Pages</b><span>Single-file static deployment for a personal portfolio domain.</span></div>
-                    <div class="stack-item"><b>Python</b><span>Game logic, simulation prototypes, tooling, debugging scripts.</span></div>
-                    <div class="stack-item"><b>ModernGL</b><span>GPU render pipeline experiments for game prototypes.</span></div>
-                    <div class="stack-item"><b>Architecture</b><span>Contracts, data ownership, state separation, runtime validation.</span></div>
-                    <div class="stack-item"><b>Game UX</b><span>HUD logic, flight feedback, control readability, debug overlays.</span></div>
-                </div>
+                <article class="panel system-card reveal">
+                    <div class="system-index">04 / RENDER</div>
+                    <h3>Rendering logic</h3>
+                    <p>Canvas, Pygame, ModernGL, HUD layers, VFX states, line rendering, and performance budgets.</p>
+                </article>
+                <article class="panel system-card reveal">
+                    <div class="system-index">05 / ARCH</div>
+                    <h3>Architecture cleanup</h3>
+                    <p>Single source of truth, data contracts, module separation, state ownership, and no legacy drift.</p>
+                </article>
+                <article class="panel system-card reveal">
+                    <div class="system-index">06 / QA</div>
+                    <h3>Gameplay QA analysis</h3>
+                    <p>Finding systemic bugs, reproduction paths, balance issues, unclear feedback, and long-run failures.</p>
+                </article>
             </div>
         </section>
 
@@ -1099,9 +1078,8 @@
                     <div class="section-kicker">Contact</div>
                     <h2>Available for systems, tools, gameplay QA, and prototype work.</h2>
                     <p>
-                        This portfolio is intentionally technical: it shows interest in architecture,
-                        simulation behavior, debugging, and real-time visual systems instead of using
-                        a static resume template.
+                        I am interested in systems-heavy game work: simulation, tools,
+                        architecture, gameplay QA, debugging, and technical prototypes.
                     </p>
                 </div>
                 <div class="contact-list">
