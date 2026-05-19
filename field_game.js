@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.14-particle-gradient",
+        buildVersion: "0.11.15-hot-particle-gradient",
 
         portfolio: {
             minNodes: 48,
@@ -115,29 +115,29 @@
         nuclei: {
             CORE: { name: "CORE", mass: 9999, radius: 7.0, color: "143, 214, 255", absorb: 0 },
 
-            // Gameplay visual gradient:
-            // light/stability nuclei are smaller and cold-blue;
-            // balanced nuclei move through white/yellow;
-            // mass/collapse nuclei become larger and redder.
-            H: { name: "H", mass: 1, radius: 3.1, color: "170, 230, 255", absorb: 0.6 },
-            D: { name: "D", mass: 2, radius: 3.2, color: "159, 224, 252", absorb: 1.7 },
-            He3: { name: "He3", mass: 3, radius: 3.3, color: "148, 219, 249", absorb: 3.4 },
-            He4: { name: "He4", mass: 4, radius: 3.4, color: "138, 213, 246", absorb: 8.5 },
+            // Gameplay visual gradient based on stellar temperature colors:
+            // cold/light/control side = bright blue/cyan;
+            // balance side = white/yellow;
+            // hot/heavy/collapse side = orange/red/dark red.
+            H: { name: "H", mass: 1, radius: 4.2, color: "110, 220, 255", absorb: 0.6 },
+            D: { name: "D", mass: 2, radius: 4.35, color: "80, 245, 255", absorb: 1.7 },
+            He3: { name: "He3", mass: 3, radius: 4.5, color: "70, 180, 255", absorb: 3.4 },
+            He4: { name: "He4", mass: 4, radius: 4.65, color: "185, 230, 255", absorb: 8.5 },
 
-            Be8: { name: "Be8", mass: 8, radius: 3.8, color: "156, 219, 232", absorb: 13.0, unstable: true },
-            C12: { name: "C12", mass: 12, radius: 4.1, color: "180, 225, 214", absorb: 32.0 },
-            O16: { name: "O16", mass: 16, radius: 4.5, color: "207, 231, 192", absorb: 52.0 },
-            Ne20: { name: "Ne20", mass: 20, radius: 4.8, color: "232, 226, 165", absorb: 74.0 },
-            Mg24: { name: "Mg24", mass: 24, radius: 5.2, color: "248, 212, 132", absorb: 98.0 },
+            Be8: { name: "Be8", mass: 8, radius: 5.25, color: "245, 252, 255", absorb: 13.0, unstable: true },
+            C12: { name: "C12", mass: 12, radius: 5.85, color: "255, 245, 185", absorb: 32.0 },
+            O16: { name: "O16", mass: 16, radius: 6.45, color: "255, 230, 85", absorb: 52.0 },
+            Ne20: { name: "Ne20", mass: 20, radius: 7.05, color: "255, 200, 55", absorb: 74.0 },
+            Mg24: { name: "Mg24", mass: 24, radius: 7.65, color: "255, 165, 45", absorb: 98.0 },
 
-            Si28: { name: "Si28", mass: 28, radius: 5.6, color: "255, 190, 104", absorb: 130.0 },
-            S32: { name: "S32", mass: 32, radius: 5.9, color: "253, 165, 88", absorb: 164.0 },
-            Ar36: { name: "Ar36", mass: 36, radius: 6.3, color: "246, 138, 78", absorb: 202.0 },
-            Ca40: { name: "Ca40", mass: 40, radius: 6.7, color: "232, 111, 72", absorb: 245.0 },
-            Ti44: { name: "Ti44", mass: 44, radius: 7.1, color: "211, 84, 69", absorb: 292.0 },
-            Cr48: { name: "Cr48", mass: 48, radius: 7.5, color: "188, 63, 67", absorb: 344.0 },
-            Fe52: { name: "Fe52", mass: 52, radius: 8.3, color: "158, 43, 61", absorb: 402.0 },
-            Fe56: { name: "Fe56", mass: 56, radius: 9.1, color: "118, 24, 44", absorb: 470.0 }
+            Si28: { name: "Si28", mass: 28, radius: 8.25, color: "255, 120, 35", absorb: 130.0 },
+            S32: { name: "S32", mass: 32, radius: 8.85, color: "255, 82, 28", absorb: 164.0 },
+            Ar36: { name: "Ar36", mass: 36, radius: 9.45, color: "235, 48, 34", absorb: 202.0 },
+            Ca40: { name: "Ca40", mass: 40, radius: 10.05, color: "210, 30, 42", absorb: 245.0 },
+            Ti44: { name: "Ti44", mass: 44, radius: 10.65, color: "185, 20, 48", absorb: 292.0 },
+            Cr48: { name: "Cr48", mass: 48, radius: 11.25, color: "158, 14, 52", absorb: 344.0 },
+            Fe52: { name: "Fe52", mass: 52, radius: 11.95, color: "130, 8, 48", absorb: 402.0 },
+            Fe56: { name: "Fe56", mass: 56, radius: 12.6, color: "90, 0, 34", absorb: 470.0 }
         },
 
         growthStages: [
