@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.4-softer-repel",
+        buildVersion: "0.11.6-core-zone-growth",
 
         portfolio: {
             minNodes: 48,
@@ -89,22 +89,24 @@
             levelAdvancePulseMass: 0.0,
             starReadinessTarget: 400,
 
-            collapseCriticalMass: 190,
-            collapseBlackHoleMass: 225,
+            collapseCriticalMass: 320,
+            collapseBlackHoleMass: 380,
             collapseNeutronStabilityMin: 50,
             supernovaDuration: 4.4,
-            finalSpawnInterval: 0.95,
+            finalSpawnInterval: 1.25,
 
-            ironCoreInfallForce: 92,
-            ironCoreInfallHeavyBoost: 1.45,
-            ironCoreTangentialForce: 18,
-            ironCoreDeflectRadius: 245,
-            ironCoreDeflectPushRadius: 355,
-            ironCoreDeflectForce: 1250,
-            ironCoreDeflectPushForce: 2450,
-            ironCoreDeflectMotionForce: 30,
-            ironCoreAutoAbsorbPadding: 18,
-            ironCoreMaxAutoAbsorbsPerFrame: 3
+            ironCoreInfallForce: 42,
+            ironCoreInfallHeavyBoost: 0.82,
+            ironCoreTangentialForce: 11,
+            ironCoreDeflectRadius: 163,
+            ironCoreDeflectPushRadius: 237,
+            ironCoreDeflectForce: 3750,
+            ironCoreDeflectPushForce: 7350,
+            ironCoreDeflectMotionForce: 90,
+            ironCoreAutoAbsorbPadding: 6,
+            ironCoreMaxAutoAbsorbsPerFrame: 1,
+            ironCoreAbsorbRadiusScale: 0.58,
+            ironCoreEscapeMargin: 160
         },
 
         nuclei: {
@@ -211,6 +213,8 @@
         visualCoreMass: CONFIG.game.initialCoreMass,
         visualCoreRadius: 0,
         visualFusionRadius: 0,
+        ironCoreEntryCoreRadius: 0,
+        ironCoreEntryFusionRadius: 0,
         pointer: {
             x: 0,
             y: 0,
@@ -340,7 +344,12 @@
         }
 
         if (isCollapsePhase()) {
-            radius *= 1.12 + clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1) * 0.34;
+            var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
+            radius *= 1.12 + collapse01 * 0.34;
+
+            if (state.ironCoreEntryCoreRadius > 0) {
+                radius = Math.max(radius, state.ironCoreEntryCoreRadius * (1.03 + collapse01 * 0.18));
+            }
         } else if (isSupernovaPhase()) {
             var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
             if (state.endingType === "BLACK HOLE") {
@@ -355,7 +364,7 @@
         return clamp(
             radius,
             CONFIG.game.coreRadiusBase,
-            isFusionPhase() ? 260 : 360
+            isFusionPhase() ? 260 : 420
         );
     }
 
@@ -371,11 +380,23 @@
 
         if (isFusionPhase()) {
             var readiness01 = clamp(state.starReadiness / CONFIG.game.starReadinessTarget, 0, 1);
-            radius *= 1.0 + readiness01 * 0.58;
+            var profileMass01 = clamp(state.starProfileMass / 520, 0, 1);
+            var easedReadiness = Math.sqrt(readiness01);
+            var lateReadiness = Math.pow(readiness01, 1.35);
+
+            radius *= 1.0 + easedReadiness * 0.34 + lateReadiness * 0.46 + profileMass01 * 0.16;
+            radius = Math.max(radius, targetCoreRadius() * (1.42 + readiness01 * 0.10));
         }
 
         if (isCollapsePhase()) {
-            radius *= 1.28;
+            var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
+            radius *= 1.28 + collapse01 * 0.14;
+
+            if (state.ironCoreEntryFusionRadius > 0) {
+                radius = Math.max(radius, state.ironCoreEntryFusionRadius * (1.04 + collapse01 * 0.16));
+            }
+
+            radius = Math.max(radius, targetCoreRadius() * 1.22);
         } else if (isSupernovaPhase() || isEndingPhase()) {
             radius *= state.endingType === "BLACK HOLE" ? 0.82 : 1.18;
         }
@@ -383,7 +404,7 @@
         return clamp(
             radius,
             CONFIG.game.fusionRadiusBase,
-            isCollapsePhase() ? 330 : 330
+            isCollapsePhase() ? 560 : 520
         );
     }
 
@@ -605,6 +626,8 @@
         state.visualCoreMass = CONFIG.game.initialCoreMass;
         state.visualCoreRadius = 0;
         state.visualFusionRadius = 0;
+        state.ironCoreEntryCoreRadius = 0;
+        state.ironCoreEntryFusionRadius = 0;
         state.coreLevel = 1;
         state.nextNodeId = 1;
         state.spawnTimer = 0;
@@ -891,6 +914,22 @@
             angle = rand(0, Math.PI * 2);
             x = origin.x + Math.cos(angle) * rand(18, 48);
             y = origin.y + Math.sin(angle) * rand(18, 48);
+        } else if (isCollapsePhase()) {
+            var edgePad = 28;
+            var edgeSide = Math.floor(rand(0, 4));
+            if (edgeSide === 0) {
+                x = bounds.left + edgePad;
+                y = rand(bounds.top + edgePad, bounds.bottom - edgePad);
+            } else if (edgeSide === 1) {
+                x = bounds.right - edgePad;
+                y = rand(bounds.top + edgePad, bounds.bottom - edgePad);
+            } else if (edgeSide === 2) {
+                x = rand(bounds.left + edgePad, bounds.right - edgePad);
+                y = bounds.top + edgePad;
+            } else {
+                x = rand(bounds.left + edgePad, bounds.right - edgePad);
+                y = bounds.bottom - edgePad;
+            }
         } else if (state.gameMode && getNucleus(nucleusName).mass >= 20) {
             angle = rand(0, Math.PI * 2);
             var heavyMass = getNucleus(nucleusName).mass;
@@ -926,8 +965,13 @@
             }
         }
 
-        x = clamp(x, bounds.left + 44, bounds.right - 44);
-        y = clamp(y, bounds.top + 44, bounds.bottom - 44);
+        if (isCollapsePhase()) {
+            x = clamp(x, bounds.left + 22, bounds.right - 22);
+            y = clamp(y, bounds.top + 22, bounds.bottom - 22);
+        } else {
+            x = clamp(x, bounds.left + 44, bounds.right - 44);
+            y = clamp(y, bounds.top + 44, bounds.bottom - 44);
+        }
 
         var node = createGameNode(state.nextNodeId, nucleusName, x, y, false);
         state.nextNodeId += 1;
@@ -939,6 +983,17 @@
             var push = 52 / Math.pow(Math.max(1, node.mass), 0.32);
             node.vx = (dx / d) * push + rand(-8, 8);
             node.vy = (dy / d) * push + rand(-8, 8);
+        } else if (isCollapsePhase()) {
+            var fallDx = cx - node.x;
+            var fallDy = cy - node.y;
+            var fallD = Math.sqrt(fallDx * fallDx + fallDy * fallDy) + 0.001;
+            var fallSpeed = rand(7.5, 16.0) / Math.pow(Math.max(1, node.mass), 0.10);
+            var tangentSign = Math.random() < 0.5 ? -1 : 1;
+            var tangent = rand(-7.0, 7.0) * tangentSign;
+
+            node.vx = (fallDx / fallD) * fallSpeed + (-fallDy / fallD) * tangent;
+            node.vy = (fallDy / fallD) * fallSpeed + (fallDx / fallD) * tangent;
+            node.deflectedTimer = 0;
         }
 
         state.nodes.push(node);
@@ -1609,24 +1664,24 @@ function getFusionAbsorbProfileValue(typeName) {
         // Final phase is intentionally a two-bar decision:
         // Collapse gets the star to the supernova event.
         // Stability decides whether the remnant becomes a neutron star or a black hole.
-        if (typeName === "H") return { core: 0.16, collapse: 0.25, stability: 4.5, role: "stability" };
-        if (typeName === "D") return { core: 0.28, collapse: 0.45, stability: 5.5, role: "stability" };
-        if (typeName === "He3") return { core: 0.42, collapse: 0.75, stability: 5.0, role: "stability" };
-        if (typeName === "He4") return { core: 0.64, collapse: 1.25, stability: 4.4, role: "stability" };
+        if (typeName === "H") return { core: 0.12, collapse: 0.10, stability: 2.8, role: "stability" };
+        if (typeName === "D") return { core: 0.22, collapse: 0.18, stability: 3.5, role: "stability" };
+        if (typeName === "He3") return { core: 0.34, collapse: 0.30, stability: 3.2, role: "stability" };
+        if (typeName === "He4") return { core: 0.54, collapse: 0.55, stability: 2.8, role: "stability" };
 
         if (mass < 28) {
-            return { core: 1.35, collapse: 4.6, stability: 1.4, role: "balanced" };
+            return { core: 1.05, collapse: 2.4, stability: 0.8, role: "balanced" };
         }
 
         if (mass < 44) {
-            return { core: 2.5, collapse: 11.8, stability: -10.0, role: "collapse" };
+            return { core: 1.85, collapse: 5.6, stability: -2.4, role: "collapse" };
         }
 
         if (mass < 52) {
-            return { core: 3.5, collapse: 17.0, stability: -16.0, role: "collapse" };
+            return { core: 2.7, collapse: 7.4, stability: -4.4, role: "collapse" };
         }
 
-        return { core: 4.9, collapse: 23.5, stability: -24.0, role: "collapse" };
+        return { core: 3.8, collapse: 8.9, stability: -6.4, role: "collapse" };
     }
 
     function absorbCollapseNode(node) {
@@ -2237,7 +2292,7 @@ function getFusionAbsorbProfileValue(typeName) {
         if (state.spawnTimer > 0) return;
 
         if (isCollapsePhase()) {
-            state.spawnTimer = CONFIG.game.finalSpawnInterval;
+            state.spawnTimer = rand(CONFIG.game.finalSpawnInterval * 0.72, CONFIG.game.finalSpawnInterval * 1.55);
         } else {
             state.spawnTimer = Math.max(0.38, CONFIG.game.spawnInterval - Math.sqrt(state.coreMass) * 0.014);
         }
@@ -2259,14 +2314,21 @@ function getFusionAbsorbProfileValue(typeName) {
             }
 
             n.age += dt;
+            if (n.deflectedTimer && n.deflectedTimer > 0) {
+                n.deflectedTimer = Math.max(0, n.deflectedTimer - dt);
+            }
+
             var insideCoreZone = isInsideFusionZone(n);
             var damping = insideCoreZone ? CONFIG.game.insideCoreDamping : CONFIG.game.baseDamping;
+            if (isCollapsePhase() && n.deflectedTimer && n.deflectedTimer > 0) {
+                damping = 0.996;
+            }
             n.vx *= Math.pow(damping, dt * 60);
             n.vy *= Math.pow(damping, dt * 60);
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (isCollapsePhase()) {
-                maxSpeed *= state.pointer.active ? 0.92 : 0.72;
+                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 2.35 : 0.44;
             }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
@@ -2284,21 +2346,23 @@ function getFusionAbsorbProfileValue(typeName) {
             n.y += n.vy * dt;
 
             var margin = 22 + n.radius;
-            if (n.x < bounds.left + margin) {
-                n.x = bounds.left + margin;
-                n.vx = Math.abs(n.vx) * 0.78;
-            }
-            if (n.x > bounds.right - margin) {
-                n.x = bounds.right - margin;
-                n.vx = -Math.abs(n.vx) * 0.78;
-            }
-            if (n.y < bounds.top + margin) {
-                n.y = bounds.top + margin;
-                n.vy = Math.abs(n.vy) * 0.78;
-            }
-            if (n.y > bounds.bottom - margin) {
-                n.y = bounds.bottom - margin;
-                n.vy = -Math.abs(n.vy) * 0.78;
+            if (!isCollapsePhase()) {
+                if (n.x < bounds.left + margin) {
+                    n.x = bounds.left + margin;
+                    n.vx = Math.abs(n.vx) * 0.78;
+                }
+                if (n.x > bounds.right - margin) {
+                    n.x = bounds.right - margin;
+                    n.vx = -Math.abs(n.vx) * 0.78;
+                }
+                if (n.y < bounds.top + margin) {
+                    n.y = bounds.top + margin;
+                    n.vy = Math.abs(n.vy) * 0.78;
+                }
+                if (n.y > bounds.bottom - margin) {
+                    n.y = bounds.bottom - margin;
+                    n.vy = -Math.abs(n.vy) * 0.78;
+                }
             }
 
             var core = getCore();
@@ -2320,6 +2384,27 @@ function getFusionAbsorbProfileValue(typeName) {
                     n.vx += cnx * 8 * dt;
                     n.vy += cny * 8 * dt;
                 }
+            }
+        }
+    }
+
+    function removeEscapedIronCoreParticles() {
+        if (!isCollapsePhase()) return;
+
+        var bounds = getGameBounds();
+        var m = CONFIG.game.ironCoreEscapeMargin;
+
+        for (var i = state.nodes.length - 1; i >= 1; i -= 1) {
+            var n = state.nodes[i];
+            if (!n || n.core) continue;
+
+            if (
+                n.x < bounds.left - m ||
+                n.x > bounds.right + m ||
+                n.y < bounds.top - m ||
+                n.y > bounds.bottom + m
+            ) {
+                removeNode(n);
             }
         }
     }
@@ -2356,6 +2441,9 @@ function getFusionAbsorbProfileValue(typeName) {
     function triggerIronCoreCollapse() {
         if (!isFusionPhase()) return;
         if (!hasDiscovered("Fe56")) return;
+
+        state.ironCoreEntryCoreRadius = Math.max(coreRadius(), targetCoreRadius());
+        state.ironCoreEntryFusionRadius = Math.max(fusionRadius(), targetFusionRadius());
 
         state.finalPhase = "collapse";
         state.collapseMass = clamp(state.starReadiness * 0.09 + state.starProfileMass * 0.08 + state.starProfileTemp * 0.15 - state.starProfileStability * 0.07, 0, 70);
@@ -2435,6 +2523,9 @@ function getFusionAbsorbProfileValue(typeName) {
             var mass01 = clamp((n.mass - 1) / 55, 0, 1);
             var zone01 = clamp(d / Math.max(1, fusionRadius()), 0.25, 1.35);
             var infall = CONFIG.game.ironCoreInfallForce * (0.72 + zone01 * 0.42) * (1 + mass01 * CONFIG.game.ironCoreInfallHeavyBoost);
+            if (n.deflectedTimer && n.deflectedTimer > 0) {
+                infall *= 0.24;
+            }
 
             n.vx += nx * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
             n.vy += ny * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
@@ -2471,6 +2562,10 @@ function getFusionAbsorbProfileValue(typeName) {
             n.vx += (dx / d) * force * dt;
             n.vy += (dy / d) * force * dt;
 
+            if (falloff > 0.08) {
+                n.deflectedTimer = 1.65;
+            }
+
             if (state.pointer.speed > 0.25) {
                 n.vx += state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
                 n.vy += state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
@@ -2494,7 +2589,7 @@ function getFusionAbsorbProfileValue(typeName) {
             var dx = n.x - core.x;
             var dy = n.y - core.y;
             var d = Math.sqrt(dx * dx + dy * dy);
-            var absorbRadius = coreRadius() + n.radius * CONFIG.game.visualScale + CONFIG.game.ironCoreAutoAbsorbPadding;
+            var absorbRadius = coreRadius() * CONFIG.game.ironCoreAbsorbRadiusScale + n.radius * CONFIG.game.visualScale + CONFIG.game.ironCoreAutoAbsorbPadding;
 
             if (d <= absorbRadius) {
                 absorbCollapseNode(n);
@@ -2600,6 +2695,7 @@ function getFusionAbsorbProfileValue(typeName) {
             state.invalidPairs = [];
             state.linkCount = 0;
             integrateGameNodes(dt);
+            removeEscapedIronCoreParticles();
             autoAbsorbIronCore();
             updateAbsorbButtons(false);
             return;
@@ -2691,6 +2787,9 @@ function getFusionAbsorbProfileValue(typeName) {
 
         var fr = fusionRadius();
         var cr = coreRadius();
+        if (isCollapsePhase()) {
+            cr *= 1.9;
+        }
         var level = getCoreLevel();
         var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.visualCoreMass) * 0.006, 0.12, 0.48);
         var coreColor = getStarProfileCoreColor();
@@ -3105,7 +3204,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = "IRON CORE SLOW-MO: nuclei fall into the core automatically. Deflect what you do not want to feed.";
+                dom.gameMessage.textContent = "IRON CORE FILTER: nuclei fall from the edges. Deflect what you do not want to feed; escaped particles are discarded.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
