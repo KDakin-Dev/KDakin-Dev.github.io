@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.10.1-spawn-balance",
+        buildVersion: "0.10.4-heavy-core-final",
 
         portfolio: {
             minNodes: 48,
@@ -213,6 +213,7 @@
         recipeRoot: null,
         versionRoot: null,
         unlockRoot: null,
+        finalRoot: null,
         unlockTimer: 0,
         unlockName: ""
     };
@@ -300,10 +301,26 @@
     }
 
     function coreRadius() {
+        var visualMass = state.coreMass;
+
+        if (isCollapsePhase() || isSupernovaPhase() || isEndingPhase()) {
+            visualMass += state.collapseMass * 1.45;
+        }
+
+        var radius = CONFIG.game.coreRadiusBase + Math.sqrt(visualMass) * CONFIG.game.coreRadiusScale;
+
+        if (isCollapsePhase()) {
+            radius *= 1.12 + clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1) * 0.34;
+        } else if (isSupernovaPhase()) {
+            radius = Math.max(radius * 1.75, 112);
+        } else if (isEndingPhase()) {
+            radius = state.endingType === "BLACK HOLE" ? Math.max(radius * 1.08, 72) : Math.max(radius * 0.64, 38);
+        }
+
         return clamp(
-            CONFIG.game.coreRadiusBase + Math.sqrt(state.coreMass) * CONFIG.game.coreRadiusScale,
+            radius,
             CONFIG.game.coreRadiusBase,
-            CONFIG.game.coreRadiusMax
+            isFusionPhase() ? 84 : 170
         );
     }
 
@@ -439,6 +456,19 @@
         var speed = CONFIG.game.spawnSpeedBase + getCoreLevel() * CONFIG.game.spawnSpeedByCoreLevel;
         var speedScale = 1 / Math.pow(Math.max(1, nucleus.mass), 0.36);
         var orbitScale = core ? 0 : rand(0.58, CONFIG.game.outerOrbitBias);
+
+        if (!core && nucleus.mass >= 28) {
+            var heavy01 = clamp((nucleus.mass - 28) / 28, 0, 1);
+            if (isCollapsePhase()) {
+                orbitScale = rand(0.24, 0.42) - heavy01 * 0.10;
+            } else {
+                orbitScale = rand(0.40, 0.62) - heavy01 * 0.12;
+            }
+        } else if (!core && isCollapsePhase() && nucleus.mass >= 12) {
+            var midHeavy01 = clamp((nucleus.mass - 12) / 16, 0, 1);
+            orbitScale = rand(0.34, 0.50) - midHeavy01 * 0.08;
+        }
+
         var orbitA = minDim * orbitScale;
         var orbitB = orbitA * rand(0.48, 0.78);
         var orbitSpeed = (Math.random() < 0.5 ? -1 : 1) * rand(0.28, 0.62) / Math.pow(Math.max(1, nucleus.mass), 0.30);
@@ -491,6 +521,7 @@
         state.lastReaction = "Feed H into the core";
         state.unlockTimer = 0;
         state.unlockName = "";
+        hideFinalUi();
 
         state.nodes.push(createGameNode(0, "CORE", cx, cy, true));
 
@@ -732,6 +763,23 @@
             angle = rand(0, Math.PI * 2);
             x = origin.x + Math.cos(angle) * rand(18, 48);
             y = origin.y + Math.sin(angle) * rand(18, 48);
+        } else if (state.gameMode && getNucleus(nucleusName).mass >= 28) {
+            angle = rand(0, Math.PI * 2);
+            var heavyMass = getNucleus(nucleusName).mass;
+            var heavy01 = clamp((heavyMass - 28) / 28, 0, 1);
+            radius = fusionRadius() * rand(0.72, 1.18 - heavy01 * 0.22);
+            if (isCollapsePhase()) {
+                radius = fusionRadius() * rand(0.46, 0.88 - heavy01 * 0.16);
+            }
+            x = cx + Math.cos(angle) * radius;
+            y = cy + Math.sin(angle) * radius;
+        } else if (isCollapsePhase() && getNucleus(nucleusName).mass >= 12) {
+            angle = rand(0, Math.PI * 2);
+            var midHeavyMass = getNucleus(nucleusName).mass;
+            var midHeavy01 = clamp((midHeavyMass - 12) / 16, 0, 1);
+            radius = fusionRadius() * rand(0.56, 0.98 - midHeavy01 * 0.14);
+            x = cx + Math.cos(angle) * radius;
+            y = cy + Math.sin(angle) * radius;
         } else {
             var pad = 62;
             var side = Math.floor(rand(0, 4));
@@ -842,6 +890,7 @@
         hideRecipeUi();
         hideVersionUi();
         hideUnlockUi();
+        hideFinalUi();
         configureLegacyGameHud(false);
         rebuildPortfolioNodes();
         updateGameStats();
@@ -1030,7 +1079,34 @@
                 }
             }
 
+            if (n.mass >= 28 || (isCollapsePhase() && n.mass >= 12)) {
+                var heavy01b = clamp((n.mass - 12) / 44, 0, 1);
+                var desiredOrbit = fusionRadius();
+
+                if (isCollapsePhase()) {
+                    desiredOrbit *= 0.78 - heavy01b * 0.36;
+                } else {
+                    desiredOrbit *= 1.18 - heavy01b * 0.42;
+                }
+
+                if (cd > desiredOrbit) {
+                    var pullGain = isCollapsePhase() ? (1.35 + heavy01b * 3.25) : (0.42 + heavy01b * 1.65);
+                    var inward = (cd - desiredOrbit) * pullGain;
+                    n.vx += (cdx / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
+                    n.vy += (cdy / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
+                }
+
+                var heavyOrbit = (isCollapsePhase() ? 18 + heavy01b * 18 : 7 + heavy01b * 12) / Math.pow(Math.max(1, n.mass), 0.10);
+                n.vx += tx * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+                n.vy += ty * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+            }
+
             var noise = CONFIG.game.orbitNoise / Math.pow(Math.max(1, n.mass), 0.45);
+            if (n.mass >= 28) {
+                noise *= isCollapsePhase() ? 0.22 : 0.52;
+            } else if (isCollapsePhase() && n.mass >= 12) {
+                noise *= 0.42;
+            }
             n.vx += Math.sin(time * 0.0011 + n.pulse) * noise * dt;
             n.vy += Math.cos(time * 0.0009 + n.pulse) * noise * dt;
         }
@@ -1276,18 +1352,27 @@
         var nucleus = getNucleus(typeName);
         var mass = nucleus.mass || 1;
 
-        if (typeName === "H") return { core: 0.25, collapse: 0.6, stability: 7.0 };
-        if (typeName === "D") return { core: 0.45, collapse: 0.9, stability: 9.0 };
-        if (typeName === "He3") return { core: 0.65, collapse: 1.2, stability: 8.0 };
-        if (typeName === "He4") return { core: 0.9, collapse: 1.8, stability: 6.0 };
+        // Final phase is intentionally a two-bar decision:
+        // Collapse gets the star to the supernova event.
+        // Stability decides whether the remnant becomes a neutron star or a black hole.
+        if (typeName === "H") return { core: 0.18, collapse: 0.4, stability: 8.0, role: "stability" };
+        if (typeName === "D") return { core: 0.32, collapse: 0.7, stability: 10.0, role: "stability" };
+        if (typeName === "He3") return { core: 0.48, collapse: 1.0, stability: 9.0, role: "stability" };
+        if (typeName === "He4") return { core: 0.72, collapse: 1.7, stability: 7.0, role: "stability" };
 
-        if (mass >= 52) return { core: 5.0, collapse: 22.0, stability: -18.0 };
-        if (mass >= 40) return { core: 4.2, collapse: 17.0, stability: -13.0 };
-        if (mass >= 28) return { core: 3.4, collapse: 12.0, stability: -9.0 };
-        if (mass >= 16) return { core: 2.4, collapse: 7.2, stability: -5.0 };
-        if (mass >= 12) return { core: 1.8, collapse: 5.0, stability: -3.0 };
+        if (mass < 28) {
+            return { core: 1.6, collapse: 5.5, stability: 2.5, role: "balanced" };
+        }
 
-        return { core: 1.0, collapse: 2.6, stability: 0.0 };
+        if (mass < 44) {
+            return { core: 2.6, collapse: 10.5, stability: -4.5, role: "collapse" };
+        }
+
+        if (mass < 52) {
+            return { core: 3.6, collapse: 15.5, stability: -9.5, role: "collapse" };
+        }
+
+        return { core: 5.0, collapse: 23.0, stability: -17.0, role: "collapse" };
     }
 
     function absorbCollapseNode(node) {
@@ -1297,7 +1382,14 @@
         state.coreMass += effect.core;
         state.collapseMass += effect.collapse;
         state.stability = clamp(state.stability + effect.stability, 0, 100);
-        state.lastReaction = "Core feed " + nucleus.name;
+
+        if (effect.role === "stability") {
+            state.lastReaction = nucleus.name + " stabilized the core";
+        } else if (effect.role === "balanced") {
+            state.lastReaction = nucleus.name + " balanced the collapse";
+        } else {
+            state.lastReaction = nucleus.name + " drove the collapse";
+        }
 
         removeNode(node);
         addPulse(node.x, node.y, 170 + Math.min(260, effect.collapse * 6));
@@ -1393,6 +1485,7 @@
         root.style.background = "rgba(5, 10, 16, 0.78)";
         root.style.backdropFilter = "blur(14px)";
         root.style.boxShadow = "0 16px 60px rgba(0, 0, 0, 0.36)";
+        root.style.overflow = "visible";
         root.style.color = "rgba(215, 227, 244, 0.96)";
         root.style.font = "800 14px SFMono-Regular, Consolas, monospace";
         root.style.letterSpacing = "0.06em";
@@ -1427,13 +1520,13 @@
 
     function reactionHtml(reaction, active) {
         var dimmed = !active;
-        var size = active ? 48 : 26;
-        var gap = active ? 8 : 4;
-        var opacity = active ? "1" : "0.42";
+        var size = active ? 48 : 30;
+        var gap = active ? 8 : 5;
+        var opacity = active ? "1" : "0.66";
 
         return "<span style='display:inline-flex;align-items:center;justify-content:center;gap:" + gap + "px;opacity:" + opacity + ";white-space:nowrap;'>"
             + nucleusChipHtml(reaction.a, dimmed, size)
-            + "<span style='color:rgba(139,155,176," + (active ? "0.82" : "0.38") + ");font:900 " + (active ? 18 : 11) + "px SFMono-Regular,Consolas,monospace;'>+</span>"
+            + "<span style='color:rgba(180,205,235," + (active ? "0.82" : "0.56") + ");font:900 " + (active ? 18 : 12) + "px SFMono-Regular,Consolas,monospace;'>+</span>"
             + nucleusChipHtml(reaction.b, dimmed, size)
             + recipeArrowHtml(dimmed)
             + nucleusChipHtml(reaction.product, dimmed, size)
@@ -1443,7 +1536,7 @@
     function unlockedRecipeStripHtml(primary) {
         var unlocked = getUnlockedRecipeList();
         var items = [];
-        var start = Math.max(0, unlocked.length - 6);
+        var start = Math.max(0, unlocked.length - 8);
 
         for (var i = start; i < unlocked.length; i += 1) {
             var reaction = unlocked[i];
@@ -1453,8 +1546,16 @@
 
         if (items.length <= 0) return "";
 
-        return "<div style='display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;overflow:hidden;max-width:min(860px,calc(100vw - 60px));'>"
-            + items.join("")
+        var mid = Math.ceil(items.length / 2);
+        var leftItems = items.slice(0, mid).join("");
+        var rightItems = items.slice(mid).join("");
+
+        return ""
+            + "<div style='position:absolute;right:calc(100% + 16px);top:50%;transform:translateY(-50%);width:clamp(0px,calc((100vw - 850px)/2),330px);display:flex;gap:10px;justify-content:flex-end;overflow:hidden;pointer-events:none;'>"
+            + leftItems
+            + "</div>"
+            + "<div style='position:absolute;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:clamp(0px,calc((100vw - 850px)/2),330px);display:flex;gap:10px;justify-content:flex-start;overflow:hidden;pointer-events:none;'>"
+            + rightItems
             + "</div>";
     }
 
@@ -1469,13 +1570,18 @@
         if (isCollapsePhase()) {
             var massPct = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass * 100, 0, 100);
             var stabilityPct = clamp(state.stability, 0, 100);
+            var predicted = stabilityPct >= CONFIG.game.collapseNeutronStabilityMin && state.collapseMass < CONFIG.game.collapseBlackHoleMass
+                ? "LIKELY NEUTRON STAR"
+                : "BLACK HOLE RISK";
+
             state.recipeRoot.innerHTML = ""
                 + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;'>"
-                + "<span style='color:rgba(255,107,139,0.92);font-size:11px;letter-spacing:0.18em;'>IRON CORE</span>"
-                + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>FEED LIGHT = STABILITY / FEED HEAVY = COLLAPSE</span>"
+                + "<span style='color:rgba(255,107,139,0.94);font-size:11px;letter-spacing:0.18em;'>IRON CORE</span>"
+                + "<span style='color:rgba(255,209,102,0.86);font-size:11px;letter-spacing:0.10em;'>" + predicted + "</span>"
                 + "</div>"
                 + finalBarHtml("Collapse", massPct, "255,107,139")
-                + finalBarHtml("Stability", stabilityPct, "143,214,255");
+                + finalBarHtml("Stability", stabilityPct, "143,214,255")
+                + collapseLegendHtml();
             state.recipeRoot.style.display = "block";
             return;
         }
@@ -1503,6 +1609,7 @@
         var strip = unlockedRecipeStripHtml(recipe);
 
         state.recipeRoot.innerHTML = ""
+            + strip
             + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px;'>"
             + "<span style='color:rgba(143,214,255,0.86);font-size:11px;letter-spacing:0.18em;'>LV " + pad2(getCoreLevel()) + "</span>"
             + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + stage.title + "</span>"
@@ -1511,10 +1618,27 @@
             + "<div style='display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;'>"
             + reactionHtml(recipe, true)
             + lockText
-            + "</div>"
-            + strip;
+            + "</div>";
 
         state.recipeRoot.style.display = "block";
+    }
+
+    function collapseLegendHtml() {
+        return ""
+            + "<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;'>"
+            + collapseLegendCell("LIGHT", "H D He", "+ Stability", "143,214,255")
+            + collapseLegendCell("BALANCED", "C O Ne Mg", "+ Both", "255,209,102")
+            + collapseLegendCell("HEAVY", "Si Fe", "+ Collapse / - Stability", "255,107,139")
+            + "</div>";
+    }
+
+    function collapseLegendCell(title, examples, effect, color) {
+        return ""
+            + "<div style='border:1px solid rgba(" + color + ",0.22);border-radius:12px;background:rgba(5,10,16,0.36);padding:8px 9px;text-align:center;'>"
+            + "<div style='color:rgba(" + color + ",0.92);font:900 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;'>" + title + "</div>"
+            + "<div style='color:rgba(215,227,244,0.76);font:800 10px SFMono-Regular,Consolas,monospace;margin-top:4px;'>" + examples + "</div>"
+            + "<div style='color:rgba(139,155,176,0.86);font:800 10px SFMono-Regular,Consolas,monospace;margin-top:4px;'>" + effect + "</div>"
+            + "</div>";
     }
 
     function finalBarHtml(label, pct, color) {
@@ -1631,6 +1755,88 @@
         if (state.unlockTimer <= 0) {
             state.unlockRoot.style.display = "none";
         }
+    }
+
+    function ensureFinalUi() {
+        if (state.finalRoot) return;
+
+        var root = document.createElement("div");
+        root.id = "final-summary-panel";
+        root.style.position = "fixed";
+        root.style.left = "50%";
+        root.style.top = "50%";
+        root.style.transform = "translate(-50%, -50%)";
+        root.style.zIndex = "18";
+        root.style.display = "none";
+        root.style.width = "min(620px, calc(100vw - 36px))";
+        root.style.padding = "26px 30px";
+        root.style.border = "1px solid rgba(255, 209, 102, 0.42)";
+        root.style.borderRadius = "28px";
+        root.style.background = "rgba(5, 10, 16, 0.84)";
+        root.style.backdropFilter = "blur(18px)";
+        root.style.boxShadow = "0 0 90px rgba(255, 209, 102, 0.22), 0 26px 90px rgba(0,0,0,0.55)";
+        root.style.color = "rgba(235,245,255,0.96)";
+        root.style.textAlign = "center";
+        root.style.pointerEvents = "auto";
+        document.body.appendChild(root);
+        state.finalRoot = root;
+    }
+
+    function hideFinalUi() {
+        if (state.finalRoot) {
+            state.finalRoot.style.display = "none";
+        }
+    }
+
+    function showFinalUi() {
+        ensureFinalUi();
+
+        var remnantColor = state.endingType === "BLACK HOLE" ? "255, 160, 82" : "143, 214, 255";
+        var discovered = Object.keys(state.absorbedProducts).length;
+        var thanks = state.endingType === "BLACK HOLE"
+            ? "The core crossed the stability limit and collapsed into a black hole."
+            : "The supernova left behind a compact neutron star.";
+
+        state.finalRoot.innerHTML = ""
+            + "<div style='color:rgba(255,209,102,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.22em;margin-bottom:8px;'>FINAL REMNANT</div>"
+            + "<div style='color:rgba(" + remnantColor + ",0.98);font:900 44px Inter,Arial,sans-serif;letter-spacing:0.04em;text-shadow:0 0 28px rgba(" + remnantColor + ",0.45);'>" + state.endingType + "</div>"
+            + "<div style='margin-top:10px;color:rgba(215,227,244,0.78);font:800 13px SFMono-Regular,Consolas,monospace;line-height:1.5;'>" + thanks + "</div>"
+            + "<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 20px;'>"
+            + finalSummaryCell("Star mass", state.coreMass.toFixed(0))
+            + finalSummaryCell("Collapse", clamp(state.collapseMass / CONFIG.game.collapseCriticalMass * 100, 0, 999).toFixed(0) + "%")
+            + finalSummaryCell("Stability", clamp(state.stability, 0, 100).toFixed(0) + "%")
+            + "</div>"
+            + "<div style='color:rgba(139,155,176,0.92);font:800 12px SFMono-Regular,Consolas,monospace;margin-bottom:18px;'>Discovered nuclei: " + discovered + " / " + CONFIG.reactions.length + "<br>Thanks for playing.</div>"
+            + "<div style='display:flex;justify-content:center;gap:12px;flex-wrap:wrap;'>"
+            + "<button id='final-new-star' type='button' style='min-height:44px;padding:0 18px;border:1px solid rgba(143,214,255,0.42);border-radius:14px;background:rgba(99,166,255,0.16);color:rgba(235,245,255,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;cursor:pointer;'>NEW STAR</button>"
+            + "<button id='final-exit' type='button' style='min-height:44px;padding:0 18px;border:1px solid rgba(255,209,102,0.34);border-radius:14px;background:rgba(255,209,102,0.14);color:rgba(255,244,228,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;cursor:pointer;'>EXIT</button>"
+            + "</div>";
+
+        state.finalRoot.style.display = "block";
+
+        var newStar = document.getElementById("final-new-star");
+        var exit = document.getElementById("final-exit");
+
+        if (newStar) {
+            newStar.addEventListener("click", function () {
+                hideFinalUi();
+                resetCoreGame();
+            });
+        }
+
+        if (exit) {
+            exit.addEventListener("click", function () {
+                exitGameMode();
+            });
+        }
+    }
+
+    function finalSummaryCell(label, value) {
+        return ""
+            + "<div style='border:1px solid rgba(99,166,255,0.18);border-radius:16px;background:rgba(255,255,255,0.035);padding:12px 8px;'>"
+            + "<div style='color:rgba(139,155,176,0.92);font:900 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;text-transform:uppercase;'>" + label + "</div>"
+            + "<div style='margin-top:7px;color:rgba(235,245,255,0.96);font:900 20px SFMono-Regular,Consolas,monospace;'>" + value + "</div>"
+            + "</div>";
     }
 
     function ensureAbsorbUi() {
@@ -1911,6 +2117,7 @@
             state.lastReaction = state.endingType + " FORMED";
             state.nodes = state.nodes.length > 0 ? [state.nodes[0]] : state.nodes;
             showUnlock(state.endingType);
+            showFinalUi();
         }
     }
 
@@ -2362,7 +2569,7 @@
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = state.lastReaction + " | Light nuclei raise stability. Heavy nuclei drive collapse.";
+                dom.gameMessage.textContent = state.lastReaction + " | Fill Collapse to trigger supernova. Keep Stability high for neutron star; let it fall for black hole.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
