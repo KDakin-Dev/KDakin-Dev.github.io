@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.2-core-gravity-zone",
+        buildVersion: "0.11.4-softer-repel",
 
         portfolio: {
             minNodes: 48,
@@ -45,7 +45,7 @@
             validPairAttractRange: 132,
             validPairAttractForce: 48,
             invalidPairRange: 86,
-            invalidPairRepelForce: 135,
+            invalidPairRepelForce: 72,
 
             pointerRadius: 225,
             pointerPushRadius: 335,
@@ -83,10 +83,11 @@
             insideCoreRetainHeavyPower: 0.44,
             insideCoreRetainRadiusScale: 0.66,
             insideCoreTangentialForce: 22,
-            innerHydrogenEscapeForce: 38,
+            innerHydrogenEscapeForce: 14,
             innerProductOrbitAssist: 18,
             absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0,
+            starReadinessTarget: 400,
 
             collapseCriticalMass: 190,
             collapseBlackHoleMass: 225,
@@ -199,6 +200,7 @@
         absorbedProducts: Object.create(null),
         discoveredProducts: Object.create(null),
         starProfileMass: 0,
+        starReadiness: 0,
         starProfileTemp: 18,
         starProfileStability: 64,
         finalPhase: "fusion",
@@ -331,6 +333,12 @@
 
         var radius = CONFIG.game.coreRadiusBase + Math.sqrt(visualMass) * CONFIG.game.coreRadiusScale;
 
+        if (isFusionPhase()) {
+            var readiness01 = clamp(state.starReadiness / CONFIG.game.starReadinessTarget, 0, 1);
+            var ironPrepBoost = hasDiscovered("Fe56") ? 0.30 : 0.0;
+            radius *= 1.0 + readiness01 * 2.85 + ironPrepBoost;
+        }
+
         if (isCollapsePhase()) {
             radius *= 1.12 + clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1) * 0.34;
         } else if (isSupernovaPhase()) {
@@ -347,7 +355,7 @@
         return clamp(
             radius,
             CONFIG.game.coreRadiusBase,
-            isFusionPhase() ? 84 : 170
+            isFusionPhase() ? 260 : 360
         );
     }
 
@@ -361,6 +369,11 @@
     function targetFusionRadius() {
         var radius = CONFIG.game.fusionRadiusBase + Math.sqrt(state.coreMass) * CONFIG.game.fusionRadiusScale;
 
+        if (isFusionPhase()) {
+            var readiness01 = clamp(state.starReadiness / CONFIG.game.starReadinessTarget, 0, 1);
+            radius *= 1.0 + readiness01 * 0.58;
+        }
+
         if (isCollapsePhase()) {
             radius *= 1.28;
         } else if (isSupernovaPhase() || isEndingPhase()) {
@@ -370,7 +383,7 @@
         return clamp(
             radius,
             CONFIG.game.fusionRadiusBase,
-            isCollapsePhase() ? 330 : CONFIG.game.fusionRadiusMax
+            isCollapsePhase() ? 330 : 330
         );
     }
 
@@ -580,6 +593,7 @@
         state.absorbedProducts = Object.create(null);
         state.discoveredProducts = Object.create(null);
         state.starProfileMass = 0;
+        state.starReadiness = 0;
         state.starProfileTemp = 18;
         state.starProfileStability = 64;
         state.finalPhase = "fusion";
@@ -1224,9 +1238,9 @@
                     n.vy -= (cdy / cd) * escape * dt;
                 }
             } else if (!n.synthesized && n.nucleusName === "H") {
-                var minOrbit = fusionRadius() * 1.28;
+                var minOrbit = fusionRadius() * 1.08;
                 if (cd < minOrbit && pd > CONFIG.game.pointerRadius * 0.65) {
-                    var away = (minOrbit - cd) * 0.85;
+                    var away = (minOrbit - cd) * 0.26;
                     n.vx -= (cdx / cd) * away * dt;
                     n.vy -= (cdy / cd) * away * dt;
                 }
@@ -1400,7 +1414,7 @@
                 } else if (inZone && !reaction && d < CONFIG.game.invalidPairRange) {
                     var repel01 = 1 - d / CONFIG.game.invalidPairRange;
                     var future = anyFutureReaction(a, b);
-                    var repel = CONFIG.game.invalidPairRepelForce * repel01 * (future ? 0.35 : 1.0);
+                    var repel = CONFIG.game.invalidPairRepelForce * repel01 * (future ? 0.18 : 0.62);
 
                     a.vx -= nx * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
                     a.vy -= ny * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
@@ -1435,23 +1449,27 @@ function getFusionAbsorbProfileValue(typeName) {
         var nucleus = getNucleus(typeName);
         var mass = nucleus.mass || 1;
 
-        if (typeName === "D") return { core: 0.9, profileMass: 0.8, temp: -0.4, stability: 3.2, role: "stable" };
-        if (typeName === "He3") return { core: 1.4, profileMass: 1.2, temp: 1.2, stability: 2.0, role: "stable" };
-        if (typeName === "He4") return { core: 2.2, profileMass: 2.0, temp: 2.5, stability: 1.5, role: "balanced" };
+        if (typeName === "D") return { core: 0.9, profileMass: 0.8, readiness: 7.0, temp: -0.4, stability: 3.2, role: "stable" };
+        if (typeName === "He3") return { core: 1.4, profileMass: 1.2, readiness: 8.0, temp: 1.2, stability: 2.0, role: "stable" };
+        if (typeName === "He4") return { core: 2.2, profileMass: 2.0, readiness: 8.5, temp: 2.5, stability: 1.5, role: "balanced" };
 
         if (mass < 16) {
-            return { core: nucleus.absorb * 0.42, profileMass: mass * 0.46, temp: 2.2, stability: 0.8, role: "balanced" };
+            return { core: nucleus.absorb * 0.42, profileMass: mass * 0.46, readiness: 10.0, temp: 2.2, stability: 0.8, role: "balanced" };
+        }
+
+        if (mass < 20) {
+            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, readiness: 16.0, temp: 3.1, stability: -0.4, role: "hot" };
         }
 
         if (mass < 28) {
-            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, temp: 3.4, stability: -0.8, role: "hot" };
+            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, readiness: mass * 0.85, temp: 3.4, stability: -0.8, role: "hot" };
         }
 
         if (mass < 44) {
-            return { core: nucleus.absorb * 0.46, profileMass: mass * 0.62, temp: 5.2, stability: -3.0, role: "heavy" };
+            return { core: nucleus.absorb * 0.46, profileMass: mass * 0.62, readiness: mass * 0.72, temp: 5.2, stability: -3.0, role: "heavy" };
         }
 
-        return { core: nucleus.absorb * 0.48, profileMass: mass * 0.72, temp: 7.0, stability: -5.2, role: "heavy" };
+        return { core: nucleus.absorb * 0.48, profileMass: mass * 0.72, readiness: mass * 0.72, temp: 7.0, stability: -5.2, role: "heavy" };
     }
 
     function applyStarProfileAbsorb(node) {
@@ -1460,6 +1478,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
         state.coreMass += effect.core;
         state.starProfileMass += effect.profileMass;
+        state.starReadiness += effect.readiness;
         state.starProfileTemp = clamp(state.starProfileTemp + effect.temp, 0, 100);
         state.starProfileStability = clamp(state.starProfileStability + effect.stability, 0, 100);
         state.absorbedProducts[node.nucleusName] = (state.absorbedProducts[node.nucleusName] || 0) + 1;
@@ -1473,24 +1492,58 @@ function getFusionAbsorbProfileValue(typeName) {
         } else {
             state.lastReaction = nucleus.name + " built a heavier star profile";
         }
+
+        tryTriggerIronCore();
+    }
+
+    function getStarProfileHeat01() {
+        var score = (
+            state.starProfileTemp * 0.65
+            + (100 - state.starProfileStability) * 0.45
+            + state.starProfileMass * 0.040
+        ) / 100;
+        return clamp(score, 0, 1);
+    }
+
+    function mixRgb(a, b, t) {
+        t = clamp(t, 0, 1);
+        return [
+            Math.round(a[0] + (b[0] - a[0]) * t),
+            Math.round(a[1] + (b[1] - a[1]) * t),
+            Math.round(a[2] + (b[2] - a[2]) * t)
+        ];
+    }
+
+    function rgbString(rgb) {
+        return rgb[0] + ", " + rgb[1] + ", " + rgb[2];
     }
 
     function getStarProfileLabel() {
-        if (state.starProfileStability >= 72 && state.starProfileTemp < 46) return "STABLE BLUE";
-        if (state.starProfileTemp >= 70 || state.starProfileStability < 34) return "MASSIVE RED";
-        if (state.starProfileTemp >= 52) return "HOT WHITE";
-        return "BALANCED YELLOW";
+        var h = getStarProfileHeat01();
+        if (h < 0.24) return "STABLE BLUE";
+        if (h < 0.54) return "BALANCED YELLOW";
+        if (h < 0.78) return "HOT WHITE";
+        return "MASSIVE RED";
     }
 
     function getStarProfileCoreColor() {
-        if (state.starProfileStability >= 72 && state.starProfileTemp < 46) return "143, 214, 255";
-        if (state.starProfileTemp >= 70 || state.starProfileStability < 34) return "255, 107, 139";
-        if (state.starProfileTemp >= 52) return "255, 245, 190";
-        return "255, 209, 102";
+        var h = getStarProfileHeat01();
+        var blue = [143, 214, 255];
+        var yellow = [255, 209, 102];
+        var white = [255, 245, 190];
+        var red = [255, 107, 139];
+
+        if (h < 0.42) {
+            return rgbString(mixRgb(blue, yellow, h / 0.42));
+        }
+        if (h < 0.72) {
+            return rgbString(mixRgb(yellow, white, (h - 0.42) / 0.30));
+        }
+        return rgbString(mixRgb(white, red, (h - 0.72) / 0.28));
     }
 
     function getStarProfileGlowBoost() {
-        return clamp(state.starProfileTemp / 100 * 0.18 + state.starProfileMass / 240 * 0.12, 0, 0.26);
+        return clamp(state.starProfileTemp / 100 * 0.16 + state.starReadiness / CONFIG.game.starReadinessTarget * 0.14, 0, 0.30);
     }
 
         function performFusion(a, b, reaction) {
@@ -1519,9 +1572,7 @@ function getFusionAbsorbProfileValue(typeName) {
             state.levelFlash = 1.0;
         }
 
-        if (reaction.product === "Fe56") {
-            triggerIronCoreCollapse();
-        }
+        tryTriggerIronCore();
 
         if (reaction.spawn) {
             for (var i = 0; i < reaction.spawn.length; i += 1) {
@@ -1614,8 +1665,8 @@ function getFusionAbsorbProfileValue(typeName) {
         }
 
         if (!isFusionPhase()) return false;
-        if (!n.synthesized) return false;
         if (n.nucleusName === "H") return false;
+        if (!hasDiscovered(n.nucleusName)) return false;
 
         return true;
     }
@@ -1805,6 +1856,24 @@ function getFusionAbsorbProfileValue(typeName) {
             return;
         }
 
+        if (isIronCorePreparation()) {
+            var readyPct = starReadinessPct();
+            state.recipeRoot.innerHTML = ""
+                + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;'>"
+                + "<span style='color:rgba(255,209,102,0.92);font-size:11px;letter-spacing:0.18em;'>STAR READINESS / " + CONFIG.buildVersion + "</span>"
+                + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + getStarProfileLabel() + "</span>"
+                + "</div>"
+                + finalBarHtml("Readiness", readyPct, "255,209,102")
+                + "<div style='display:flex;align-items:center;justify-content:center;gap:14px;margin-top:9px;color:rgba(180,205,235,0.82);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.10em;'>"
+                + "<span>MASS " + state.coreMass.toFixed(0) + "</span>"
+                + "<span>TEMP " + state.starProfileTemp.toFixed(0) + "</span>"
+                + "<span>STAB " + state.starProfileStability.toFixed(0) + "</span>"
+                + "<span>NEED " + Math.max(0, CONFIG.game.starReadinessTarget - state.starReadiness).toFixed(0) + "</span>"
+                + "</div>";
+            state.recipeRoot.style.display = "block";
+            return;
+        }
+
         var recipe = getPrimaryRecipe();
         var unlocked = isReactionUnlocked(recipe);
         var stage = getGrowthStage();
@@ -1820,6 +1889,7 @@ function getFusionAbsorbProfileValue(typeName) {
             + "</div>"
             + "<div style='display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:9px;color:rgba(180,205,235,0.78);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.10em;'>"
             + "<span>MASS " + state.coreMass.toFixed(0) + "</span>"
+            + "<span>READY " + state.starReadiness.toFixed(0) + "</span>"
             + "<span>TEMP " + state.starProfileTemp.toFixed(0) + "</span>"
             + "<span>STAB " + state.starProfileStability.toFixed(0) + "</span>"
             + "</div>"
@@ -2013,7 +2083,7 @@ function getFusionAbsorbProfileValue(typeName) {
             + "<div style='margin-top:10px;color:rgba(215,227,244,0.78);font:800 13px SFMono-Regular,Consolas,monospace;line-height:1.5;'>" + thanks + "</div>"
             + "<div style='display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:22px 0 20px;'>"
             + finalSummaryCell("Star mass", state.coreMass.toFixed(0))
-            + finalSummaryCell("Collapse", clamp(state.collapseMass / CONFIG.game.collapseCriticalMass * 100, 0, 999).toFixed(0) + "%")
+            + finalSummaryCell("Readiness", state.starReadiness.toFixed(0))
             + finalSummaryCell("Stability", clamp(state.stability, 0, 100).toFixed(0) + "%")
             + "</div>"
             + "<div style='color:rgba(139,155,176,0.92);font:800 12px SFMono-Regular,Consolas,monospace;margin-bottom:18px;'>Star profile: " + getStarProfileLabel() + "<br>Discovered nuclei: " + discovered + " / " + CONFIG.reactions.length + "<br>Thanks for playing.</div>"
@@ -2247,8 +2317,8 @@ function getFusionAbsorbProfileValue(typeName) {
                         n.vx -= inward * cnx * 1.65;
                         n.vy -= inward * cny * 1.65;
                     }
-                    n.vx += cnx * 22 * dt;
-                    n.vy += cny * 22 * dt;
+                    n.vx += cnx * 8 * dt;
+                    n.vy += cny * 8 * dt;
                 }
             }
         }
@@ -2269,12 +2339,27 @@ function getFusionAbsorbProfileValue(typeName) {
         }
     }
 
+    function isIronCorePreparation() {
+        return isFusionPhase() && hasDiscovered("Fe56");
+    }
+
+    function starReadinessPct() {
+        return clamp(state.starReadiness / CONFIG.game.starReadinessTarget * 100, 0, 100);
+    }
+
+    function tryTriggerIronCore() {
+        if (!isIronCorePreparation()) return;
+        if (state.starReadiness < CONFIG.game.starReadinessTarget) return;
+        triggerIronCoreCollapse();
+    }
+
     function triggerIronCoreCollapse() {
         if (!isFusionPhase()) return;
+        if (!hasDiscovered("Fe56")) return;
 
         state.finalPhase = "collapse";
-        state.collapseMass = clamp(state.starProfileMass * 0.20 + state.starProfileTemp * 0.18 - state.starProfileStability * 0.08, 0, 58);
-        state.stability = clamp(48 + state.starProfileStability * 0.48 - state.starProfileTemp * 0.20, 26, 88);
+        state.collapseMass = clamp(state.starReadiness * 0.09 + state.starProfileMass * 0.08 + state.starProfileTemp * 0.15 - state.starProfileStability * 0.07, 0, 70);
+        state.stability = clamp(48 + state.starProfileStability * 0.48 - state.starProfileTemp * 0.20 - Math.max(0, state.starReadiness - CONFIG.game.starReadinessTarget) * 0.012, 24, 90);
         state.supernovaTimer = 0;
         state.endingType = "";
         state.lastReaction = "IRON CORE COLLAPSE";
@@ -3037,8 +3122,10 @@ function getFusionAbsorbProfileValue(typeName) {
                     }
                 }
 
-                if (hasTarget && recipe) {
-                    dom.gameMessage.textContent = "Optional: click synthesized nuclei inside the core zone to shape Mass, Temp, and Stability.";
+                if (isIronCorePreparation()) {
+                    dom.gameMessage.textContent = "Fe56 discovered. Absorb nuclei inside the core zone to fill Star Readiness and enter Iron Core.";
+                } else if (hasTarget && recipe) {
+                    dom.gameMessage.textContent = "Optional: click opened nuclei inside the core zone to shape Mass, Temp, Stability, and Readiness.";
                 } else if (hasAnyAbsorb && recipe) {
                     dom.gameMessage.textContent = "Current fusion goal: " + recipe.a + " + " + recipe.b + ". Absorb extra products only if you want to shape the star profile.";
                 } else {
