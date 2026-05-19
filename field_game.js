@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.10-fusion-control",
+        buildVersion: "0.11.12-iron-core-eject",
 
         portfolio: {
             minNodes: 48,
@@ -93,22 +93,23 @@
             collapseBlackHoleMass: 380,
             collapseNeutronStabilityMin: 50,
             supernovaDuration: 4.4,
-            finalSpawnInterval: 1.56,
+            finalSpawnInterval: 3.12,
 
             ironCoreInfallForce: 58,
             ironCoreInfallHeavyBoost: 0.82,
             ironCoreTangentialForce: 9,
-            ironCoreDeflectRadius: 145,
-            ironCoreDeflectPushRadius: 205,
-            ironCoreDeflectForce: 128,
-            ironCoreDeflectPushForce: 224,
-            ironCoreDeflectMotionForce: 1.15,
-            ironCorePaddleCooldown: 0.16,
-            ironCoreDeflectHoldForce: 520,
+            ironCoreDeflectRadius: 108,
+            ironCoreDeflectPushRadius: 108,
+            ironCoreDeflectForce: 320,
+            ironCoreDeflectPushForce: 320,
+            ironCoreDeflectMotionForce: 1.45,
+            ironCorePaddleCooldown: 0.10,
+            ironCoreDeflectHoldForce: 980,
             ironCoreAutoAbsorbPadding: 6,
             ironCoreMaxAutoAbsorbsPerFrame: 1,
             ironCoreAbsorbRadiusScale: 0.92,
-            ironCoreEscapeMargin: 160
+            ironCoreEscapeMargin: 95,
+            ironCoreActiveLimit: 9
         },
 
         nuclei: {
@@ -2305,7 +2306,12 @@ function getFusionAbsorbProfileValue(typeName) {
 
     function updateSpawner(dt) {
         var capacity = particleCapacity();
-        if (countNonCoreNodes() >= capacity) return;
+
+        if (isCollapsePhase()) {
+            if (countNonCoreNodes() >= CONFIG.game.ironCoreActiveLimit) return;
+        } else if (countNonCoreNodes() >= capacity) {
+            return;
+        }
 
         state.spawnTimer -= dt;
         if (state.spawnTimer > 0) return;
@@ -2350,7 +2356,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (isCollapsePhase()) {
-                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 4.2 : 0.62;
+                maxSpeed *= (n.deflectedTimer && n.deflectedTimer > 0) ? 7.0 : 0.62;
             }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
@@ -2503,6 +2509,11 @@ function getFusionAbsorbProfileValue(typeName) {
         var total = countNonCoreNodes();
         var cap = particleCapacity();
 
+        if (total >= CONFIG.game.ironCoreActiveLimit) {
+            state.ironCoreSupportTimer = 2.2;
+            return;
+        }
+
         if (light < 3 && heavy >= 5 && total <= cap + 6) {
             spawnNucleus(light < 1 ? "He4" : "H", null);
             state.lastReaction = "Light support injected";
@@ -2538,7 +2549,7 @@ function getFusionAbsorbProfileValue(typeName) {
             var zone01 = clamp(d / Math.max(1, fusionRadius()), 0.25, 1.35);
             var infall = CONFIG.game.ironCoreInfallForce * (0.72 + zone01 * 0.42) * (1 + mass01 * CONFIG.game.ironCoreInfallHeavyBoost);
             if (n.deflectedTimer && n.deflectedTimer > 0) {
-                infall *= 0.24;
+                infall *= 0.06;
             }
 
             n.vx += nx * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
@@ -2556,8 +2567,9 @@ function getFusionAbsorbProfileValue(typeName) {
     function applyIronCoreDeflection(dt) {
         if (!state.pointer.active) return;
 
-        var radius = state.pointer.down ? CONFIG.game.ironCoreDeflectPushRadius : CONFIG.game.ironCoreDeflectRadius;
-        var hitSpeed = state.pointer.down ? CONFIG.game.ironCoreDeflectPushForce : CONFIG.game.ironCoreDeflectForce;
+        var core = getCore();
+        var radius = CONFIG.game.ironCoreDeflectRadius;
+        var hitSpeed = CONFIG.game.ironCoreDeflectForce;
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
@@ -2569,13 +2581,29 @@ function getFusionAbsorbProfileValue(typeName) {
             if (d > radius) continue;
 
             var t = 1 - d / radius;
-            var falloff = Math.pow(t, 0.55);
-            var massScale = Math.pow(Math.max(1, n.mass), 0.11);
+            var falloff = Math.pow(t, 0.70);
+            var massScale = Math.pow(Math.max(1, n.mass), 0.025);
             var nx = dx / d;
             var ny = dy / d;
 
-            // A small continuous hold force keeps the paddle feeling solid,
-            // but the main effect is the cooldown-gated direct hit below.
+            if (core) {
+                var ox = n.x - core.x;
+                var oy = n.y - core.y;
+                var od = Math.sqrt(ox * ox + oy * oy) + 0.001;
+                ox /= od;
+                oy /= od;
+
+                var dot = nx * ox + ny * oy;
+                if (dot < 0.35) {
+                    var blend = clamp((0.35 - dot) / 1.35, 0, 1);
+                    nx = nx * (1 - blend) + ox * blend;
+                    ny = ny * (1 - blend) + oy * blend;
+                    var nd = Math.sqrt(nx * nx + ny * ny) + 0.001;
+                    nx /= nd;
+                    ny /= nd;
+                }
+            }
+
             var hold = CONFIG.game.ironCoreDeflectHoldForce * falloff / massScale;
             n.vx += nx * hold * dt;
             n.vy += ny * hold * dt;
@@ -2587,23 +2615,23 @@ function getFusionAbsorbProfileValue(typeName) {
             var motionX = 0;
             var motionY = 0;
             if (state.pointer.speed > 0.25) {
-                motionX = clamp(state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce, -92, 92);
-                motionY = clamp(state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce, -92, 92);
+                motionX = clamp(state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce, -150, 150);
+                motionY = clamp(state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce, -150, 150);
             }
 
-            var speed = hitSpeed * (0.48 + falloff * 0.82) / massScale;
+            var speed = hitSpeed * (0.62 + falloff * 1.10) / massScale;
             var currentOut = n.vx * nx + n.vy * ny;
             var desiredOut = Math.max(currentOut, speed);
 
             var tangentX = -ny;
             var tangentY = nx;
             var currentTangent = n.vx * tangentX + n.vy * tangentY;
-            var keepTangent = currentTangent * 0.35;
+            var keepTangent = currentTangent * 0.22;
 
             n.vx = nx * desiredOut + tangentX * keepTangent + motionX;
             n.vy = ny * desiredOut + tangentY * keepTangent + motionY;
 
-            n.deflectedTimer = 2.2;
+            n.deflectedTimer = 3.4;
             n.paddleCooldown = CONFIG.game.ironCorePaddleCooldown;
         }
     }
@@ -3236,7 +3264,7 @@ function getFusionAbsorbProfileValue(typeName) {
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = "IRON CORE FILTER: paddle-hit unwanted nuclei away from the star. Click/hold gives a harder hit.";
+                dom.gameMessage.textContent = "IRON CORE FILTER: move the cursor through unwanted nuclei to eject them. Click charge is disabled here.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
@@ -3369,6 +3397,11 @@ function getFusionAbsorbProfileValue(typeName) {
 
     window.addEventListener("pointerdown", function (event) {
         setPointer(event.clientX, event.clientY, true);
+
+        if (state.gameMode && isCollapsePhase()) {
+            state.pointer.down = false;
+            return;
+        }
 
         if (state.gameMode && !isPointInsideFusionZone(event.clientX, event.clientY)) {
             state.pointer.down = false;
