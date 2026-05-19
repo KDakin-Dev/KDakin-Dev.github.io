@@ -1,227 +1,1341 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>KDakin-Dev | Portfolio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDakin-Dev | Interactive Systems Portfolio</title>
     <style>
-        body, html {
+        :root {
+            --bg0: #05070b;
+            --bg1: #080d14;
+            --panel: rgba(10, 16, 25, 0.72);
+            --panel-strong: rgba(13, 22, 34, 0.88);
+            --line: rgba(99, 166, 255, 0.28);
+            --line-soft: rgba(99, 166, 255, 0.13);
+            --text: #d7e3f4;
+            --muted: #8b9bb0;
+            --muted2: #5f7186;
+            --accent: #63a6ff;
+            --accent2: #8fd6ff;
+            --warn: #ffd166;
+            --ok: #7ef2b0;
+            --shadow: rgba(0, 0, 0, 0.5);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            width: 100%;
+            min-height: 100%;
             margin: 0;
             padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #0d1117;
+            background: radial-gradient(circle at 50% 20%, #101827 0%, var(--bg1) 38%, var(--bg0) 100%);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
         }
 
-        #bg-canvas {
+        body {
+            min-height: 100vh;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        #field-canvas {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
+            inset: 0;
+            z-index: 0;
+            width: 100vw;
+            height: 100vh;
             display: block;
+            background: transparent;
         }
 
-        .content-layer {
-            position: relative;
+        .scanlines {
+            position: fixed;
+            inset: 0;
             z-index: 1;
-            max-width: 800px;
+            pointer-events: none;
+            opacity: 0.22;
+            background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+            background-size: 100% 4px;
+            mix-blend-mode: screen;
+        }
+
+        .vignette {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 45%, transparent 0%, transparent 54%, rgba(0, 0, 0, 0.48) 100%);
+        }
+
+        .shell {
+            position: relative;
+            z-index: 3;
+            width: min(1180px, calc(100vw - 48px));
             margin: 0 auto;
-            padding: 40px 20px;
-            pointer-events: none; 
-            height: 100%;
-            overflow-y: auto; /* Чтобы контент можно было скроллить отдельно */
+            padding: 32px 0 72px;
         }
 
-        .card {
-            pointer-events: auto; 
-            background: rgba(22, 27, 34, 0.85);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border: 1px solid #30363d;
-            border-radius: 6px;
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            min-height: 64px;
+            margin-bottom: 52px;
+            padding: 12px 0;
+            pointer-events: none;
+        }
+
+        .brand,
+        .nav {
+            pointer-events: auto;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            border: 1px solid var(--line-soft);
+            border-radius: 999px;
+            background: rgba(4, 8, 14, 0.55);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 20px 60px var(--shadow);
+        }
+
+        .brand-mark {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 20px rgba(99, 166, 255, 0.9), 0 0 50px rgba(99, 166, 255, 0.4);
+        }
+
+        .brand-text {
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            border: 1px solid var(--line-soft);
+            border-radius: 999px;
+            background: rgba(4, 8, 14, 0.55);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 20px 60px var(--shadow);
+        }
+
+        .nav a {
+            padding: 8px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: color 160ms ease, background 160ms ease;
+        }
+
+        .nav a:hover {
+            color: var(--text);
+            background: rgba(99, 166, 255, 0.12);
+        }
+
+        .hero {
+            min-height: calc(100vh - 160px);
+            display: grid;
+            grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
+            gap: 28px;
+            align-items: center;
+            padding-bottom: 80px;
+        }
+
+        .panel {
+            position: relative;
+            border: 1px solid var(--line-soft);
+            border-radius: 28px;
+            background: linear-gradient(180deg, var(--panel-strong), rgba(7, 12, 20, 0.68));
+            backdrop-filter: blur(18px);
+            box-shadow: 0 24px 90px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.035);
+            overflow: hidden;
+        }
+
+        .panel:before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background:
+                linear-gradient(90deg, transparent, rgba(99, 166, 255, 0.11), transparent) 0 0 / 100% 1px no-repeat,
+                linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%);
+        }
+
+        .hero-main {
+            padding: clamp(30px, 5vw, 64px);
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 18px;
+            color: var(--accent2);
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .eyebrow:before {
+            content: "";
+            width: 38px;
+            height: 1px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+
+        h1,
+        h2,
+        h3,
+        p {
+            margin: 0;
+        }
+
+        h1 {
+            max-width: 780px;
+            font-size: clamp(48px, 8vw, 104px);
+            line-height: 0.92;
+            letter-spacing: -0.075em;
+            color: #f2f7ff;
+        }
+
+        .title-accent {
+            display: block;
+            color: var(--accent);
+            text-shadow: 0 0 34px rgba(99, 166, 255, 0.32);
+        }
+
+        .lead {
+            max-width: 720px;
+            margin-top: 26px;
+            color: var(--muted);
+            font-size: clamp(18px, 2.1vw, 25px);
+            line-height: 1.45;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 34px;
+        }
+
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 46px;
+            padding: 0 18px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            background: rgba(99, 166, 255, 0.13);
+            color: var(--text);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            border-color: rgba(143, 214, 255, 0.75);
+            background: rgba(99, 166, 255, 0.2);
+        }
+
+        .button.secondary {
+            background: rgba(255, 255, 255, 0.035);
+            color: var(--muted);
+        }
+
+        .button.secondary:hover {
+            color: var(--text);
+        }
+
+        .hero-side {
             padding: 24px;
-            margin-bottom: 24px;
-            color: #c9d1d9;
         }
 
-        h1, h2 { color: #58a6ff; margin-top: 0; }
-        p { line-height: 1.6; color: #8b949e; }
+        .telemetry-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--line-soft);
+        }
+
+        .telemetry-title h2 {
+            color: var(--text);
+            font-size: 15px;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--ok);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .status-pill:before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 999px;
+            background: var(--ok);
+            box-shadow: 0 0 16px rgba(126, 242, 176, 0.8);
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 18px;
+        }
+
+        .metric {
+            min-height: 92px;
+            padding: 14px;
+            border: 1px solid rgba(99, 166, 255, 0.13);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.026);
+        }
+
+        .metric span {
+            display: block;
+            color: var(--muted2);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .metric strong {
+            display: block;
+            margin-top: 12px;
+            color: var(--text);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 22px;
+            font-weight: 800;
+        }
+
+        .mini-orbit {
+            position: relative;
+            height: 230px;
+            margin-top: 18px;
+            border: 1px solid rgba(99, 166, 255, 0.13);
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 50% 50%, rgba(99, 166, 255, 0.11), transparent 19%),
+                linear-gradient(rgba(99, 166, 255, 0.045) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 166, 255, 0.045) 1px, transparent 1px);
+            background-size: auto, 28px 28px, 28px 28px;
+            overflow: hidden;
+        }
+
+        .orbit-ring {
+            position: absolute;
+            inset: 42px;
+            border: 1px solid rgba(143, 214, 255, 0.34);
+            border-radius: 50%;
+            transform: rotate(-18deg) scaleX(1.34);
+        }
+
+        .orbit-ring.r2 {
+            inset: 68px 54px;
+            opacity: 0.6;
+            transform: rotate(22deg) scaleX(1.12);
+        }
+
+        .core-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 12px;
+            height: 12px;
+            margin: -6px 0 0 -6px;
+            border-radius: 999px;
+            background: var(--accent);
+            box-shadow: 0 0 30px rgba(99, 166, 255, 0.9);
+        }
+
+        .probe-dot {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 8px;
+            height: 8px;
+            margin: -4px 0 0 -4px;
+            border-radius: 999px;
+            background: var(--warn);
+            box-shadow: 0 0 22px rgba(255, 209, 102, 0.82);
+            animation: orbitProbe 7s linear infinite;
+        }
+
+        @keyframes orbitProbe {
+            0% { transform: rotate(0deg) translateX(96px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(96px) rotate(-360deg); }
+        }
+
+        section {
+            scroll-margin-top: 90px;
+        }
+
+        .section-head {
+            display: grid;
+            grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+            gap: 28px;
+            align-items: end;
+            margin: 56px 0 22px;
+        }
+
+        .section-kicker {
+            color: var(--accent2);
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+        }
+
+        .section-head h2 {
+            margin-top: 12px;
+            color: var(--text);
+            font-size: clamp(34px, 5vw, 58px);
+            line-height: 0.98;
+            letter-spacing: -0.055em;
+        }
+
+        .section-head p {
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.55;
+        }
+
+        .project-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .project-card {
+            min-height: 320px;
+            padding: 26px;
+        }
+
+        .project-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            min-height: 28px;
+            padding: 0 10px;
+            border: 1px solid rgba(99, 166, 255, 0.18);
+            border-radius: 999px;
+            color: var(--muted);
+            background: rgba(99, 166, 255, 0.06);
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .project-card h3 {
+            color: var(--text);
+            font-size: 28px;
+            letter-spacing: -0.035em;
+        }
+
+        .project-card p {
+            margin-top: 16px;
+            color: var(--muted);
+            font-size: 16px;
+            line-height: 1.6;
+        }
+
+        .project-lines {
+            display: grid;
+            gap: 10px;
+            margin-top: 24px;
+            padding-top: 22px;
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .project-lines div {
+            display: grid;
+            grid-template-columns: 118px minmax(0, 1fr);
+            gap: 14px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .project-lines b {
+            color: var(--accent2);
+            font-size: 11px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .systems-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .system-card {
+            padding: 24px;
+        }
+
+        .system-index {
+            color: var(--accent);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .system-card h3 {
+            margin-top: 20px;
+            color: var(--text);
+            font-size: 22px;
+            letter-spacing: -0.03em;
+        }
+
+        .system-card p {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.58;
+        }
+
+        .stack-panel {
+            padding: 28px;
+        }
+
+        .stack-map {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .stack-item {
+            min-height: 112px;
+            padding: 16px;
+            border: 1px solid rgba(99, 166, 255, 0.14);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .stack-item b {
+            display: block;
+            color: var(--text);
+            font-size: 15px;
+        }
+
+        .stack-item span {
+            display: block;
+            margin-top: 10px;
+            color: var(--muted2);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .contact-panel {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
+            gap: 24px;
+            padding: 34px;
+            margin-top: 18px;
+        }
+
+        .contact-panel h2 {
+            color: var(--text);
+            font-size: clamp(34px, 5vw, 56px);
+            line-height: 1;
+            letter-spacing: -0.055em;
+        }
+
+        .contact-panel p {
+            max-width: 680px;
+            margin-top: 18px;
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.55;
+        }
+
+        .contact-list {
+            display: grid;
+            gap: 10px;
+            align-content: start;
+        }
+
+        .contact-link {
+            display: flex;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 14px 16px;
+            border: 1px solid rgba(99, 166, 255, 0.15);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--muted);
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .contact-link:hover {
+            color: var(--text);
+            border-color: rgba(143, 214, 255, 0.45);
+            background: rgba(99, 166, 255, 0.08);
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            margin-top: 34px;
+            color: var(--muted2);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 600ms ease, transform 600ms ease;
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (max-width: 980px) {
+            .shell {
+                width: min(100% - 28px, 760px);
+                padding-top: 18px;
+            }
+
+            .topbar {
+                position: relative;
+                flex-direction: column;
+                align-items: stretch;
+                margin-bottom: 28px;
+            }
+
+            .brand,
+            .nav {
+                justify-content: center;
+            }
+
+            .hero,
+            .section-head,
+            .contact-panel {
+                grid-template-columns: 1fr;
+            }
+
+            .hero {
+                min-height: auto;
+                padding-bottom: 30px;
+            }
+
+            .project-grid,
+            .systems-grid,
+            .stack-map {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .shell {
+                width: min(100% - 18px, 560px);
+            }
+
+            .nav {
+                flex-wrap: wrap;
+                border-radius: 22px;
+            }
+
+            .hero-main,
+            .hero-side,
+            .project-card,
+            .system-card,
+            .stack-panel,
+            .contact-panel {
+                padding: 20px;
+                border-radius: 22px;
+            }
+
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .project-lines div {
+                grid-template-columns: 1fr;
+                gap: 4px;
+            }
+
+            .footer {
+                flex-direction: column;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            html {
+                scroll-behavior: auto;
+            }
+
+            .probe-dot {
+                animation: none;
+            }
+
+            .reveal {
+                opacity: 1;
+                transform: none;
+                transition: none;
+            }
+        }
     </style>
 </head>
 <body>
+    <canvas id="field-canvas" aria-hidden="true"></canvas>
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
 
-    <canvas id="bg-canvas"></canvas>
+    <main class="shell">
+        <header class="topbar">
+            <a class="brand" href="#top" aria-label="KDakin-Dev home">
+                <span class="brand-mark" aria-hidden="true"></span>
+                <span class="brand-text">KDakin-Dev</span>
+            </a>
+            <nav class="nav" aria-label="Primary navigation">
+                <a href="#projects">Projects</a>
+                <a href="#systems">Systems</a>
+                <a href="#stack">Stack</a>
+                <a href="#contact">Contact</a>
+            </nav>
+        </header>
 
-    <div class="content-layer">
-        <div class="card">
-            <h1>KDakin-Dev</h1>
-            <p>Проектирование систем, архитектура, симуляции динамических сред.</p>
-        </div>
+        <section id="top" class="hero">
+            <div class="panel hero-main reveal">
+                <div class="eyebrow">Interactive systems portfolio</div>
+                <h1>
+                    Simulation,
+                    <span class="title-accent">architecture,</span>
+                    procedural UX.
+                </h1>
+                <p class="lead">
+                    I design and prototype dynamic systems: orbital prediction, modular spaceships,
+                    runtime architecture, tools, UI layers, and real-time procedural visualization.
+                </p>
+                <div class="hero-actions">
+                    <a class="button" href="#projects">View projects</a>
+                    <a class="button secondary" href="#systems">Architecture focus</a>
+                </div>
+            </div>
 
-        <div class="card">
-            <h2>Проекты & Технологии</h2>
-            <p>Здесь можно подробно расписать стек технологий, архитектурные паттерны и запущенные проекты.</p>
-        </div>
-    </div>
+            <aside class="panel hero-side reveal" aria-label="Live background telemetry">
+                <div class="telemetry-title">
+                    <h2>Field telemetry</h2>
+                    <span class="status-pill">Live</span>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric">
+                        <span>Nodes</span>
+                        <strong id="metric-nodes">000</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Links</span>
+                        <strong id="metric-links">000</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Input</span>
+                        <strong id="metric-input">IDLE</strong>
+                    </div>
+                    <div class="metric">
+                        <span>Scroll</span>
+                        <strong id="metric-scroll">0.00</strong>
+                    </div>
+                </div>
+                <div class="mini-orbit" aria-hidden="true">
+                    <span class="orbit-ring"></span>
+                    <span class="orbit-ring r2"></span>
+                    <span class="core-dot"></span>
+                    <span class="probe-dot"></span>
+                </div>
+            </aside>
+        </section>
+
+        <section id="projects">
+            <div class="section-head reveal">
+                <div>
+                    <div class="section-kicker">Project layer</div>
+                    <h2>Playable prototypes and system research.</h2>
+                </div>
+                <p>
+                    The portfolio is built around real engineering problems: trajectory prediction,
+                    control feel, modular object data, rendering layers, and simulation-friendly UI.
+                </p>
+            </div>
+
+            <div class="project-grid">
+                <article class="panel project-card reveal">
+                    <div class="project-meta">
+                        <span class="tag">Python</span>
+                        <span class="tag">Pygame</span>
+                        <span class="tag">ModernGL</span>
+                        <span class="tag">Orbital sim</span>
+                    </div>
+                    <h3>SpaceSim2D</h3>
+                    <p>
+                        A 2D orbital simulation prototype focused on maneuver planning,
+                        prediction rendering, local map logic, warp safety, and flight feedback.
+                    </p>
+                    <div class="project-lines">
+                        <div><b>Core</b><span>Trajectory prediction, maneuver nodes, rail logic, event markers.</span></div>
+                        <div><b>Problem</b><span>Stable long-horizon planning without overloading CPU and rendering.</span></div>
+                        <div><b>Focus</b><span>Single source of truth, render contracts, debug metrics, clean planner state.</span></div>
+                    </div>
+                </article>
+
+                <article class="panel project-card reveal">
+                    <div class="project-meta">
+                        <span class="tag">Python</span>
+                        <span class="tag">ModernGL</span>
+                        <span class="tag">6DoF</span>
+                        <span class="tag">Data driven</span>
+                    </div>
+                    <h3>3D Space Adventure</h3>
+                    <p>
+                        A 3D space prototype with modular ships, docking rules, object definitions,
+                        zone transitions, save data validation, RCS control, and render cleanup.
+                    </p>
+                    <div class="project-lines">
+                        <div><b>Core</b><span>Command module, assemblies, local zones, transit mode, docking.</span></div>
+                        <div><b>Problem</b><span>Keep physical ownership, camera state, and controlled assemblies deterministic.</span></div>
+                        <div><b>Focus</b><span>Clean architecture, typed object state, JSON contracts, no legacy fallbacks.</span></div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section id="systems">
+            <div class="section-head reveal">
+                <div>
+                    <div class="section-kicker">Architecture layer</div>
+                    <h2>What this site is demonstrating.</h2>
+                </div>
+                <p>
+                    The background is not a video. It is a browser-side procedural simulation running
+                    on Canvas, connected to pointer input and scroll state.
+                </p>
+            </div>
+
+            <div class="systems-grid">
+                <article class="panel system-card reveal">
+                    <div class="system-index">01 / FIELD</div>
+                    <h3>Procedural background</h3>
+                    <p>
+                        Nodes move in a vector field, form temporary links, and react to the pointer.
+                        The page keeps the visual layer live without heavy media assets.
+                    </p>
+                </article>
+                <article class="panel system-card reveal">
+                    <div class="system-index">02 / INPUT</div>
+                    <h3>Real-time interaction</h3>
+                    <p>
+                        Mouse movement bends trajectories, clicks inject impulses, and scroll changes
+                        the energy profile of the system behind the content.
+                    </p>
+                </article>
+                <article class="panel system-card reveal">
+                    <div class="system-index">03 / LAYERS</div>
+                    <h3>HUD composition</h3>
+                    <p>
+                        Canvas, scanline overlay, vignette, sticky navigation, and glass panels are
+                        separated into clear visual layers with predictable z-index behavior.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <section id="stack">
+            <div class="section-head reveal">
+                <div>
+                    <div class="section-kicker">Technology layer</div>
+                    <h2>Tools and engineering areas.</h2>
+                </div>
+                <p>
+                    The page is static and deployable to GitHub Pages, but the presentation is dynamic:
+                    no GIF background, no video loop, no backend requirement.
+                </p>
+            </div>
+
+            <div class="panel stack-panel reveal">
+                <div class="stack-map">
+                    <div class="stack-item"><b>Canvas API</b><span>Procedural field, particles, links, orbit traces, input response.</span></div>
+                    <div class="stack-item"><b>JavaScript</b><span>Animation loop, delta time, resize handling, telemetry, scroll state.</span></div>
+                    <div class="stack-item"><b>CSS Layers</b><span>Glass panels, responsive layout, HUD styling, readable depth.</span></div>
+                    <div class="stack-item"><b>GitHub Pages</b><span>Single-file static deployment for a personal portfolio domain.</span></div>
+                    <div class="stack-item"><b>Python</b><span>Game logic, simulation prototypes, tooling, debugging scripts.</span></div>
+                    <div class="stack-item"><b>ModernGL</b><span>GPU render pipeline experiments for game prototypes.</span></div>
+                    <div class="stack-item"><b>Architecture</b><span>Contracts, data ownership, state separation, runtime validation.</span></div>
+                    <div class="stack-item"><b>Game UX</b><span>HUD logic, flight feedback, control readability, debug overlays.</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact">
+            <div class="panel contact-panel reveal">
+                <div>
+                    <div class="section-kicker">Contact</div>
+                    <h2>Available for systems, tools, gameplay QA, and prototype work.</h2>
+                    <p>
+                        This portfolio is intentionally technical: it shows interest in architecture,
+                        simulation behavior, debugging, and real-time visual systems instead of using
+                        a static resume template.
+                    </p>
+                </div>
+                <div class="contact-list">
+                    <a class="contact-link" href="mailto:111092roman@gmail.com"><span>Email</span><span>Open</span></a>
+                    <a class="contact-link" href="https://github.com/" target="_blank" rel="noreferrer"><span>GitHub</span><span>Profile</span></a>
+                    <a class="contact-link" href="#top"><span>Top</span><span>Return</span></a>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <span>KDakin-Dev / Interactive Portfolio</span>
+            <span>Static page / Canvas simulation / GitHub Pages ready</span>
+        </footer>
+    </main>
 
     <script>
-        const canvas = document.getElementById('bg-canvas');
-        const ctx = canvas.getContext('2d');
+        (function () {
+            "use strict";
 
-        let particlesArray = [];
-        const mouse = {
-            x: null,
-            y: null,
-            radius: 120
-        };
+            var canvas = document.getElementById("field-canvas");
+            var ctx = canvas.getContext("2d", { alpha: true });
+            var metricNodes = document.getElementById("metric-nodes");
+            var metricLinks = document.getElementById("metric-links");
+            var metricInput = document.getElementById("metric-input");
+            var metricScroll = document.getElementById("metric-scroll");
+            var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        // Корректная установка размеров без деформаций
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            init();
-        }
+            var state = {
+                width: 1,
+                height: 1,
+                dpr: 1,
+                lastTime: 0,
+                nodes: [],
+                pulses: [],
+                pointer: {
+                    x: 0,
+                    y: 0,
+                    px: 0,
+                    py: 0,
+                    active: false,
+                    down: false,
+                    speed: 0
+                },
+                scroll01: 0,
+                linkCount: 0
+            };
 
-        window.addEventListener('resize', resize);
-        
-        window.addEventListener('mousemove', (e) => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
-
-        window.addEventListener('mouseout', () => {
-            mouse.x = null;
-            mouse.y = null;
-        });
-
-        // Класс частицы
-        class Particle {
-            constructor(x, y, directionX, directionY, size, color) {
-                this.x = x;
-                this.y = y;
-                this.directionX = directionX;
-                this.directionY = directionY;
-                this.size = size;
-                this.color = color;
+            function clamp(value, min, max) {
+                return Math.max(min, Math.min(max, value));
             }
-            
-            // Отрисовка
-            draw() {
+
+            function lerp(a, b, t) {
+                return a + (b - a) * t;
+            }
+
+            function rand(min, max) {
+                return min + Math.random() * (max - min);
+            }
+
+            function resize() {
+                state.dpr = clamp(window.devicePixelRatio || 1, 1, 2);
+                state.width = Math.max(1, window.innerWidth);
+                state.height = Math.max(1, window.innerHeight);
+                canvas.width = Math.floor(state.width * state.dpr);
+                canvas.height = Math.floor(state.height * state.dpr);
+                canvas.style.width = state.width + "px";
+                canvas.style.height = state.height + "px";
+                ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+                rebuildNodes();
+            }
+
+            function wantedNodeCount() {
+                var area = state.width * state.height;
+                return clamp(Math.floor(area / 17000), 48, 130);
+            }
+
+            function createNode(index) {
+                var cx = state.width * 0.5;
+                var cy = state.height * 0.48;
+                var angle = rand(0, Math.PI * 2);
+                var ring = rand(0.18, 0.58) * Math.min(state.width, state.height);
+                var orbitBias = Math.random() < 0.45;
+                return {
+                    id: index,
+                    x: orbitBias ? cx + Math.cos(angle) * ring * rand(0.8, 1.35) : rand(0, state.width),
+                    y: orbitBias ? cy + Math.sin(angle) * ring * rand(0.35, 0.75) : rand(0, state.height),
+                    vx: rand(-14, 14),
+                    vy: rand(-14, 14),
+                    size: rand(1.1, 2.7),
+                    mass: rand(0.65, 1.6),
+                    phase: rand(0, Math.PI * 2),
+                    hue: rand(0.75, 1.0)
+                };
+            }
+
+            function rebuildNodes() {
+                var count = wantedNodeCount();
+                if (state.nodes.length > count) {
+                    state.nodes.length = count;
+                }
+                while (state.nodes.length < count) {
+                    state.nodes.push(createNode(state.nodes.length));
+                }
+                metricNodes.textContent = String(state.nodes.length).padStart(3, "0");
+            }
+
+            function updateScroll() {
+                var doc = document.documentElement;
+                var maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+                state.scroll01 = clamp(window.scrollY / maxScroll, 0, 1);
+                metricScroll.textContent = state.scroll01.toFixed(2);
+            }
+
+            function setPointer(x, y, active) {
+                var p = state.pointer;
+                p.px = p.x;
+                p.py = p.y;
+                p.x = x;
+                p.y = y;
+                p.active = active;
+                var dx = p.x - p.px;
+                var dy = p.y - p.py;
+                p.speed = Math.sqrt(dx * dx + dy * dy);
+            }
+
+            function addPulse(x, y, power) {
+                state.pulses.push({
+                    x: x,
+                    y: y,
+                    r: 0,
+                    life: 1,
+                    power: power
+                });
+                if (state.pulses.length > 10) {
+                    state.pulses.shift();
+                }
+            }
+
+            function updateNode(node, dt, time) {
+                var cx = state.width * (0.5 + Math.sin(time * 0.00008) * 0.055);
+                var cy = state.height * (0.48 + Math.cos(time * 0.00007) * 0.045);
+                var dx = cx - node.x;
+                var dy = cy - node.y;
+                var distSq = dx * dx + dy * dy + 1800;
+                var dist = Math.sqrt(distSq);
+                var orbitForce = 560 / distSq;
+                var tx = -dy / dist;
+                var ty = dx / dist;
+                var energy = 1 + state.scroll01 * 1.65;
+
+                node.vx += (dx * orbitForce * 0.42 + tx * orbitForce * 42) * dt * energy;
+                node.vy += (dy * orbitForce * 0.42 + ty * orbitForce * 42) * dt * energy;
+
+                node.vx += Math.sin(time * 0.00038 + node.phase) * dt * 1.6;
+                node.vy += Math.cos(time * 0.00031 + node.phase) * dt * 1.6;
+
+                if (state.pointer.active) {
+                    var px = node.x - state.pointer.x;
+                    var py = node.y - state.pointer.y;
+                    var pdSq = px * px + py * py + 140;
+                    var pd = Math.sqrt(pdSq);
+                    var radius = state.pointer.down ? 260 : 190;
+                    if (pd < radius) {
+                        var force = (1 - pd / radius) * (state.pointer.down ? 260 : 130);
+                        node.vx += (px / pd) * force * dt;
+                        node.vy += (py / pd) * force * dt;
+                    }
+                }
+
+                for (var i = 0; i < state.pulses.length; i += 1) {
+                    var pulse = state.pulses[i];
+                    var qx = node.x - pulse.x;
+                    var qy = node.y - pulse.y;
+                    var qd = Math.sqrt(qx * qx + qy * qy) + 0.001;
+                    var band = Math.abs(qd - pulse.r);
+                    if (band < 90) {
+                        var push = (1 - band / 90) * pulse.life * pulse.power;
+                        node.vx += (qx / qd) * push * dt;
+                        node.vy += (qy / qd) * push * dt;
+                    }
+                }
+
+                var maxSpeed = 62 + state.scroll01 * 55;
+                var speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
+                if (speed > maxSpeed) {
+                    node.vx = node.vx / speed * maxSpeed;
+                    node.vy = node.vy / speed * maxSpeed;
+                }
+
+                node.vx *= Math.pow(0.992, dt * 60);
+                node.vy *= Math.pow(0.992, dt * 60);
+                node.x += node.vx * dt;
+                node.y += node.vy * dt;
+
+                var pad = 60;
+                if (node.x < -pad) node.x = state.width + pad;
+                if (node.x > state.width + pad) node.x = -pad;
+                if (node.y < -pad) node.y = state.height + pad;
+                if (node.y > state.height + pad) node.y = -pad;
+            }
+
+            function drawGrid(time) {
+                var grid = 80;
+                var offset = (time * 0.006) % grid;
+                ctx.save();
+                ctx.globalAlpha = 0.34;
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "rgba(99, 166, 255, 0.055)";
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-                ctx.fillStyle = this.color;
-                ctx.fill();
-            }
-            
-            // Расчет физики движения и границ экрана
-            update() {
-                if (this.x > canvas.width || this.x < 0) {
-                    this.directionX = -this.directionX;
+                for (var x = -grid + offset; x < state.width + grid; x += grid) {
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x + state.scroll01 * 50, state.height);
                 }
-                if (this.y > canvas.height || this.y < 0) {
-                    this.directionY = -this.directionY;
+                for (var y = -grid + offset; y < state.height + grid; y += grid) {
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(state.width, y + state.scroll01 * 30);
                 }
+                ctx.stroke();
+                ctx.restore();
+            }
 
-                // Проверка взаимодействия с мышью (отталкивание)
-                let dx = mouse.x - this.x;
-                let dy = mouse.y - this.y;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-                
-                if (distance < mouse.radius + this.size) {
-                    if (mouse.x < this.x && this.x < canvas.width - this.size * 10) {
-                        this.x += 3;
-                    }
-                    if (mouse.x > this.x && this.x > this.size * 10) {
-                        this.x -= 3;
-                    }
-                    if (mouse.y < this.y && this.y < canvas.height - this.size * 10) {
-                        this.y += 3;
-                    }
-                    if (mouse.y > this.y && this.y > this.size * 10) {
-                        this.y -= 3;
-                    }
+            function drawOrbitTraces(time) {
+                var cx = state.width * 0.5;
+                var cy = state.height * 0.48;
+                var minDim = Math.min(state.width, state.height);
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(Math.sin(time * 0.00008) * 0.08);
+                for (var i = 0; i < 4; i += 1) {
+                    var rx = minDim * (0.24 + i * 0.105) * (1.48 - i * 0.08);
+                    var ry = minDim * (0.12 + i * 0.055);
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, rx, ry, -0.22 + i * 0.28, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(99, 166, 255, " + (0.12 - i * 0.018) + ")";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
                 }
-                
-                // Обычное движение
-                this.x += this.directionX;
-                this.y += this.directionY;
-                
-                this.draw();
+                ctx.restore();
             }
-        }
 
-        // Инициализация пула частиц
-        function init() {
-            particlesArray = [];
-            // Фиксированное адекватное количество частиц от площади экрана
-            let numberOfParticles = Math.floor((canvas.width * canvas.height) / 9000);
-            if (numberOfParticles > 150) numberOfParticles = 150; // Защита от перегрузки на ультрашироких мониторах
-            
-            for (let i = 0; i < numberOfParticles; i++) {
-                let size = (Math.random() * 2) + 1;
-                let x = (Math.random() * ((window.innerWidth - size * 2) - (size * 2)) + size * 2);
-                let y = (Math.random() * ((window.innerHeight - size * 2) - (size * 2)) + size * 2);
-                let directionX = (Math.random() * 0.4) - 0.2;
-                let directionY = (Math.random() * 0.4) - 0.2;
-                let color = 'rgba(88, 166, 255, 0.4)';
-
-                particlesArray.push(new Particle(x, y, directionX, directionY, size, color));
-            }
-        }
-
-        // Отрисовка линий между близкими частицами
-        function connect() {
-            for (let a = 0; a < particlesArray.length; a++) {
-                for (let b = a; b < particlesArray.length; b++) {
-                    let dx = particlesArray[a].x - particlesArray[b].x;
-                    let dy = particlesArray[a].y - particlesArray[b].y;
-                    let distance = dx * dx + dy * dy; // Считаем квадрат дистанции без дорогого Math.sqrt
-
-                    if (distance < (canvas.width / 10) * (canvas.height / 10)) {
-                        let opacity = 1 - (distance / 12000);
-                        if (opacity > 0) {
-                            ctx.strokeStyle = `rgba(88, 166, 255, ${opacity * 0.15})`;
-                            ctx.lineWidth = 1;
+            function drawLinks() {
+                var limit = state.width < 700 ? 118 : 146;
+                var limitSq = limit * limit;
+                var count = 0;
+                ctx.save();
+                ctx.lineWidth = 1;
+                for (var i = 0; i < state.nodes.length; i += 1) {
+                    var a = state.nodes[i];
+                    for (var j = i + 1; j < state.nodes.length; j += 1) {
+                        var b = state.nodes[j];
+                        var dx = a.x - b.x;
+                        var dy = a.y - b.y;
+                        var dSq = dx * dx + dy * dy;
+                        if (dSq < limitSq) {
+                            var alpha = (1 - dSq / limitSq) * 0.22;
+                            ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
                             ctx.beginPath();
-                            ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                            ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                            ctx.moveTo(a.x, a.y);
+                            ctx.lineTo(b.x, b.y);
                             ctx.stroke();
+                            count += 1;
                         }
                     }
                 }
+                ctx.restore();
+                state.linkCount = count;
+                metricLinks.textContent = String(count).padStart(3, "0").slice(-3);
             }
-        }
 
-        // Добавление новых частиц при клике
-        window.addEventListener('click', (e) => {
-            for (let i = 0; i < 8; i++) {
-                let size = (Math.random() * 2) + 1;
-                let directionX = (Math.random() * 2) - 1;
-                let directionY = (Math.random() * 2) - 1;
-                particlesArray.push(new Particle(e.clientX, e.clientY, directionX, directionY, size, 'rgba(88, 166, 255, 0.7)'));
+            function drawNodes(time) {
+                ctx.save();
+                for (var i = 0; i < state.nodes.length; i += 1) {
+                    var n = state.nodes[i];
+                    var pulse = 0.75 + Math.sin(time * 0.002 + n.phase) * 0.25;
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, n.size + pulse * 0.8, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(143, 214, 255, " + (0.26 + pulse * 0.18).toFixed(4) + ")";
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(n.x, n.y, (n.size + 5) * pulse, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(99, 166, 255, 0.08)";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+                ctx.restore();
             }
-            // Убираем старые, чтобы не копились бесконечно
-            if (particlesArray.length > 200) {
-                particlesArray.splice(0, 8);
-            }
-        });
 
-        // Главный цикл анимации
-        function animate() {
-            ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-            for (let i = 0; i < particlesArray.length; i++) {
-                particlesArray[i].update();
+            function drawPulses(dt) {
+                ctx.save();
+                for (var i = state.pulses.length - 1; i >= 0; i -= 1) {
+                    var p = state.pulses[i];
+                    p.r += (260 + p.power * 0.7) * dt;
+                    p.life -= 0.72 * dt;
+                    if (p.life <= 0) {
+                        state.pulses.splice(i, 1);
+                        continue;
+                    }
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(255, 209, 102, " + (p.life * 0.32).toFixed(4) + ")";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                }
+                ctx.restore();
             }
-            connect();
-            requestAnimationFrame(animate);
-        }
 
-        // Старт
-        resize();
-        animate();
+            function drawPointerField() {
+                if (!state.pointer.active) return;
+                ctx.save();
+                var r = state.pointer.down ? 260 : 190;
+                var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, r);
+                gradient.addColorStop(0, "rgba(99, 166, 255, 0.18)");
+                gradient.addColorStop(0.44, "rgba(99, 166, 255, 0.06)");
+                gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(state.pointer.x, state.pointer.y, r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(state.pointer.x, state.pointer.y, 12, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(143, 214, 255, 0.55)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function updateMetrics() {
+                if (state.pointer.down) {
+                    metricInput.textContent = "PUSH";
+                } else if (state.pointer.active) {
+                    metricInput.textContent = state.pointer.speed > 18 ? "VECTOR" : "TRACK";
+                } else {
+                    metricInput.textContent = "IDLE";
+                }
+            }
+
+            function frame(time) {
+                if (!state.lastTime) state.lastTime = time;
+                var dt = clamp((time - state.lastTime) / 1000, 0.001, 0.033);
+                state.lastTime = time;
+
+                updateScroll();
+                updateMetrics();
+
+                ctx.clearRect(0, 0, state.width, state.height);
+                drawGrid(time);
+                drawOrbitTraces(time);
+
+                if (!reduceMotion) {
+                    for (var i = 0; i < state.nodes.length; i += 1) {
+                        updateNode(state.nodes[i], dt, time);
+                    }
+                }
+
+                drawPointerField();
+                drawPulses(dt);
+                drawLinks();
+                drawNodes(time);
+
+                window.requestAnimationFrame(frame);
+            }
+
+            function setupReveal() {
+                var items = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+                if (!("IntersectionObserver" in window)) {
+                    items.forEach(function (item) { item.classList.add("visible"); });
+                    return;
+                }
+                var observer = new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        if (entry.isIntersecting) {
+                            entry.target.classList.add("visible");
+                            observer.unobserve(entry.target);
+                        }
+                    });
+                }, { threshold: 0.12 });
+                items.forEach(function (item) { observer.observe(item); });
+            }
+
+            window.addEventListener("resize", resize, { passive: true });
+            window.addEventListener("scroll", updateScroll, { passive: true });
+            window.addEventListener("pointermove", function (event) {
+                setPointer(event.clientX, event.clientY, true);
+            }, { passive: true });
+            window.addEventListener("pointerleave", function () {
+                state.pointer.active = false;
+            }, { passive: true });
+            window.addEventListener("pointerdown", function (event) {
+                state.pointer.down = true;
+                setPointer(event.clientX, event.clientY, true);
+                addPulse(event.clientX, event.clientY, 180);
+            });
+            window.addEventListener("pointerup", function (event) {
+                state.pointer.down = false;
+                setPointer(event.clientX, event.clientY, true);
+            }, { passive: true });
+
+            resize();
+            updateScroll();
+            setupReveal();
+            window.requestAnimationFrame(frame);
+        }());
     </script>
 </body>
 </html>
