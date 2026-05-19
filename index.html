@@ -19,6 +19,7 @@
             --accent2: #8fd6ff;
             --warn: #ffd166;
             --ok: #7ef2b0;
+            --danger: #ff6b8b;
             --shadow: rgba(0, 0, 0, 0.5);
         }
 
@@ -43,9 +44,17 @@
             min-height: 100vh;
         }
 
+        body.game-mode {
+            overflow: hidden;
+        }
+
         a {
             color: inherit;
             text-decoration: none;
+        }
+
+        button {
+            font: inherit;
         }
 
         #field-canvas {
@@ -56,6 +65,7 @@
             height: 100vh;
             display: block;
             background: transparent;
+            cursor: crosshair;
         }
 
         .scanlines {
@@ -83,6 +93,14 @@
             width: min(1180px, calc(100vw - 48px));
             margin: 0 auto;
             padding: 32px 0 72px;
+            transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+        }
+
+        body.game-mode .shell {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(18px);
+            pointer-events: none;
         }
 
         .topbar {
@@ -263,6 +281,7 @@
             letter-spacing: 0.1em;
             text-transform: uppercase;
             transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+            cursor: pointer;
         }
 
         .button:hover {
@@ -369,16 +388,23 @@
 
         .orbit-ring {
             position: absolute;
-            inset: 42px;
+            left: 8%;
+            top: 16%;
+            width: 86%;
+            height: 58%;
             border: 1px solid rgba(143, 214, 255, 0.34);
             border-radius: 50%;
-            transform: rotate(-18deg) scaleX(1.34);
+            transform: rotate(-18deg);
+            transform-origin: 50% 50%;
         }
 
         .orbit-ring.r2 {
-            inset: 68px 54px;
+            left: 13%;
+            top: 22%;
+            width: 74%;
+            height: 48%;
             opacity: 0.6;
-            transform: rotate(22deg) scaleX(1.12);
+            transform: rotate(22deg);
         }
 
         .core-dot {
@@ -395,20 +421,23 @@
 
         .probe-dot {
             position: absolute;
-            left: 50%;
-            top: 50%;
+            left: 0;
+            top: 0;
             width: 8px;
             height: 8px;
-            margin: -4px 0 0 -4px;
+            margin: 0;
             border-radius: 999px;
             background: var(--warn);
             box-shadow: 0 0 22px rgba(255, 209, 102, 0.82);
-            animation: orbitProbe 7s linear infinite;
+            transform: translate(-50%, -50%);
+            will-change: transform;
         }
 
-        @keyframes orbitProbe {
-            0% { transform: rotate(0deg) translateX(96px) rotate(0deg); }
-            100% { transform: rotate(360deg) translateX(96px) rotate(-360deg); }
+        .game-help {
+            margin-top: 14px;
+            color: var(--muted2);
+            font-size: 12px;
+            line-height: 1.45;
         }
 
         section {
@@ -638,6 +667,115 @@
             font-size: 12px;
         }
 
+        .game-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 8;
+            display: none;
+            pointer-events: none;
+        }
+
+        body.game-mode .game-overlay {
+            display: block;
+        }
+
+        .game-topbar {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            top: 18px;
+            display: grid;
+            grid-template-columns: repeat(7, minmax(96px, 1fr)) auto;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .game-stat,
+        .game-exit {
+            border: 1px solid rgba(99, 166, 255, 0.2);
+            border-radius: 16px;
+            background: rgba(5, 10, 16, 0.78);
+            backdrop-filter: blur(14px);
+            box-shadow: 0 16px 60px rgba(0, 0, 0, 0.34);
+        }
+
+        .game-stat {
+            min-height: 66px;
+            padding: 12px 14px;
+        }
+
+        .game-stat span {
+            display: block;
+            color: var(--muted2);
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .game-stat strong {
+            display: block;
+            margin-top: 8px;
+            color: var(--text);
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 20px;
+            font-weight: 900;
+        }
+
+        .game-exit {
+            min-width: 96px;
+            min-height: 66px;
+            padding: 0 18px;
+            color: var(--text);
+            background: rgba(255, 255, 255, 0.035);
+            cursor: pointer;
+            pointer-events: auto;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .game-exit:hover {
+            border-color: rgba(143, 214, 255, 0.65);
+            background: rgba(99, 166, 255, 0.12);
+        }
+
+        .game-progress {
+            position: absolute;
+            left: 18px;
+            top: 96px;
+            width: min(420px, calc(100vw - 36px));
+            height: 10px;
+            border: 1px solid rgba(99, 166, 255, 0.2);
+            border-radius: 999px;
+            background: rgba(5, 10, 16, 0.62);
+            overflow: hidden;
+        }
+
+        .game-progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(126, 242, 176, 0.8), rgba(143, 214, 255, 0.9), rgba(255, 209, 102, 0.9));
+            box-shadow: 0 0 18px rgba(143, 214, 255, 0.55);
+            transition: width 160ms ease;
+        }
+
+        .game-message {
+            position: absolute;
+            left: 18px;
+            bottom: 18px;
+            max-width: min(720px, calc(100vw - 36px));
+            padding: 14px 16px;
+            border: 1px solid rgba(99, 166, 255, 0.18);
+            border-radius: 18px;
+            background: rgba(5, 10, 16, 0.68);
+            backdrop-filter: blur(14px);
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
         .reveal {
             opacity: 0;
             transform: translateY(18px);
@@ -647,6 +785,12 @@
         .reveal.visible {
             opacity: 1;
             transform: translateY(0);
+        }
+
+        @media (max-width: 1120px) {
+            .game-topbar {
+                grid-template-columns: repeat(4, minmax(96px, 1fr));
+            }
         }
 
         @media (max-width: 980px) {
@@ -682,6 +826,16 @@
             .systems-grid,
             .stack-map {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 680px) {
+            .game-topbar {
+                grid-template-columns: repeat(2, minmax(96px, 1fr));
+            }
+
+            .game-message {
+                display: none;
             }
         }
 
@@ -724,10 +878,6 @@
                 scroll-behavior: auto;
             }
 
-            .probe-dot {
-                animation: none;
-            }
-
             .reveal {
                 opacity: 1;
                 transform: none;
@@ -740,6 +890,24 @@
     <canvas id="field-canvas" aria-hidden="true"></canvas>
     <div class="scanlines" aria-hidden="true"></div>
     <div class="vignette" aria-hidden="true"></div>
+
+    <div class="game-overlay" aria-hidden="true">
+        <div class="game-topbar">
+            <div class="game-stat"><span>Level</span><strong id="game-level">01</strong></div>
+            <div class="game-stat"><span>Collected</span><strong id="game-collected">000</strong></div>
+            <div class="game-stat"><span>Target</span><strong id="game-target">000</strong></div>
+            <div class="game-stat"><span>Links</span><strong id="game-links">000</strong></div>
+            <div class="game-stat"><span>Nodes</span><strong id="game-nodes">000</strong></div>
+            <div class="game-stat"><span>Input</span><strong id="game-input">IDLE</strong></div>
+            <div class="game-stat"><span>Atom mix</span><strong id="game-atoms">H</strong></div>
+            <button id="exit-game" class="game-exit" type="button">Exit</button>
+        </div>
+        <div class="game-progress"><div id="game-progress-fill" class="game-progress-fill"></div></div>
+        <div class="game-message">
+            Move through links to collect them. Click to pulse the field. Collected links change color.
+            Reach the target to increase level, unlock heavier atoms, and add more moving nodes.
+        </div>
+    </div>
 
     <main class="shell">
         <header class="topbar">
@@ -802,6 +970,8 @@
                     <span class="core-dot"></span>
                     <span class="probe-dot"></span>
                 </div>
+                <button id="enter-game" class="button" type="button">Fullscreen field</button>
+                <p class="game-help">Opens the procedural background as a small link-collection system.</p>
             </aside>
         </section>
 
@@ -959,7 +1129,28 @@
             var metricLinks = document.getElementById("metric-links");
             var metricInput = document.getElementById("metric-input");
             var metricScroll = document.getElementById("metric-scroll");
+            var gameLevel = document.getElementById("game-level");
+            var gameCollected = document.getElementById("game-collected");
+            var gameTarget = document.getElementById("game-target");
+            var gameLinks = document.getElementById("game-links");
+            var gameNodes = document.getElementById("game-nodes");
+            var gameInput = document.getElementById("game-input");
+            var gameAtoms = document.getElementById("game-atoms");
+            var gameProgressFill = document.getElementById("game-progress-fill");
+            var enterGameButton = document.getElementById("enter-game");
+            var exitGameButton = document.getElementById("exit-game");
+            var miniProbe = document.querySelector(".probe-dot");
+            var miniOrbitBox = document.querySelector(".mini-orbit");
             var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+            var ATOMS = [
+                { name: "H", mass: 1, radius: 2.2, color: "99, 166, 255", unlock: 1 },
+                { name: "He", mass: 4, radius: 2.8, color: "126, 242, 176", unlock: 2 },
+                { name: "C", mass: 12, radius: 3.4, color: "180, 136, 255", unlock: 3 },
+                { name: "O", mass: 16, radius: 3.8, color: "255, 209, 102", unlock: 4 },
+                { name: "Si", mass: 28, radius: 4.4, color: "255, 145, 77", unlock: 5 },
+                { name: "Fe", mass: 56, radius: 5.2, color: "255, 107, 139", unlock: 6 }
+            ];
 
             var state = {
                 width: 1,
@@ -968,6 +1159,7 @@
                 lastTime: 0,
                 nodes: [],
                 pulses: [],
+                collectedLinkKeys: Object.create(null),
                 pointer: {
                     x: 0,
                     y: 0,
@@ -978,19 +1170,29 @@
                     speed: 0
                 },
                 scroll01: 0,
-                linkCount: 0
+                linkCount: 0,
+                gameMode: false,
+                level: 1,
+                collectedThisLevel: 0,
+                totalCollected: 0,
+                target: 6,
+                nextLevelFlash: 0
             };
 
             function clamp(value, min, max) {
                 return Math.max(min, Math.min(max, value));
             }
 
-            function lerp(a, b, t) {
-                return a + (b - a) * t;
-            }
-
             function rand(min, max) {
                 return min + Math.random() * (max - min);
+            }
+
+            function pad3(value) {
+                return String(value).padStart(3, "0").slice(-3);
+            }
+
+            function pad2(value) {
+                return String(value).padStart(2, "0");
             }
 
             function resize() {
@@ -1002,48 +1204,113 @@
                 canvas.style.width = state.width + "px";
                 canvas.style.height = state.height + "px";
                 ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-                rebuildNodes();
+                rebuildNodes(true);
             }
 
             function wantedNodeCount() {
+                if (state.gameMode) {
+                    return clamp(5 + state.level * 3, 5, 42);
+                }
                 var area = state.width * state.height;
                 return clamp(Math.floor(area / 17000), 48, 130);
             }
 
+            function availableAtoms() {
+                return ATOMS.filter(function (atom) {
+                    return atom.unlock <= state.level;
+                });
+            }
+
+            function pickAtom() {
+                var atoms = availableAtoms();
+                var levelBias = clamp(state.level - 1, 0, atoms.length - 1);
+                var roll = Math.random();
+                if (roll < 0.58) return atoms[0];
+                if (roll < 0.82) return atoms[Math.min(1, atoms.length - 1)];
+                if (roll < 0.94) return atoms[Math.min(levelBias, atoms.length - 1)];
+                return atoms[Math.floor(Math.random() * atoms.length)];
+            }
+
+            function getOrbitCenter(time) {
+                return {
+                    x: state.width * (0.5 + Math.sin(time * 0.00008) * 0.045),
+                    y: state.height * (0.48 + Math.cos(time * 0.00007) * 0.035)
+                };
+            }
+
+            function getOrbitParams(index) {
+                var group = index % 5;
+                var minDim = Math.min(state.width, state.height);
+                var gameScale = state.gameMode ? 0.72 : 1.0;
+                return {
+                    group: group,
+                    a: minDim * (0.30 + group * 0.075) * (1.54 - group * 0.055) * gameScale,
+                    b: minDim * (0.115 + group * 0.045) * gameScale,
+                    rot: -0.42 + group * 0.29,
+                    speed: (group % 2 === 0 ? 1 : -1) * rand(0.10, 0.24) * (1 + group * 0.08)
+                };
+            }
+
+            function orbitPoint(cx, cy, a, b, rot, t) {
+                var x = Math.cos(t) * a;
+                var y = Math.sin(t) * b;
+                var c = Math.cos(rot);
+                var s = Math.sin(rot);
+                return {
+                    x: cx + x * c - y * s,
+                    y: cy + x * s + y * c
+                };
+            }
+
             function createNode(index) {
-                var cx = state.width * 0.5;
-                var cy = state.height * 0.48;
-                var angle = rand(0, Math.PI * 2);
-                var ring = rand(0.18, 0.58) * Math.min(state.width, state.height);
-                var orbitBias = Math.random() < 0.45;
+                var center = getOrbitCenter(0);
+                var params = getOrbitParams(index);
+                var phase = rand(0, Math.PI * 2);
+                var point = orbitPoint(center.x, center.y, params.a, params.b, params.rot, phase);
+                var atom = pickAtom();
+                var margin = 34;
                 return {
                     id: index,
-                    x: orbitBias ? cx + Math.cos(angle) * ring * rand(0.8, 1.35) : rand(0, state.width),
-                    y: orbitBias ? cy + Math.sin(angle) * ring * rand(0.35, 0.75) : rand(0, state.height),
-                    vx: rand(-14, 14),
-                    vy: rand(-14, 14),
-                    size: rand(1.1, 2.7),
-                    mass: rand(0.65, 1.6),
-                    phase: rand(0, Math.PI * 2),
+                    x: clamp(point.x, margin, state.width - margin),
+                    y: clamp(point.y, margin, state.height - margin),
+                    a: params.a,
+                    b: params.b,
+                    rot: params.rot,
+                    speed: params.speed,
+                    orbitGroup: params.group,
+                    phase: phase,
+                    ox: state.gameMode ? rand(-55, 55) : rand(-5, 5),
+                    oy: state.gameMode ? rand(-55, 55) : rand(-5, 5),
+                    ovx: state.gameMode ? rand(-28, 28) : 0,
+                    ovy: state.gameMode ? rand(-28, 28) : 0,
+                    freeVx: rand(-22, 22),
+                    freeVy: rand(-22, 22),
+                    size: atom.radius,
+                    mass: atom.mass,
+                    atom: atom,
                     hue: rand(0.75, 1.0)
                 };
             }
 
-            function rebuildNodes() {
+            function rebuildNodes(keepExisting) {
                 var count = wantedNodeCount();
+                if (!keepExisting) {
+                    state.nodes = [];
+                }
                 if (state.nodes.length > count) {
                     state.nodes.length = count;
                 }
                 while (state.nodes.length < count) {
                     state.nodes.push(createNode(state.nodes.length));
                 }
-                metricNodes.textContent = String(state.nodes.length).padStart(3, "0");
+                metricNodes.textContent = pad3(state.nodes.length);
+                gameNodes.textContent = pad3(state.nodes.length);
             }
 
             function updateScroll() {
                 var doc = document.documentElement;
                 var maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
-                state.scroll01 = clamp(window.scrollY / maxScroll, 0, 1);
+                state.scroll01 = state.gameMode ? 0 : clamp(window.scrollY / maxScroll, 0, 1);
                 metricScroll.textContent = state.scroll01.toFixed(2);
             }
 
@@ -1067,79 +1334,162 @@
                     life: 1,
                     power: power
                 });
-                if (state.pulses.length > 10) {
+                if (state.pulses.length > 12) {
                     state.pulses.shift();
                 }
             }
 
+            function beginLevel(level) {
+                state.level = level;
+                state.collectedThisLevel = 0;
+                state.target = 4 + level * 2;
+                state.collectedLinkKeys = Object.create(null);
+                state.nextLevelFlash = 1;
+                rebuildNodes(false);
+            }
+
+            function enterGameMode() {
+                state.gameMode = true;
+                document.body.classList.add("game-mode");
+                beginLevel(1);
+                updateGameStats();
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(function () {});
+                }
+            }
+
+            function exitGameMode() {
+                state.gameMode = false;
+                document.body.classList.remove("game-mode");
+                state.collectedLinkKeys = Object.create(null);
+                rebuildNodes(false);
+                updateGameStats();
+                if (document.fullscreenElement && document.exitFullscreen) {
+                    document.exitFullscreen().catch(function () {});
+                }
+            }
+
             function updateNode(node, dt, time) {
-                var cx = state.width * (0.5 + Math.sin(time * 0.00008) * 0.055);
-                var cy = state.height * (0.48 + Math.cos(time * 0.00007) * 0.045);
-                var dx = cx - node.x;
-                var dy = cy - node.y;
-                var distSq = dx * dx + dy * dy + 1800;
-                var dist = Math.sqrt(distSq);
-                var orbitForce = 560 / distSq;
-                var tx = -dy / dist;
-                var ty = dx / dist;
+                var margin = 26 + node.size;
+                if (state.gameMode) {
+                    updateGameNode(node, dt, time, margin);
+                    return;
+                }
+
+                var center = getOrbitCenter(time);
                 var energy = 1 + state.scroll01 * 1.65;
+                var rot = node.rot + Math.sin(time * 0.00006 + node.orbitGroup) * 0.035;
+                var t = node.phase + time * 0.001 * node.speed * energy;
+                var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
 
-                node.vx += (dx * orbitForce * 0.42 + tx * orbitForce * 42) * dt * energy;
-                node.vy += (dy * orbitForce * 0.42 + ty * orbitForce * 42) * dt * energy;
+                var ax = -node.ox * 1.8;
+                var ay = -node.oy * 1.8;
 
-                node.vx += Math.sin(time * 0.00038 + node.phase) * dt * 1.6;
-                node.vy += Math.cos(time * 0.00031 + node.phase) * dt * 1.6;
+                applyPointerForce(node, target.x, target.y, dt, function (fx, fy) {
+                    ax += fx;
+                    ay += fy;
+                });
 
+                node.ovx += ax * dt;
+                node.ovy += ay * dt;
+                node.ovx *= Math.pow(0.90, dt * 60);
+                node.ovy *= Math.pow(0.90, dt * 60);
+                node.ox += node.ovx * dt;
+                node.oy += node.ovy * dt;
+
+                var maxOffset = state.pointer.down ? 140 : 95;
+                var offsetLen = Math.sqrt(node.ox * node.ox + node.oy * node.oy);
+                if (offsetLen > maxOffset) {
+                    node.ox = node.ox / offsetLen * maxOffset;
+                    node.oy = node.oy / offsetLen * maxOffset;
+                }
+
+                node.x = clamp(target.x + node.ox, margin, state.width - margin);
+                node.y = clamp(target.y + node.oy, margin, state.height - margin);
+            }
+
+            function updateGameNode(node, dt, time, margin) {
+                var chaos = clamp(1.25 - state.level * 0.08, 0.42, 1.25);
+                var center = getOrbitCenter(time);
+                var rot = node.rot + Math.sin(time * 0.00004 + node.orbitGroup) * 0.05;
+                var t = node.phase + time * 0.001 * node.speed * (0.65 + state.level * 0.09);
+                var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
+                var pull = clamp(0.15 + state.level * 0.035, 0.15, 0.48);
+                var ax = (target.x - node.x) * pull;
+                var ay = (target.y - node.y) * pull;
+
+                ax += Math.sin(time * 0.0012 + node.phase) * 32 * chaos;
+                ay += Math.cos(time * 0.0010 + node.phase) * 32 * chaos;
+
+                applyPointerForce(node, node.x, node.y, dt, function (fx, fy) {
+                    ax += fx * 1.45;
+                    ay += fy * 1.45;
+                });
+
+                node.freeVx += ax * dt / Math.sqrt(node.mass);
+                node.freeVy += ay * dt / Math.sqrt(node.mass);
+                node.freeVx *= Math.pow(0.975, dt * 60);
+                node.freeVy *= Math.pow(0.975, dt * 60);
+
+                var maxSpeed = 70 + state.level * 7;
+                var speed = Math.sqrt(node.freeVx * node.freeVx + node.freeVy * node.freeVy);
+                if (speed > maxSpeed) {
+                    node.freeVx = node.freeVx / speed * maxSpeed;
+                    node.freeVy = node.freeVy / speed * maxSpeed;
+                }
+
+                node.x += node.freeVx * dt;
+                node.y += node.freeVy * dt;
+
+                if (node.x < margin) {
+                    node.x = margin;
+                    node.freeVx = Math.abs(node.freeVx) * 0.92;
+                }
+                if (node.x > state.width - margin) {
+                    node.x = state.width - margin;
+                    node.freeVx = -Math.abs(node.freeVx) * 0.92;
+                }
+                if (node.y < margin) {
+                    node.y = margin;
+                    node.freeVy = Math.abs(node.freeVy) * 0.92;
+                }
+                if (node.y > state.height - margin) {
+                    node.y = state.height - margin;
+                    node.freeVy = -Math.abs(node.freeVy) * 0.92;
+                }
+            }
+
+            function applyPointerForce(node, baseX, baseY, dt, applyForce) {
                 if (state.pointer.active) {
-                    var px = node.x - state.pointer.x;
-                    var py = node.y - state.pointer.y;
+                    var px = baseX - state.pointer.x;
+                    var py = baseY - state.pointer.y;
                     var pdSq = px * px + py * py + 140;
                     var pd = Math.sqrt(pdSq);
                     var radius = state.pointer.down ? 260 : 190;
                     if (pd < radius) {
-                        var force = (1 - pd / radius) * (state.pointer.down ? 260 : 130);
-                        node.vx += (px / pd) * force * dt;
-                        node.vy += (py / pd) * force * dt;
+                        var force = (1 - pd / radius) * (state.pointer.down ? 360 : 170);
+                        applyForce((px / pd) * force, (py / pd) * force);
                     }
                 }
 
                 for (var i = 0; i < state.pulses.length; i += 1) {
                     var pulse = state.pulses[i];
-                    var qx = node.x - pulse.x;
-                    var qy = node.y - pulse.y;
+                    var qx = baseX - pulse.x;
+                    var qy = baseY - pulse.y;
                     var qd = Math.sqrt(qx * qx + qy * qy) + 0.001;
                     var band = Math.abs(qd - pulse.r);
                     if (band < 90) {
                         var push = (1 - band / 90) * pulse.life * pulse.power;
-                        node.vx += (qx / qd) * push * dt;
-                        node.vy += (qy / qd) * push * dt;
+                        applyForce((qx / qd) * push, (qy / qd) * push);
                     }
                 }
-
-                var maxSpeed = 62 + state.scroll01 * 55;
-                var speed = Math.sqrt(node.vx * node.vx + node.vy * node.vy);
-                if (speed > maxSpeed) {
-                    node.vx = node.vx / speed * maxSpeed;
-                    node.vy = node.vy / speed * maxSpeed;
-                }
-
-                node.vx *= Math.pow(0.992, dt * 60);
-                node.vy *= Math.pow(0.992, dt * 60);
-                node.x += node.vx * dt;
-                node.y += node.vy * dt;
-
-                var pad = 60;
-                if (node.x < -pad) node.x = state.width + pad;
-                if (node.x > state.width + pad) node.x = -pad;
-                if (node.y < -pad) node.y = state.height + pad;
-                if (node.y > state.height + pad) node.y = -pad;
             }
 
             function drawGrid(time) {
-                var grid = 80;
+                var grid = state.gameMode ? 70 : 80;
                 var offset = (time * 0.006) % grid;
                 ctx.save();
-                ctx.globalAlpha = 0.34;
+                ctx.globalAlpha = state.gameMode ? 0.5 : 0.34;
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = "rgba(99, 166, 255, 0.055)";
                 ctx.beginPath();
@@ -1155,31 +1505,74 @@
                 ctx.restore();
             }
 
-            function drawOrbitTraces(time) {
-                var cx = state.width * 0.5;
-                var cy = state.height * 0.48;
-                var minDim = Math.min(state.width, state.height);
+            function drawBounds() {
+                if (!state.gameMode) return;
                 ctx.save();
-                ctx.translate(cx, cy);
-                ctx.rotate(Math.sin(time * 0.00008) * 0.08);
-                for (var i = 0; i < 4; i += 1) {
-                    var rx = minDim * (0.24 + i * 0.105) * (1.48 - i * 0.08);
-                    var ry = minDim * (0.12 + i * 0.055);
+                ctx.strokeStyle = "rgba(143, 214, 255, 0.26)";
+                ctx.lineWidth = 1;
+                ctx.setLineDash([9, 10]);
+                ctx.strokeRect(18, 124, state.width - 36, state.height - 150);
+                ctx.restore();
+            }
+
+            function drawOrbitTraces(time) {
+                var center = getOrbitCenter(time);
+                var count = state.gameMode ? clamp(2 + Math.floor(state.level / 2), 2, 5) : 5;
+                ctx.save();
+                for (var i = 0; i < count; i += 1) {
+                    var params = getOrbitParams(i);
+                    var rot = params.rot + Math.sin(time * 0.00006 + params.group) * 0.035;
                     ctx.beginPath();
-                    ctx.ellipse(0, 0, rx, ry, -0.22 + i * 0.28, 0, Math.PI * 2);
-                    ctx.strokeStyle = "rgba(99, 166, 255, " + (0.12 - i * 0.018) + ")";
+                    ctx.ellipse(center.x, center.y, params.a, params.b, rot, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(99, 166, 255, " + (state.gameMode ? 0.09 : 0.13 - i * 0.015) + ")";
                     ctx.lineWidth = 1;
                     ctx.stroke();
                 }
                 ctx.restore();
             }
 
+            function linkKey(a, b) {
+                return a.id < b.id ? a.id + ":" + b.id : b.id + ":" + a.id;
+            }
+
+            function pointSegmentDistance(px, py, ax, ay, bx, by) {
+                var vx = bx - ax;
+                var vy = by - ay;
+                var wx = px - ax;
+                var wy = py - ay;
+                var lenSq = vx * vx + vy * vy;
+                if (lenSq <= 0.001) return Math.sqrt(wx * wx + wy * wy);
+                var t = clamp((wx * vx + wy * vy) / lenSq, 0, 1);
+                var dx = px - (ax + vx * t);
+                var dy = py - (ay + vy * t);
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+
+            function tryCollectLink(a, b, key) {
+                if (!state.gameMode || !state.pointer.active) return false;
+                if (state.collectedLinkKeys[key]) return true;
+                var d = pointSegmentDistance(state.pointer.x, state.pointer.y, a.x, a.y, b.x, b.y);
+                if (d < 12) {
+                    state.collectedLinkKeys[key] = true;
+                    state.collectedThisLevel += 1;
+                    state.totalCollected += 1;
+                    addPulse((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, 90);
+                    if (state.collectedThisLevel >= state.target) {
+                        window.setTimeout(function () {
+                            if (state.gameMode) beginLevel(state.level + 1);
+                        }, 260);
+                    }
+                    return true;
+                }
+                return false;
+            }
+
             function drawLinks() {
-                var limit = state.width < 700 ? 118 : 146;
+                var limit = state.gameMode ? 165 : (state.width < 700 ? 118 : 146);
                 var limitSq = limit * limit;
                 var count = 0;
                 ctx.save();
-                ctx.lineWidth = 1;
+                ctx.lineWidth = state.gameMode ? 1.4 : 1;
                 for (var i = 0; i < state.nodes.length; i += 1) {
                     var a = state.nodes[i];
                     for (var j = i + 1; j < state.nodes.length; j += 1) {
@@ -1188,8 +1581,17 @@
                         var dy = a.y - b.y;
                         var dSq = dx * dx + dy * dy;
                         if (dSq < limitSq) {
-                            var alpha = (1 - dSq / limitSq) * 0.22;
-                            ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
+                            var key = linkKey(a, b);
+                            var collected = tryCollectLink(a, b, key);
+                            var alpha = (1 - dSq / limitSq) * (state.gameMode ? 0.44 : 0.22);
+                            if (collected) {
+                                ctx.strokeStyle = "rgba(126, 242, 176, " + clamp(alpha + 0.28, 0.34, 0.82).toFixed(4) + ")";
+                                ctx.shadowColor = "rgba(126, 242, 176, 0.35)";
+                                ctx.shadowBlur = 9;
+                            } else {
+                                ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
+                                ctx.shadowBlur = 0;
+                            }
                             ctx.beginPath();
                             ctx.moveTo(a.x, a.y);
                             ctx.lineTo(b.x, b.y);
@@ -1200,7 +1602,8 @@
                 }
                 ctx.restore();
                 state.linkCount = count;
-                metricLinks.textContent = String(count).padStart(3, "0").slice(-3);
+                metricLinks.textContent = pad3(count);
+                gameLinks.textContent = pad3(count);
             }
 
             function drawNodes(time) {
@@ -1208,15 +1611,25 @@
                 for (var i = 0; i < state.nodes.length; i += 1) {
                     var n = state.nodes[i];
                     var pulse = 0.75 + Math.sin(time * 0.002 + n.phase) * 0.25;
+                    var atomColor = n.atom.color;
                     ctx.beginPath();
-                    ctx.arc(n.x, n.y, n.size + pulse * 0.8, 0, Math.PI * 2);
-                    ctx.fillStyle = "rgba(143, 214, 255, " + (0.26 + pulse * 0.18).toFixed(4) + ")";
+                    ctx.arc(n.x, n.y, n.size + pulse * (state.gameMode ? 1.2 : 0.8), 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(" + atomColor + ", " + (state.gameMode ? 0.72 : 0.42).toFixed(4) + ")";
+                    ctx.shadowColor = "rgba(" + atomColor + ", 0.45)";
+                    ctx.shadowBlur = state.gameMode ? 18 : 10;
                     ctx.fill();
+                    ctx.shadowBlur = 0;
                     ctx.beginPath();
                     ctx.arc(n.x, n.y, (n.size + 5) * pulse, 0, Math.PI * 2);
-                    ctx.strokeStyle = "rgba(99, 166, 255, 0.08)";
+                    ctx.strokeStyle = "rgba(" + atomColor + ", " + (state.gameMode ? 0.18 : 0.08).toFixed(4) + ")";
                     ctx.lineWidth = 1;
                     ctx.stroke();
+                    if (state.gameMode && n.size >= 3.3) {
+                        ctx.fillStyle = "rgba(215, 227, 244, 0.72)";
+                        ctx.font = "10px SFMono-Regular, Consolas, monospace";
+                        ctx.textAlign = "center";
+                        ctx.fillText(n.atom.name, n.x, n.y - n.size - 8);
+                    }
                 }
                 ctx.restore();
             }
@@ -1261,13 +1674,42 @@
             }
 
             function updateMetrics() {
+                var input = "IDLE";
                 if (state.pointer.down) {
-                    metricInput.textContent = "PUSH";
+                    input = "PUSH";
                 } else if (state.pointer.active) {
-                    metricInput.textContent = state.pointer.speed > 18 ? "VECTOR" : "TRACK";
-                } else {
-                    metricInput.textContent = "IDLE";
+                    input = state.pointer.speed > 18 ? "VECTOR" : "TRACK";
                 }
+                metricInput.textContent = input;
+                gameInput.textContent = input;
+            }
+
+            function updateGameStats() {
+                gameLevel.textContent = pad2(state.level);
+                gameCollected.textContent = pad3(state.collectedThisLevel);
+                gameTarget.textContent = pad3(state.target);
+                gameLinks.textContent = pad3(state.linkCount);
+                gameNodes.textContent = pad3(state.nodes.length);
+                gameAtoms.textContent = availableAtoms().map(function (atom) { return atom.name; }).join("+");
+                gameProgressFill.style.width = clamp(state.collectedThisLevel / Math.max(1, state.target) * 100, 0, 100).toFixed(2) + "%";
+            }
+
+            function updateMiniOrbitProbe(time) {
+                if (!miniProbe || !miniOrbitBox) return;
+                var rect = miniOrbitBox.getBoundingClientRect();
+                var cx = rect.width * 0.5;
+                var cy = rect.height * 0.5;
+                var a = rect.width * 0.43;
+                var b = rect.height * 0.29;
+                var rot = -18 * Math.PI / 180;
+                var t = time * 0.00115;
+                var x = Math.cos(t) * a;
+                var y = Math.sin(t) * b;
+                var c = Math.cos(rot);
+                var s = Math.sin(rot);
+                var px = cx + x * c - y * s;
+                var py = cy + x * s + y * c;
+                miniProbe.style.transform = "translate(" + px.toFixed(2) + "px, " + py.toFixed(2) + "px) translate(-50%, -50%)";
             }
 
             function frame(time) {
@@ -1277,9 +1719,12 @@
 
                 updateScroll();
                 updateMetrics();
+                updateMiniOrbitProbe(time);
+                updateGameStats();
 
                 ctx.clearRect(0, 0, state.width, state.height);
                 drawGrid(time);
+                drawBounds();
                 drawOrbitTraces(time);
 
                 if (!reduceMotion) {
@@ -1324,12 +1769,24 @@
             window.addEventListener("pointerdown", function (event) {
                 state.pointer.down = true;
                 setPointer(event.clientX, event.clientY, true);
-                addPulse(event.clientX, event.clientY, 180);
+                addPulse(event.clientX, event.clientY, state.gameMode ? 220 : 180);
             });
             window.addEventListener("pointerup", function (event) {
                 state.pointer.down = false;
                 setPointer(event.clientX, event.clientY, true);
             }, { passive: true });
+            window.addEventListener("keydown", function (event) {
+                if (event.key === "Escape" && state.gameMode) {
+                    exitGameMode();
+                }
+            });
+            document.addEventListener("fullscreenchange", function () {
+                if (!document.fullscreenElement && state.gameMode) {
+                    exitGameMode();
+                }
+            });
+            enterGameButton.addEventListener("click", enterGameMode);
+            exitGameButton.addEventListener("click", exitGameMode);
 
             resize();
             updateScroll();
