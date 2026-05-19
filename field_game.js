@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.8-paddle-deflect",
+        buildVersion: "0.11.10-fusion-control",
 
         portfolio: {
             minNodes: 48,
@@ -49,10 +49,10 @@
 
             pointerRadius: 225,
             pointerPushRadius: 335,
-            pointerForce: 760,
-            pointerPushForce: 1450,
+            pointerForce: 2280,
+            pointerPushForce: 4350,
             pointerCenterPower: 2.18,
-            pointerMotionForce: 18.0,
+            pointerMotionForce: 54.0,
             pulseForce: 390,
 
             orbitPullBase: 1.08,
@@ -83,7 +83,7 @@
             insideCoreRetainHeavyPower: 0.44,
             insideCoreRetainRadiusScale: 0.66,
             insideCoreTangentialForce: 22,
-            innerHydrogenEscapeForce: 14,
+            innerHydrogenEscapeForce: 3,
             innerProductOrbitAssist: 18,
             absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0,
@@ -93,18 +93,18 @@
             collapseBlackHoleMass: 380,
             collapseNeutronStabilityMin: 50,
             supernovaDuration: 4.4,
-            finalSpawnInterval: 0.78,
+            finalSpawnInterval: 1.56,
 
             ironCoreInfallForce: 58,
             ironCoreInfallHeavyBoost: 0.82,
             ironCoreTangentialForce: 9,
             ironCoreDeflectRadius: 145,
             ironCoreDeflectPushRadius: 205,
-            ironCoreDeflectForce: 64,
-            ironCoreDeflectPushForce: 112,
+            ironCoreDeflectForce: 128,
+            ironCoreDeflectPushForce: 224,
             ironCoreDeflectMotionForce: 1.15,
             ironCorePaddleCooldown: 0.16,
-            ironCoreDeflectHoldForce: 260,
+            ironCoreDeflectHoldForce: 520,
             ironCoreAutoAbsorbPadding: 6,
             ironCoreMaxAutoAbsorbsPerFrame: 1,
             ironCoreAbsorbRadiusScale: 0.92,
@@ -1281,6 +1281,23 @@
                     var tightOrbit = (8 + zoneHeavy01 * 10) / Math.pow(Math.max(1, n.mass), 0.08);
                     n.vx += tx * tightOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
                     n.vy += ty * tightOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+                } else if (!isCollapsePhase() && n.mass > 1 && n.mass <= 4) {
+                    var lightHoldRadius = fusionRadius() * 0.72;
+                    if (cd > lightHoldRadius) {
+                        var lightRetain = (cd - lightHoldRadius) * 1.35;
+                        n.vx += (cdx / cd) * lightRetain * dt / Math.pow(Math.max(1, n.mass), 0.18);
+                        n.vy += (cdy / cd) * lightRetain * dt / Math.pow(Math.max(1, n.mass), 0.18);
+                    }
+
+                    if (cd > fusionRadius() * 0.86) {
+                        var lightOutX = -cdx / cd;
+                        var lightOutY = -cdy / cd;
+                        var lightRadialOut = n.vx * lightOutX + n.vy * lightOutY;
+                        if (lightRadialOut > 0) {
+                            n.vx -= lightOutX * lightRadialOut * 0.28;
+                            n.vy -= lightOutY * lightRadialOut * 0.28;
+                        }
+                    }
                 }
 
                 if (n.synthesized && n.nucleusName !== "H") {
@@ -1297,7 +1314,7 @@
             } else if (!n.synthesized && n.nucleusName === "H") {
                 var minOrbit = fusionRadius() * 1.08;
                 if (cd < minOrbit && pd > CONFIG.game.pointerRadius * 0.65) {
-                    var away = (minOrbit - cd) * 0.26;
+                    var away = (minOrbit - cd) * 0.052;
                     n.vx -= (cdx / cd) * away * dt;
                     n.vy -= (cdy / cd) * away * dt;
                 }
