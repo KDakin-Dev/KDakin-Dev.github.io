@@ -23,25 +23,26 @@
             playAreaBottom: 26,
 
             initialCoreMass: 2.0,
-            coreRadiusBase: 9.0,
-            coreRadiusScale: 1.42,
-            coreRadiusMax: 44.0,
-            fusionRadiusBase: 78.0,
-            fusionRadiusScale: 7.0,
-            fusionRadiusMax: 245.0,
+            visualScale: 1.42,
+            coreRadiusBase: 13.0,
+            coreRadiusScale: 1.62,
+            coreRadiusMax: 56.0,
+            fusionRadiusBase: 96.0,
+            fusionRadiusScale: 7.8,
+            fusionRadiusMax: 275.0,
 
-            spawnInterval: 1.15,
-            spawnBurstBase: 7,
-            spawnByMassScale: 2.3,
-            spawnMax: 48,
+            spawnInterval: 1.28,
+            spawnBurstBase: 8,
+            spawnByMassScale: 1.72,
+            spawnMax: 34,
             spawnSpeedBase: 11.0,
             spawnSpeedByCoreLevel: 0.65,
 
-            fusionDistance: 64,
-            fusionHeatSeconds: 0.82,
+            fusionDistance: 86,
+            fusionHeatSeconds: 0.68,
             fusionHeatDecay: 1.15,
             validPairAttractRange: 132,
-            validPairAttractForce: 72,
+            validPairAttractForce: 68,
             invalidPairRange: 86,
             invalidPairRepelForce: 135,
 
@@ -53,10 +54,10 @@
             pointerMotionForce: 14.0,
             pulseForce: 390,
 
-            orbitPullBase: 0.86,
-            orbitPullControlDamp: 0.12,
-            orbitNoise: 6.0,
-            outerOrbitBias: 0.46,
+            orbitPullBase: 0.94,
+            orbitPullControlDamp: 0.10,
+            orbitNoise: 5.2,
+            outerOrbitBias: 0.78,
 
             baseDamping: 0.989,
             maxSpeedBase: 62,
@@ -65,11 +66,19 @@
             hotLinkAlpha: 0.72,
             previewAlpha: 0.16,
             absorbButtonUpdateInterval: 0.15,
-            fusionHoldScaleInsideCore: 0.72,
-            insideCoreSpeedScale: 0.58,
-            insideCoreDamping: 0.965,
-            insideCoreOrbitPullScale: 0.22,
-            absorbClickRadiusBonus: 12,
+            fusionHoldScaleInsideCore: 0.62,
+            contactFusionHeatBoost: 1.75,
+            pairFusionZonePadding: 34,
+            validPairMinDistance: 18,
+            overlapSoftPushForce: 72,
+            insideCoreSpeedScale: 0.46,
+            insideCoreHeavySpeedPower: 0.16,
+            insideCoreDamping: 0.953,
+            insideCoreOrbitPullScale: 0.12,
+            insideCoreRetainForce: 2.15,
+            insideCoreRetainHeavyPower: 0.34,
+            insideCoreRetainRadiusScale: 0.58,
+            absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0
         },
 
@@ -108,22 +117,22 @@
         ],
 
         reactions: [
-            { a: "H", b: "H", product: "D", unlock: 1, label: "H + H -> D", heat: 0.58 },
-            { a: "D", b: "H", product: "He3", unlock: 2, label: "D + H -> He3", heat: 0.64 },
-            { a: "He3", b: "He3", product: "He4", unlock: 3, label: "He3 + He3 -> He4", heat: 0.76, spawn: ["H", "H"] },
-            { a: "He4", b: "He4", product: "Be8", unlock: 4, label: "He4 + He4 -> Be8", heat: 0.84 },
-            { a: "Be8", b: "He4", product: "C12", unlock: 5, label: "Be8 + He4 -> C12", heat: 0.72 },
-            { a: "C12", b: "He4", product: "O16", unlock: 6, label: "C12 + He4 -> O16", heat: 0.88 },
-            { a: "O16", b: "He4", product: "Ne20", unlock: 7, label: "O16 + He4 -> Ne20", heat: 0.92 },
-            { a: "Ne20", b: "He4", product: "Mg24", unlock: 8, label: "Ne20 + He4 -> Mg24", heat: 0.96 },
-            { a: "Mg24", b: "He4", product: "Si28", unlock: 9, label: "Mg24 + He4 -> Si28", heat: 1.00 },
-            { a: "Si28", b: "He4", product: "S32", unlock: 10, label: "Si28 + He4 -> S32", heat: 1.04 },
-            { a: "S32", b: "He4", product: "Ar36", unlock: 10, label: "S32 + He4 -> Ar36", heat: 1.08 },
-            { a: "Ar36", b: "He4", product: "Ca40", unlock: 10, label: "Ar36 + He4 -> Ca40", heat: 1.12 },
-            { a: "Ca40", b: "He4", product: "Ti44", unlock: 10, label: "Ca40 + He4 -> Ti44", heat: 1.16 },
-            { a: "Ti44", b: "He4", product: "Cr48", unlock: 10, label: "Ti44 + He4 -> Cr48", heat: 1.20 },
-            { a: "Cr48", b: "He4", product: "Fe52", unlock: 10, label: "Cr48 + He4 -> Fe52", heat: 1.24 },
-            { a: "Fe52", b: "He4", product: "Fe56", unlock: 10, label: "Fe52 + He4 -> Fe56", heat: 1.30 }
+            { a: "H", b: "H", product: "D", requiresAbsorbed: null, label: "H + H -> D", heat: 0.58 },
+            { a: "D", b: "H", product: "He3", requiresAbsorbed: "D", label: "D + H -> He3", heat: 0.64 },
+            { a: "He3", b: "He3", product: "He4", requiresAbsorbed: "He3", label: "He3 + He3 -> He4", heat: 0.76, spawn: ["H", "H"] },
+            { a: "He4", b: "He4", product: "Be8", requiresAbsorbed: "He4", label: "He4 + He4 -> Be8", heat: 0.84 },
+            { a: "Be8", b: "He4", product: "C12", requiresAbsorbed: "Be8", label: "Be8 + He4 -> C12", heat: 0.72 },
+            { a: "C12", b: "He4", product: "O16", requiresAbsorbed: "C12", label: "C12 + He4 -> O16", heat: 0.88 },
+            { a: "O16", b: "He4", product: "Ne20", requiresAbsorbed: "O16", label: "O16 + He4 -> Ne20", heat: 0.92 },
+            { a: "Ne20", b: "He4", product: "Mg24", requiresAbsorbed: "Ne20", label: "Ne20 + He4 -> Mg24", heat: 0.96 },
+            { a: "Mg24", b: "He4", product: "Si28", requiresAbsorbed: "Mg24", label: "Mg24 + He4 -> Si28", heat: 1.00 },
+            { a: "Si28", b: "He4", product: "S32", requiresAbsorbed: "Si28", label: "Si28 + He4 -> S32", heat: 1.04 },
+            { a: "S32", b: "He4", product: "Ar36", requiresAbsorbed: "S32", label: "S32 + He4 -> Ar36", heat: 1.08 },
+            { a: "Ar36", b: "He4", product: "Ca40", requiresAbsorbed: "Ar36", label: "Ar36 + He4 -> Ca40", heat: 1.12 },
+            { a: "Ca40", b: "He4", product: "Ti44", requiresAbsorbed: "Ca40", label: "Ca40 + He4 -> Ti44", heat: 1.16 },
+            { a: "Ti44", b: "He4", product: "Cr48", requiresAbsorbed: "Ti44", label: "Ti44 + He4 -> Cr48", heat: 1.20 },
+            { a: "Cr48", b: "He4", product: "Fe52", requiresAbsorbed: "Cr48", label: "Cr48 + He4 -> Fe52", heat: 1.24 },
+            { a: "Fe52", b: "He4", product: "Fe56", requiresAbsorbed: "Fe52", label: "Fe52 + He4 -> Fe56", heat: 1.30 }
         ]
     };
 
@@ -163,6 +172,7 @@
         fusionHeat: Object.create(null),
         hotPairs: [],
         invalidPairs: [],
+        absorbedProducts: Object.create(null),
         pointer: {
             x: 0,
             y: 0,
@@ -212,6 +222,31 @@
 
     function getNucleus(name) {
         return CONFIG.nuclei[name] || CONFIG.nuclei.H;
+    }
+
+    function isReactionUnlocked(reaction) {
+        if (!reaction.requiresAbsorbed) return true;
+        return !!state.absorbedProducts[reaction.requiresAbsorbed];
+    }
+
+    function getPrimaryRecipe() {
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            var reaction = CONFIG.reactions[i];
+            if (!state.absorbedProducts[reaction.product]) {
+                return reaction;
+            }
+        }
+        return CONFIG.reactions[CONFIG.reactions.length - 1];
+    }
+
+    function getUnlockedRecipeList() {
+        var list = [];
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            if (isReactionUnlocked(CONFIG.reactions[i])) {
+                list.push(CONFIG.reactions[i]);
+            }
+        }
+        return list;
     }
 
     function getCore() {
@@ -366,7 +401,7 @@
         var minDim = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top);
         var speed = CONFIG.game.spawnSpeedBase + getCoreLevel() * CONFIG.game.spawnSpeedByCoreLevel;
         var speedScale = 1 / Math.pow(Math.max(1, nucleus.mass), 0.36);
-        var orbitScale = core ? 0 : rand(0.36, CONFIG.game.outerOrbitBias);
+        var orbitScale = core ? 0 : rand(0.58, CONFIG.game.outerOrbitBias);
         var orbitA = minDim * orbitScale;
         var orbitB = orbitA * rand(0.48, 0.78);
         var orbitSpeed = (Math.random() < 0.5 ? -1 : 1) * rand(0.28, 0.62) / Math.pow(Math.max(1, nucleus.mass), 0.30);
@@ -403,6 +438,7 @@
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
         state.invalidPairs = [];
+        state.absorbedProducts = Object.create(null);
         state.coreMass = CONFIG.game.initialCoreMass;
         state.coreLevel = 1;
         state.nextNodeId = 1;
@@ -462,10 +498,21 @@
             x = origin.x + Math.cos(angle) * rand(18, 48);
             y = origin.y + Math.sin(angle) * rand(18, 48);
         } else {
-            angle = rand(0, Math.PI * 2);
-            radius = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) * rand(0.42, 0.50);
-            x = cx + Math.cos(angle) * radius;
-            y = cy + Math.sin(angle) * radius;
+            var pad = 62;
+            var side = Math.floor(rand(0, 4));
+            if (side === 0) {
+                x = bounds.left + pad;
+                y = rand(bounds.top + pad, bounds.bottom - pad);
+            } else if (side === 1) {
+                x = bounds.right - pad;
+                y = rand(bounds.top + pad, bounds.bottom - pad);
+            } else if (side === 2) {
+                x = rand(bounds.left + pad, bounds.right - pad);
+                y = bounds.top + pad;
+            } else {
+                x = rand(bounds.left + pad, bounds.right - pad);
+                y = bounds.bottom - pad;
+            }
         }
 
         x = clamp(x, bounds.left + 44, bounds.right - 44);
@@ -683,6 +730,7 @@
             var n = state.nodes[i];
             if (n.core) continue;
 
+            var insideCore = isInsideFusionZone(n);
             var rot = n.orbitRot + Math.sin(time * 0.00004 + n.pulse) * 0.06;
             var t = n.orbitPhase + time * 0.001 * n.orbitSpeed;
             var target = orbitPoint(core.x, core.y, n.orbitA, n.orbitB, rot, t);
@@ -701,15 +749,34 @@
                 }
             }
 
-            if (isInsideFusionZone(n)) {
-                controlDamp *= CONFIG.game.insideCoreOrbitPullScale;
+            if (insideCore) {
+                controlDamp *= CONFIG.game.insideCoreOrbitPullScale / Math.pow(Math.max(1, n.mass), 0.18);
             }
 
             var pull = CONFIG.game.orbitPullBase * controlDamp / Math.pow(Math.max(1, n.mass), 0.20);
             n.vx += dx * pull * dt;
             n.vy += dy * pull * dt;
 
+            if (insideCore) {
+                var cdx = core.x - n.x;
+                var cdy = core.y - n.y;
+                var cd = Math.sqrt(cdx * cdx + cdy * cdy) + 0.001;
+                var targetR = Math.max(
+                    coreRadius() + n.radius * CONFIG.game.visualScale + 28,
+                    fusionRadius() * CONFIG.game.insideCoreRetainRadiusScale
+                );
+
+                if (cd > targetR) {
+                    var retain = (cd - targetR) * CONFIG.game.insideCoreRetainForce * Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreRetainHeavyPower);
+                    n.vx += (cdx / cd) * retain * dt / Math.pow(Math.max(1, n.mass), 0.20);
+                    n.vy += (cdy / cd) * retain * dt / Math.pow(Math.max(1, n.mass), 0.20);
+                }
+            }
+
             var noise = CONFIG.game.orbitNoise / Math.pow(Math.max(1, n.mass), 0.45);
+            if (insideCore) {
+                noise *= 0.45;
+            }
             n.vx += Math.sin(time * 0.0011 + n.pulse) * noise * dt;
             n.vy += Math.cos(time * 0.0009 + n.pulse) * noise * dt;
         }
@@ -722,10 +789,9 @@
     function findReaction(a, b) {
         if (a.core || b.core) return null;
 
-        var level = getCoreLevel();
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var r = CONFIG.reactions[i];
-            if (r.unlock > level) continue;
+            if (!isReactionUnlocked(r)) continue;
             if ((r.a === a.nucleusName && r.b === b.nucleusName) || (r.a === b.nucleusName && r.b === a.nucleusName)) {
                 return r;
             }
@@ -757,6 +823,29 @@
         return dx * dx + dy * dy <= r * r;
     }
 
+    function isPairInsideFusionZone(a, b) {
+        var core = getCore();
+        if (!core) return false;
+
+        var mx = (a.x + b.x) * 0.5;
+        var my = (a.y + b.y) * 0.5;
+        var mdx = mx - core.x;
+        var mdy = my - core.y;
+        var r = fusionRadius() + CONFIG.game.pairFusionZonePadding;
+
+        if (mdx * mdx + mdy * mdy > r * r) {
+            return false;
+        }
+
+        var adx = a.x - core.x;
+        var ady = a.y - core.y;
+        var bdx = b.x - core.x;
+        var bdy = b.y - core.y;
+        var outer = fusionRadius() + CONFIG.game.pairFusionZonePadding * 1.35;
+
+        return adx * adx + ady * ady <= outer * outer && bdx * bdx + bdy * bdy <= outer * outer;
+    }
+
     function applyPairForcesAndFusion(dt) {
         var activeKeys = Object.create(null);
         state.hotPairs = [];
@@ -774,19 +863,22 @@
                 var nx = dx / d;
                 var ny = dy / d;
                 var reaction = findReaction(a, b);
-                var inZone = isInsideFusionZone(a) && isInsideFusionZone(b);
+                var inZone = isPairInsideFusionZone(a, b);
 
-                if (reaction && d < CONFIG.game.validPairAttractRange) {
+                if (reaction && inZone && d < CONFIG.game.validPairAttractRange) {
                     var attract01 = 1 - d / CONFIG.game.validPairAttractRange;
-                    var attract = CONFIG.game.validPairAttractForce * attract01 * (inZone ? 1.35 : 0.55);
+                    var attract = CONFIG.game.validPairAttractForce * attract01;
+                    var aMass = Math.pow(Math.max(1, a.mass), 0.42);
+                    var bMass = Math.pow(Math.max(1, b.mass), 0.42);
 
-                    a.vx += nx * attract * dt / Math.pow(Math.max(1, a.mass), 0.42);
-                    a.vy += ny * attract * dt / Math.pow(Math.max(1, a.mass), 0.42);
-                    b.vx -= nx * attract * dt / Math.pow(Math.max(1, b.mass), 0.42);
-                    b.vy -= ny * attract * dt / Math.pow(Math.max(1, b.mass), 0.42);
+                    a.vx += nx * attract * dt / aMass;
+                    a.vy += ny * attract * dt / aMass;
+                    b.vx -= nx * attract * dt / bMass;
+                    b.vy -= ny * attract * dt / bMass;
+
                 }
 
-                if (reaction && d < CONFIG.game.fusionDistance + a.radius + b.radius) {
+                if (reaction && d < CONFIG.game.fusionDistance + (a.radius + b.radius) * CONFIG.game.visualScale) {
                     var key = reactionKey(a, b);
                     var heatTarget = (reaction.heat || CONFIG.game.fusionHeatSeconds) * CONFIG.game.fusionHoldScaleInsideCore;
 
@@ -798,7 +890,12 @@
                     }
 
                     if (inZone) {
-                        state.fusionHeat[key].heat += dt;
+                        var contactD = (a.radius + b.radius) * CONFIG.game.visualScale + CONFIG.game.validPairMinDistance;
+                        if (d < contactD) {
+                            state.fusionHeat[key].heat = heatTarget;
+                        } else {
+                            state.fusionHeat[key].heat += dt;
+                        }
                     } else {
                         state.fusionHeat[key].heat = Math.max(0, state.fusionHeat[key].heat - CONFIG.game.fusionHeatDecay * dt);
                     }
@@ -816,16 +913,17 @@
                         performFusion(a, b, reaction);
                         return;
                     }
-                } else if (inZone && !reaction && d < CONFIG.game.invalidPairRange && !anyFutureReaction(a, b)) {
+                } else if (inZone && !reaction && d < CONFIG.game.invalidPairRange) {
                     var repel01 = 1 - d / CONFIG.game.invalidPairRange;
-                    var repel = CONFIG.game.invalidPairRepelForce * repel01;
+                    var future = anyFutureReaction(a, b);
+                    var repel = CONFIG.game.invalidPairRepelForce * repel01 * (future ? 0.35 : 1.0);
 
                     a.vx -= nx * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
                     a.vy -= ny * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
                     b.vx += nx * repel * dt / Math.pow(Math.max(1, b.mass), 0.42);
                     b.vy += ny * repel * dt / Math.pow(Math.max(1, b.mass), 0.42);
 
-                    state.invalidPairs.push({ a: a, b: b, alpha: repel01 });
+                    state.invalidPairs.push({ a: a, b: b, alpha: future ? repel01 * 0.45 : repel01 });
                 }
             }
         }
@@ -887,6 +985,7 @@
         var value = nucleus.absorb || nucleus.mass || 1;
 
         state.coreMass += value;
+        state.absorbedProducts[node.nucleusName] = (state.absorbedProducts[node.nucleusName] || 0) + 1;
         state.lastReaction = "Absorbed " + nucleus.name + " +" + value.toFixed(1);
         removeNode(node);
         addPulse(node.x, node.y, 130 + Math.min(240, value * 1.5));
@@ -931,7 +1030,7 @@
 
             var dx = x - n.x;
             var dy = y - n.y;
-            var radius = n.radius + CONFIG.game.absorbClickRadiusBonus;
+            var radius = n.radius * CONFIG.game.visualScale + CONFIG.game.absorbClickRadiusBonus;
             var dSq = dx * dx + dy * dy;
 
             if (dSq <= radius * radius && dSq < bestSq) {
@@ -964,8 +1063,8 @@
         root.style.transform = "translateX(-50%)";
         root.style.zIndex = "12";
         root.style.display = "none";
-        root.style.minWidth = "min(560px, calc(100vw - 36px))";
-        root.style.padding = "12px 16px";
+        root.style.minWidth = "min(420px, calc(100vw - 36px))";
+        root.style.padding = "10px 14px";
         root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
         root.style.borderRadius = "18px";
         root.style.background = "rgba(5, 10, 16, 0.78)";
@@ -987,6 +1086,13 @@
         }
     }
 
+    function nucleusChipHtml(name, dimmed) {
+        var n = getNucleus(name);
+        var opacity = dimmed ? "0.38" : "0.92";
+        var border = dimmed ? "0.16" : "0.46";
+        return "<span style='display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:30px;margin:0 4px;padding:0 10px;border-radius:999px;border:1px solid rgba(" + n.color + "," + border + ");background:rgba(" + n.color + ",0.14);color:rgba(235,245,255," + opacity + ");box-shadow:0 0 18px rgba(" + n.color + ",0.18);'>" + n.name + "</span>";
+    }
+
     function updateRecipeUi() {
         if (!state.gameMode) {
             hideRecipeUi();
@@ -994,10 +1100,24 @@
         }
 
         ensureRecipeUi();
-        var stage = getGrowthStage();
+
+        var recipe = getPrimaryRecipe();
+        var unlocked = isReactionUnlocked(recipe);
         var nextMass = getNextStageMass();
-        var massText = state.coreMass.toFixed(1) + " / " + nextMass.toFixed(0);
-        state.recipeRoot.textContent = stage.hint + " | Core mass: " + massText + " | Click nucleus inside zone to absorb";
+        var massText = state.coreMass.toFixed(0) + "/" + nextMass.toFixed(0);
+        var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font-size:11px;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
+        var html = ""
+            + "<div style='display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;'>"
+            + nucleusChipHtml(recipe.a, !unlocked)
+            + "<span style='color:rgba(139,155,176,0.82);font-size:17px;'>+</span>"
+            + nucleusChipHtml(recipe.b, !unlocked)
+            + "<span style='color:rgba(255,209,102,0.92);font-size:18px;margin:0 2px;'>=> </span>"
+            + nucleusChipHtml(recipe.product, !unlocked)
+            + lockText
+            + "</div>"
+            + "<div style='margin-top:6px;color:rgba(139,155,176,0.82);font-size:10px;letter-spacing:0.12em;'>CORE " + massText + " / CLICK GLOWING NUCLEUS TO ABSORB</div>";
+
+        state.recipeRoot.innerHTML = html;
         state.recipeRoot.style.display = "block";
     }
 
@@ -1144,7 +1264,7 @@
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (insideCoreZone) {
-                maxSpeed *= CONFIG.game.insideCoreSpeedScale;
+                maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
             }
             var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
             if (speed > maxSpeed) {
@@ -1171,6 +1291,27 @@
             if (n.y > bounds.bottom - margin) {
                 n.y = bounds.bottom - margin;
                 n.vy = -Math.abs(n.vy) * 0.78;
+            }
+
+            var core = getCore();
+            if (core) {
+                var cdx = n.x - core.x;
+                var cdy = n.y - core.y;
+                var cd = Math.sqrt(cdx * cdx + cdy * cdy) + 0.001;
+                var coreBlockRadius = coreRadius() + n.radius * CONFIG.game.visualScale + 9;
+                if (cd < coreBlockRadius) {
+                    var cnx = cdx / cd;
+                    var cny = cdy / cd;
+                    n.x = core.x + cnx * coreBlockRadius;
+                    n.y = core.y + cny * coreBlockRadius;
+                    var inward = n.vx * cnx + n.vy * cny;
+                    if (inward < 0) {
+                        n.vx -= inward * cnx * 1.65;
+                        n.vy -= inward * cny * 1.65;
+                    }
+                    n.vx += cnx * 22 * dt;
+                    n.vy += cny * 22 * dt;
+                }
             }
         }
     }
@@ -1295,10 +1436,6 @@
         ctx.lineWidth = 1.4;
         ctx.stroke();
 
-        ctx.fillStyle = "rgba(5, 10, 16, 0.78)";
-        ctx.font = "10px SFMono-Regular, Consolas, monospace";
-        ctx.textAlign = "center";
-        ctx.fillText("CORE", core.x, core.y + 3);
 
         ctx.restore();
     }
@@ -1400,41 +1537,50 @@
 
             var nucleusColor = n.nucleus ? n.nucleus.color : "99, 166, 255";
             var pulse = 0.75 + Math.sin(time * 0.002 + (n.pulse || n.phase || 0)) * 0.25;
-            var radius = n.radius || n.size || 2;
-            var size = radius + pulse * (state.gameMode ? 1.05 : 0.8);
-            var alpha = state.gameMode ? 0.78 : 0.42;
+            var blink = 0.55 + Math.sin(time * 0.012 + (n.pulse || 0)) * 0.45;
+            var radius = (n.radius || n.size || 2) * (state.gameMode ? CONFIG.game.visualScale : 1.0);
+            var size = radius + pulse * (state.gameMode ? 1.35 : 0.8);
+            var alpha = state.gameMode ? 0.84 : 0.42;
+            var absorbable = state.gameMode && isInsideFusionZone(n);
 
             if (n.unstable) {
                 alpha = 0.56 + Math.sin(time * 0.018) * 0.18;
             }
 
+            if (absorbable) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, size + 16 + blink * 8, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 209, 102, " + (0.08 + blink * 0.12).toFixed(4) + ")";
+                ctx.shadowColor = "rgba(255, 209, 102, 0.55)";
+                ctx.shadowBlur = 20 + blink * 18;
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, size + 9 + blink * 4, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 245, 190, " + (0.38 + blink * 0.34).toFixed(4) + ")";
+                ctx.lineWidth = 1.6;
+                ctx.stroke();
+            }
+
             ctx.beginPath();
             ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
             ctx.fillStyle = "rgba(" + nucleusColor + ", " + alpha.toFixed(4) + ")";
-            ctx.shadowColor = "rgba(" + nucleusColor + ", 0.45)";
-            ctx.shadowBlur = state.gameMode ? 18 : 10;
+            ctx.shadowColor = "rgba(" + nucleusColor + ", 0.48)";
+            ctx.shadowBlur = state.gameMode ? 22 : 10;
             ctx.fill();
 
             ctx.shadowBlur = 0;
             ctx.beginPath();
             ctx.arc(n.x, n.y, size + 4, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(" + nucleusColor + ", " + (state.gameMode ? 0.20 : 0.08).toFixed(4) + ")";
+            ctx.strokeStyle = "rgba(" + nucleusColor + ", " + (state.gameMode ? 0.28 : 0.08).toFixed(4) + ")";
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            if (state.gameMode && isInsideFusionZone(n)) {
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, size + 9, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 209, 102, 0.42)";
-                ctx.lineWidth = 1.2;
-                ctx.stroke();
-            }
-
-            if (state.gameMode) {
-                ctx.fillStyle = "rgba(215, 227, 244, 0.84)";
-                ctx.font = "10px SFMono-Regular, Consolas, monospace";
+            if (state.gameMode && (n.nucleusName !== "H" || absorbable)) {
+                ctx.fillStyle = "rgba(235, 245, 255, 0.90)";
+                ctx.font = "11px SFMono-Regular, Consolas, monospace";
                 ctx.textAlign = "center";
-                ctx.fillText(n.nucleus.name, n.x, n.y - size - 8);
+                ctx.fillText(n.nucleus.name, n.x, n.y - size - 10);
             }
         }
 
