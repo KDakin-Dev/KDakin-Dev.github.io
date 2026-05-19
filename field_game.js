@@ -22,23 +22,25 @@
             playAreaTop: 124,
             playAreaBottom: 26,
 
-            coreZoneRadius: 165,
-            fusionDistance: 62,
-            fusionHeatSeconds: 0.78,
-            fusionHeatDecay: 1.15,
+            coreZoneRadius: 180,
+            fusionDistance: 72,
+            fusionHeatSeconds: 0.64,
+            fusionHeatDecay: 0.95,
             unstableLifetime: 9.0,
             levelAdvanceDelayMs: 900,
 
-            pointerRadius: 185,
-            pointerPushRadius: 280,
-            pointerForce: 430,
-            pointerPushForce: 860,
-            pulseForce: 330,
+            pointerRadius: 220,
+            pointerPushRadius: 320,
+            pointerForce: 720,
+            pointerPushForce: 1280,
+            pulseForce: 390,
 
-            orbitPullBase: 0.78,
+            orbitPullBase: 0.72,
             orbitPullConnected: 0.34,
-            orbitPullControlDamp: 0.18,
-            ambientNoise: 7.5,
+            orbitPullControlDamp: 0.08,
+            ambientNoise: 6.5,
+            compatibleAssistDistance: 190,
+            compatibleAssistForce: 42,
 
             baseDamping: 0.988,
             maxSpeedBase: 58,
@@ -74,9 +76,9 @@
         },
 
         reactions: [
-            { a: "H", b: "H", product: "D", label: "p-p -> D", heat: 0.70, bonus: ["e+", "nu"] },
-            { a: "D", b: "H", product: "He3", label: "D+p -> He3", heat: 0.74 },
-            { a: "He3", b: "He3", product: "He4", label: "He3+He3 -> He4", heat: 0.86, spawn: ["H", "H"] },
+            { a: "H", b: "H", product: "D", label: "p-p -> D", heat: 0.58, bonus: ["e+", "nu"] },
+            { a: "D", b: "H", product: "He3", label: "D+p -> He3", heat: 0.62 },
+            { a: "He3", b: "He3", product: "He4", label: "He3+He3 -> He4", heat: 0.72, spawn: ["H", "H"] },
             { a: "He4", b: "He4", product: "Be8", label: "alpha+alpha -> Be8", heat: 0.82 },
             { a: "Be8", b: "He4", product: "C12", label: "Be8+alpha -> C12", heat: 0.82 },
             { a: "C12", b: "He4", product: "O16", label: "C12+alpha -> O16", heat: 0.88 },
@@ -93,21 +95,21 @@
         ],
 
         stages: [
-            { label: "Proton capture", nuclei: ["H", "H", "H", "H"], goal: "D", target: 2 },
-            { label: "Deuterium burn", nuclei: ["D", "H", "D", "H", "H"], goal: "He3", target: 2 },
-            { label: "Helium-3 branch", nuclei: ["He3", "He3", "He3", "He3"], goal: "He4", target: 2 },
-            { label: "Triple-alpha seed", nuclei: ["He4", "He4", "He4", "He4", "He4", "He4"], goal: "C12", target: 1 },
-            { label: "Carbon alpha capture", nuclei: ["C12", "He4", "He4", "H", "H"], goal: "O16", target: 1 },
-            { label: "Oxygen alpha capture", nuclei: ["O16", "He4", "He4", "D"], goal: "Ne20", target: 1 },
-            { label: "Neon alpha capture", nuclei: ["Ne20", "He4", "He4", "H"], goal: "Mg24", target: 1 },
-            { label: "Magnesium alpha capture", nuclei: ["Mg24", "He4", "He4", "D"], goal: "Si28", target: 1 },
-            { label: "Silicon alpha chain", nuclei: ["Si28", "He4", "He4", "H"], goal: "S32", target: 1 },
-            { label: "Sulfur alpha chain", nuclei: ["S32", "He4", "He4", "D"], goal: "Ar36", target: 1 },
-            { label: "Argon alpha chain", nuclei: ["Ar36", "He4", "He4", "H"], goal: "Ca40", target: 1 },
-            { label: "Calcium alpha chain", nuclei: ["Ca40", "He4", "He4", "D"], goal: "Ti44", target: 1 },
-            { label: "Titanium alpha chain", nuclei: ["Ti44", "He4", "He4", "H"], goal: "Cr48", target: 1 },
-            { label: "Chromium alpha chain", nuclei: ["Cr48", "He4", "He4", "D"], goal: "Fe52", target: 1 },
-            { label: "Iron-group target", nuclei: ["Fe52", "He4", "He4", "H"], goal: "Fe56", target: 1 }
+            { label: "Proton capture", nuclei: ["H", "H", "H"], goal: "D", target: 1, allowedProducts: ["D"] },
+            { label: "Deuterium burn", nuclei: ["D", "H", "H"], goal: "He3", target: 1, allowedProducts: ["He3"] },
+            { label: "Helium-3 branch", nuclei: ["He3", "He3", "H"], goal: "He4", target: 1, allowedProducts: ["He4"] },
+            { label: "Triple-alpha seed", nuclei: ["He4", "He4", "He4", "He4"], goal: "C12", target: 1, allowedProducts: ["Be8", "C12"] },
+            { label: "Carbon alpha capture", nuclei: ["C12", "He4", "H"], goal: "O16", target: 1, allowedProducts: ["O16"] },
+            { label: "Oxygen alpha capture", nuclei: ["O16", "He4", "D"], goal: "Ne20", target: 1, allowedProducts: ["Ne20"] },
+            { label: "Neon alpha capture", nuclei: ["Ne20", "He4", "H"], goal: "Mg24", target: 1, allowedProducts: ["Mg24"] },
+            { label: "Magnesium alpha capture", nuclei: ["Mg24", "He4", "D"], goal: "Si28", target: 1, allowedProducts: ["Si28"] },
+            { label: "Silicon alpha chain", nuclei: ["Si28", "He4", "H"], goal: "S32", target: 1, allowedProducts: ["S32"] },
+            { label: "Sulfur alpha chain", nuclei: ["S32", "He4", "D"], goal: "Ar36", target: 1, allowedProducts: ["Ar36"] },
+            { label: "Argon alpha chain", nuclei: ["Ar36", "He4", "H"], goal: "Ca40", target: 1, allowedProducts: ["Ca40"] },
+            { label: "Calcium alpha chain", nuclei: ["Ca40", "He4", "D"], goal: "Ti44", target: 1, allowedProducts: ["Ti44"] },
+            { label: "Titanium alpha chain", nuclei: ["Ti44", "He4", "H"], goal: "Cr48", target: 1, allowedProducts: ["Cr48"] },
+            { label: "Chromium alpha chain", nuclei: ["Cr48", "He4", "D"], goal: "Fe52", target: 1, allowedProducts: ["Fe52"] },
+            { label: "Iron-group target", nuclei: ["Fe52", "He4", "H"], goal: "Fe56", target: 1, allowedProducts: ["Fe56"] }
         ]
     };
 
@@ -305,9 +307,10 @@
 
         return {
             label: "Iron-group loop",
-            nuclei: ["Fe52", "He4", "He4", "H", "D"],
+            nuclei: ["Fe52", "He4", "H"],
             goal: "Fe56",
-            target: 1
+            target: 1,
+            allowedProducts: ["Fe56"]
         };
     }
 
@@ -360,7 +363,7 @@
         state.target = stage.target || 1;
         state.nextNodeId = 1;
         state.levelAdvancePending = false;
-        state.lastReaction = "Goal: " + stage.goal;
+        state.lastReaction = getNeedLabel(stage);
 
         state.nodes.push(createGameNode(0, "CORE", cx, cy, true));
 
@@ -459,7 +462,7 @@
         document.body.classList.add("game-mode");
         beginLevel(1);
         if (dom.gameMessage) {
-            dom.gameMessage.textContent = "Push nuclei into the CORE zone. Hold compatible pairs together long enough to trigger fusion. Heavy nuclei move slower and resist the cursor field more.";
+            dom.gameMessage.textContent = "Each level has one active fusion target. Incompatible pairs do not lock or consume nuclei. Push the needed pair into the CORE zone and hold it there.";
         }
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(function () {});
@@ -553,9 +556,10 @@
             var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
             if (d > radius) continue;
 
-            var falloff = 1 - d / radius;
-            var massScale = Math.pow(Math.max(1, n.mass), 0.42);
-            var force = strength * falloff / massScale;
+            var normalized = 1 - d / radius;
+            var coreBoost = 0.20 + Math.pow(normalized, 1.55) * 1.35;
+            var massScale = Math.pow(Math.max(1, n.mass), 0.30);
+            var force = strength * coreBoost / massScale;
             n.vx += (dx / d) * force * dt;
             n.vy += (dy / d) * force * dt;
         }
@@ -576,7 +580,7 @@
                 if (band > 92) continue;
 
                 var falloff = (1 - band / 92) * pulse.life;
-                var massScale = Math.pow(Math.max(1, n.mass), 0.42);
+                var massScale = Math.pow(Math.max(1, n.mass), 0.34);
                 var force = pulse.power * falloff / massScale;
                 n.vx += (dx / d) * force * dt;
                 n.vy += (dy / d) * force * dt;
@@ -671,17 +675,56 @@
         return a.id < b.id ? a.id + ":" + b.id : b.id + ":" + a.id;
     }
 
+    function isReactionAllowedForStage(reaction) {
+        if (!state.gameMode || !state.stage) return true;
+
+        var allowed = state.stage.allowedProducts || [state.stage.goal];
+        for (var i = 0; i < allowed.length; i += 1) {
+            if (allowed[i] === reaction.product) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function findReaction(a, b) {
         if (a.core || b.core) return null;
 
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var r = CONFIG.reactions[i];
+            if (!isReactionAllowedForStage(r)) continue;
             if ((r.a === a.nucleusName && r.b === b.nucleusName) || (r.a === b.nucleusName && r.b === a.nucleusName)) {
                 return r;
             }
         }
 
         return null;
+    }
+
+    function getNeedLabel(stage) {
+        var products = stage.allowedProducts || [stage.goal];
+        var goal = stage.goal;
+
+        for (var p = 0; p < products.length; p += 1) {
+            if (products[p] === goal) {
+                for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+                    var r = CONFIG.reactions[i];
+                    if (r.product === goal) {
+                        return "Need: " + r.a + " + " + r.b + " -> " + r.product;
+                    }
+                }
+            }
+        }
+
+        for (var j = 0; j < CONFIG.reactions.length; j += 1) {
+            var rr = CONFIG.reactions[j];
+            if (rr.product === products[0]) {
+                return "Need: " + rr.a + " + " + rr.b + " -> " + rr.product;
+            }
+        }
+
+        return "Need: " + stage.goal;
     }
 
     function isInsideFusionZone(n) {
@@ -828,8 +871,44 @@
         }
     }
 
+    function applyCompatibleAssistForces(dt) {
+        var assistDistance = CONFIG.game.compatibleAssistDistance;
+        var assistDistanceSq = assistDistance * assistDistance;
+
+        for (var i = 1; i < state.nodes.length; i += 1) {
+            var a = state.nodes[i];
+            for (var j = i + 1; j < state.nodes.length; j += 1) {
+                var b = state.nodes[j];
+                var reaction = findReaction(a, b);
+                if (!reaction) continue;
+
+                var zoneA = isInsideFusionZone(a);
+                var zoneB = isInsideFusionZone(b);
+                if (!zoneA && !zoneB) continue;
+
+                var dx = b.x - a.x;
+                var dy = b.y - a.y;
+                var dSq = dx * dx + dy * dy;
+                if (dSq > assistDistanceSq) continue;
+
+                var d = Math.sqrt(dSq) + 0.001;
+                var nx = dx / d;
+                var ny = dy / d;
+                var close01 = 1 - d / assistDistance;
+                var zoneBoost = zoneA && zoneB ? 1.0 : 0.45;
+                var force = CONFIG.game.compatibleAssistForce * close01 * close01 * zoneBoost;
+
+                a.vx += nx * force * dt / Math.pow(Math.max(1, a.mass), 0.38);
+                a.vy += ny * force * dt / Math.pow(Math.max(1, a.mass), 0.38);
+                b.vx -= nx * force * dt / Math.pow(Math.max(1, b.mass), 0.38);
+                b.vy -= ny * force * dt / Math.pow(Math.max(1, b.mass), 0.38);
+            }
+        }
+    }
+
     function updateGamePhysics(dt, time) {
         applyOrbitForces(dt, time);
+        applyCompatibleAssistForces(dt);
         applyGamePointerForces(dt);
         applyPulseForces(dt);
         integrateGameNodes(dt);
@@ -1087,7 +1166,7 @@
         if (dom.gameTarget) dom.gameTarget.textContent = pad3(state.target);
         if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
         if (dom.gameNodes) dom.gameNodes.textContent = pad3(state.gameMode ? state.nodes.length : state.portfolioNodes.length);
-        if (dom.gameAtoms) dom.gameAtoms.textContent = stage.label;
+        if (dom.gameAtoms) dom.gameAtoms.textContent = getNeedLabel(stage);
         if (dom.gameProgressFill) {
             dom.gameProgressFill.style.width = clamp(state.goalCount / Math.max(1, state.target) * 100, 0, 100).toFixed(2) + "%";
         }
