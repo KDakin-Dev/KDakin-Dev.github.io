@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.10.7-iron-core-synthesis",
+        buildVersion: "0.11.1-iron-core-deflect",
 
         portfolio: {
             minNodes: 48,
@@ -47,17 +47,20 @@
             invalidPairRange: 86,
             invalidPairRepelForce: 135,
 
-            pointerRadius: 205,
-            pointerPushRadius: 310,
-            pointerForce: 620,
-            pointerPushForce: 1180,
-            pointerCenterPower: 2.45,
-            pointerMotionForce: 14.0,
+            pointerRadius: 225,
+            pointerPushRadius: 335,
+            pointerForce: 760,
+            pointerPushForce: 1450,
+            pointerCenterPower: 2.18,
+            pointerMotionForce: 18.0,
             pulseForce: 390,
 
-            orbitPullBase: 0.94,
-            orbitPullControlDamp: 0.10,
+            orbitPullBase: 1.08,
+            orbitPullControlDamp: 0.065,
             orbitNoise: 5.2,
+            coreGravityBase: 0.34,
+            coreGravityMassScale: 0.018,
+            coreGravityHeavyScale: 0.78,
             outerOrbitBias: 0.78,
 
             baseDamping: 0.989,
@@ -88,8 +91,19 @@
             collapseCriticalMass: 190,
             collapseBlackHoleMass: 225,
             collapseNeutronStabilityMin: 50,
-            supernovaDuration: 3.2,
-            finalSpawnInterval: 0.72
+            supernovaDuration: 4.4,
+            finalSpawnInterval: 0.95,
+
+            ironCoreInfallForce: 92,
+            ironCoreInfallHeavyBoost: 1.45,
+            ironCoreTangentialForce: 18,
+            ironCoreDeflectRadius: 245,
+            ironCoreDeflectPushRadius: 355,
+            ironCoreDeflectForce: 1250,
+            ironCoreDeflectPushForce: 2450,
+            ironCoreDeflectMotionForce: 30,
+            ironCoreAutoAbsorbPadding: 18,
+            ironCoreMaxAutoAbsorbsPerFrame: 3
         },
 
         nuclei: {
@@ -183,11 +197,18 @@
         hotPairs: [],
         invalidPairs: [],
         absorbedProducts: Object.create(null),
+        discoveredProducts: Object.create(null),
+        starProfileMass: 0,
+        starProfileTemp: 18,
+        starProfileStability: 64,
         finalPhase: "fusion",
         collapseMass: 0,
         stability: 100,
         supernovaTimer: 0,
         endingType: "",
+        visualCoreMass: CONFIG.game.initialCoreMass,
+        visualCoreRadius: 0,
+        visualFusionRadius: 0,
         pointer: {
             x: 0,
             y: 0,
@@ -247,7 +268,7 @@
 
     function isReactionUnlocked(reaction) {
         if (!reaction.requiresAbsorbed) return true;
-        return !!state.absorbedProducts[reaction.requiresAbsorbed];
+        return !!state.discoveredProducts[reaction.requiresAbsorbed];
     }
 
     function getPrimaryRecipe() {
@@ -255,7 +276,7 @@
 
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var reaction = CONFIG.reactions[i];
-            if (!state.absorbedProducts[reaction.product]) {
+            if (!state.discoveredProducts[reaction.product]) {
                 return reaction;
             }
         }
@@ -301,7 +322,7 @@
         };
     }
 
-    function coreRadius() {
+    function targetCoreRadius() {
         var visualMass = state.coreMass;
 
         if (isCollapsePhase() || isSupernovaPhase() || isEndingPhase()) {
@@ -313,9 +334,14 @@
         if (isCollapsePhase()) {
             radius *= 1.12 + clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1) * 0.34;
         } else if (isSupernovaPhase()) {
-            radius = Math.max(radius * 1.75, 112);
+            var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+            if (state.endingType === "BLACK HOLE") {
+                radius = Math.max(26, radius * (1.12 - t * 0.78));
+            } else {
+                radius = Math.max(radius * (1.2 + t * 0.75), 110);
+            }
         } else if (isEndingPhase()) {
-            radius = state.endingType === "BLACK HOLE" ? Math.max(radius * 1.08, 72) : Math.max(radius * 0.64, 38);
+            radius = state.endingType === "BLACK HOLE" ? 34 : Math.max(radius * 0.64, 38);
         }
 
         return clamp(
@@ -325,13 +351,20 @@
         );
     }
 
-    function fusionRadius() {
+    function coreRadius() {
+        if (!state.visualCoreRadius || state.visualCoreRadius <= 0) {
+            state.visualCoreRadius = targetCoreRadius();
+        }
+        return state.visualCoreRadius;
+    }
+
+    function targetFusionRadius() {
         var radius = CONFIG.game.fusionRadiusBase + Math.sqrt(state.coreMass) * CONFIG.game.fusionRadiusScale;
 
         if (isCollapsePhase()) {
             radius *= 1.28;
         } else if (isSupernovaPhase() || isEndingPhase()) {
-            radius *= 1.18;
+            radius *= state.endingType === "BLACK HOLE" ? 0.82 : 1.18;
         }
 
         return clamp(
@@ -341,10 +374,39 @@
         );
     }
 
+    function fusionRadius() {
+        if (!state.visualFusionRadius || state.visualFusionRadius <= 0) {
+            state.visualFusionRadius = targetFusionRadius();
+        }
+        return state.visualFusionRadius;
+    }
+
+    function updateVisualCoreState(dt) {
+        var massTarget = state.coreMass + ((isCollapsePhase() || isSupernovaPhase() || isEndingPhase()) ? state.collapseMass * 0.55 : 0);
+        var radiusTarget = targetCoreRadius();
+        var fusionTarget = targetFusionRadius();
+        var massLerp = clamp(dt * 2.4, 0, 1);
+        var radiusLerp = clamp(dt * 4.2, 0, 1);
+
+        state.visualCoreMass += (massTarget - state.visualCoreMass) * massLerp;
+
+        if (!state.visualCoreRadius || state.visualCoreRadius <= 0) {
+            state.visualCoreRadius = radiusTarget;
+        } else {
+            state.visualCoreRadius += (radiusTarget - state.visualCoreRadius) * radiusLerp;
+        }
+
+        if (!state.visualFusionRadius || state.visualFusionRadius <= 0) {
+            state.visualFusionRadius = fusionTarget;
+        } else {
+            state.visualFusionRadius += (fusionTarget - state.visualFusionRadius) * clamp(dt * 3.2, 0, 1);
+        }
+    }
+
     function getCoreLevel() {
         var level = 1;
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
-            if (state.absorbedProducts[CONFIG.reactions[i].product]) {
+            if (state.discoveredProducts[CONFIG.reactions[i].product]) {
                 level = Math.max(level, i + 2);
             }
         }
@@ -516,12 +578,19 @@
         state.hotPairs = [];
         state.invalidPairs = [];
         state.absorbedProducts = Object.create(null);
+        state.discoveredProducts = Object.create(null);
+        state.starProfileMass = 0;
+        state.starProfileTemp = 18;
+        state.starProfileStability = 64;
         state.finalPhase = "fusion";
         state.collapseMass = 0;
         state.stability = 100;
         state.supernovaTimer = 0;
         state.endingType = "";
         state.coreMass = CONFIG.game.initialCoreMass;
+        state.visualCoreMass = CONFIG.game.initialCoreMass;
+        state.visualCoreRadius = 0;
+        state.visualFusionRadius = 0;
         state.coreLevel = 1;
         state.nextNodeId = 1;
         state.spawnTimer = 0;
@@ -596,7 +665,11 @@
     }
 
     function hasAbsorbed(typeName) {
-        return !!state.absorbedProducts[typeName];
+        return !!state.discoveredProducts[typeName];
+    }
+
+    function hasDiscovered(typeName) {
+        return !!state.discoveredProducts[typeName];
     }
 
     function isSpawnableSupport(typeName) {
@@ -614,7 +687,7 @@
 
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var reaction = CONFIG.reactions[i];
-            if (isReactionUnlocked(reaction) && !state.absorbedProducts[reaction.product]) {
+            if (isReactionUnlocked(reaction) && !state.discoveredProducts[reaction.product]) {
                 return reaction;
             }
         }
@@ -1017,8 +1090,9 @@
 
             var t = 1 - d / radius;
             var falloff = Math.pow(t, CONFIG.game.pointerCenterPower);
-            var massScale = Math.pow(Math.max(1, n.mass), 0.36);
-            var force = strength * falloff / massScale;
+            var massScale = Math.pow(Math.max(1, n.mass), 0.30);
+            var controlBoost = n.mass >= 12 ? 1.08 : 1.0;
+            var force = strength * falloff * controlBoost / massScale;
 
             n.vx += (dx / d) * force * dt;
             n.vy += (dy / d) * force * dt;
@@ -1095,6 +1169,17 @@
             var tx = -cdy / cd;
             var ty = cdx / cd;
 
+            var coreGravity = CONFIG.game.coreGravityBase + Math.sqrt(Math.max(0, state.coreMass)) * CONFIG.game.coreGravityMassScale;
+            var gravityMass01 = clamp((n.mass - 1) / 55, 0, 1);
+            var gravityStrength = coreGravity * (1.0 + gravityMass01 * CONFIG.game.coreGravityHeavyScale);
+
+            if (!insideCore && cd > fusionRadius() * 0.88) {
+                var gravityRange01 = clamp((cd - fusionRadius() * 0.88) / Math.max(1, fusionRadius() * 1.45), 0, 1);
+                var hydrogenLimit = (!n.synthesized && n.nucleusName === "H") ? 0.38 : 1.0;
+                n.vx += (cdx / cd) * gravityStrength * gravityRange01 * hydrogenLimit * dt;
+                n.vy += (cdy / cd) * gravityStrength * gravityRange01 * hydrogenLimit * dt;
+            }
+
             if (insideCore) {
                 var orbitAssist = CONFIG.game.insideCoreTangentialForce / Math.pow(Math.max(1, n.mass), 0.16);
                 n.vx += tx * orbitAssist * dt * (n.orbitSpeed >= 0 ? 1 : -1);
@@ -1131,13 +1216,13 @@
                 }
 
                 if (cd > desiredOrbit) {
-                    var pullGain = isCollapsePhase() ? (1.35 + heavy01b * 3.25) : (0.88 + heavy01b * 2.45);
+                    var pullGain = isCollapsePhase() ? (1.35 + heavy01b * 3.25) : (1.02 + heavy01b * 2.75);
                     var inward = (cd - desiredOrbit) * pullGain;
                     n.vx += (cdx / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
                     n.vy += (cdy / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
                 }
 
-                var heavyOrbit = (isCollapsePhase() ? 18 + heavy01b * 18 : 11 + heavy01b * 15) / Math.pow(Math.max(1, n.mass), 0.10);
+                var heavyOrbit = (isCollapsePhase() ? 18 + heavy01b * 18 : 12 + heavy01b * 16) / Math.pow(Math.max(1, n.mass), 0.10);
                 n.vx += tx * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
                 n.vy += ty * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
             }
@@ -1319,7 +1404,69 @@
         }
     }
 
-    function performFusion(a, b, reaction) {
+function getFusionAbsorbProfileValue(typeName) {
+        var nucleus = getNucleus(typeName);
+        var mass = nucleus.mass || 1;
+
+        if (typeName === "D") return { core: 0.9, profileMass: 0.8, temp: -0.4, stability: 3.2, role: "stable" };
+        if (typeName === "He3") return { core: 1.4, profileMass: 1.2, temp: 1.2, stability: 2.0, role: "stable" };
+        if (typeName === "He4") return { core: 2.2, profileMass: 2.0, temp: 2.5, stability: 1.5, role: "balanced" };
+
+        if (mass < 16) {
+            return { core: nucleus.absorb * 0.42, profileMass: mass * 0.46, temp: 2.2, stability: 0.8, role: "balanced" };
+        }
+
+        if (mass < 28) {
+            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, temp: 3.4, stability: -0.8, role: "hot" };
+        }
+
+        if (mass < 44) {
+            return { core: nucleus.absorb * 0.46, profileMass: mass * 0.62, temp: 5.2, stability: -3.0, role: "heavy" };
+        }
+
+        return { core: nucleus.absorb * 0.48, profileMass: mass * 0.72, temp: 7.0, stability: -5.2, role: "heavy" };
+    }
+
+    function applyStarProfileAbsorb(node) {
+        var nucleus = getNucleus(node.nucleusName);
+        var effect = getFusionAbsorbProfileValue(node.nucleusName);
+
+        state.coreMass += effect.core;
+        state.starProfileMass += effect.profileMass;
+        state.starProfileTemp = clamp(state.starProfileTemp + effect.temp, 0, 100);
+        state.starProfileStability = clamp(state.starProfileStability + effect.stability, 0, 100);
+        state.absorbedProducts[node.nucleusName] = (state.absorbedProducts[node.nucleusName] || 0) + 1;
+
+        if (effect.role === "stable") {
+            state.lastReaction = nucleus.name + " cooled and stabilized the star";
+        } else if (effect.role === "balanced") {
+            state.lastReaction = nucleus.name + " fed a balanced star profile";
+        } else if (effect.role === "hot") {
+            state.lastReaction = nucleus.name + " raised the stellar temperature";
+        } else {
+            state.lastReaction = nucleus.name + " built a heavier star profile";
+        }
+    }
+
+    function getStarProfileLabel() {
+        if (state.starProfileStability >= 72 && state.starProfileTemp < 46) return "STABLE BLUE";
+        if (state.starProfileTemp >= 70 || state.starProfileStability < 34) return "MASSIVE RED";
+        if (state.starProfileTemp >= 52) return "HOT WHITE";
+        return "BALANCED YELLOW";
+    }
+
+    function getStarProfileCoreColor() {
+        if (state.starProfileStability >= 72 && state.starProfileTemp < 46) return "143, 214, 255";
+        if (state.starProfileTemp >= 70 || state.starProfileStability < 34) return "255, 107, 139";
+        if (state.starProfileTemp >= 52) return "255, 245, 190";
+        return "255, 209, 102";
+    }
+
+    function getStarProfileGlowBoost() {
+        return clamp(state.starProfileTemp / 100 * 0.18 + state.starProfileMass / 240 * 0.12, 0, 0.26);
+    }
+
+        function performFusion(a, b, reaction) {
         var x = (a.x + b.x) * 0.5;
         var y = (a.y + b.y) * 0.5;
         var vx = (a.vx + b.vx) * 0.35;
@@ -1336,6 +1483,18 @@
         product.synthesized = true;
         product.age = 0;
         state.nodes.push(product);
+
+        var wasDiscovered = !!state.discoveredProducts[reaction.product];
+        state.discoveredProducts[reaction.product] = (state.discoveredProducts[reaction.product] || 0) + 1;
+
+        if (!wasDiscovered) {
+            showUnlock(reaction.product);
+            state.levelFlash = 1.0;
+        }
+
+        if (reaction.product === "Fe56") {
+            triggerIronCoreCollapse();
+        }
 
         if (reaction.spawn) {
             for (var i = 0; i < reaction.spawn.length; i += 1) {
@@ -1358,33 +1517,9 @@
             return;
         }
 
-        var nucleus = getNucleus(node.nucleusName);
-        var oldLevel = getCoreLevel();
-        var wasNew = !state.absorbedProducts[node.nucleusName];
-        var value = nucleus.absorb || nucleus.mass || 1;
-
-        state.coreMass += value;
-        state.absorbedProducts[node.nucleusName] = (state.absorbedProducts[node.nucleusName] || 0) + 1;
+        applyStarProfileAbsorb(node);
         removeNode(node);
-
-        if (wasNew) {
-            showUnlock(nucleus.name);
-            state.lastReaction = "Unlocked " + nucleus.name;
-        } else {
-            state.lastReaction = "Absorbed " + nucleus.name + " +" + value.toFixed(1);
-        }
-
-        addPulse(node.x, node.y, 150 + Math.min(260, value * 1.45));
-
-        var newLevel = getCoreLevel();
-        if (newLevel > oldLevel) {
-            state.levelFlash = 1.0;
-        }
-
-        if (node.nucleusName === "Fe56") {
-            triggerIronCoreCollapse();
-        }
-
+        addPulse(node.x, node.y, 120 + Math.min(240, (node.mass || 1) * 4.0));
         updateAbsorbButtons(true);
         updateGameStats();
     }
@@ -1448,16 +1583,14 @@
         if (!isInsideFusionZone(n)) return false;
 
         if (isCollapsePhase()) {
-            return true;
+            return false;
         }
 
         if (!isFusionPhase()) return false;
         if (!n.synthesized) return false;
+        if (n.nucleusName === "H") return false;
 
-        var recipe = getPrimaryRecipe();
-        if (!recipe) return false;
-
-        return n.nucleusName === recipe.product;
+        return true;
     }
 
     function getAbsorbableNodesByType() {
@@ -1619,7 +1752,7 @@
 
             state.recipeRoot.innerHTML = ""
                 + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;'>"
-                + "<span style='color:rgba(255,107,139,0.94);font-size:11px;letter-spacing:0.18em;'>IRON CORE / " + CONFIG.buildVersion + "</span>"
+                + "<span style='color:rgba(255,107,139,0.94);font-size:11px;letter-spacing:0.18em;'>IRON CORE SLOW-MO / " + CONFIG.buildVersion + "</span>"
                 + "<span style='color:rgba(255,209,102,0.86);font-size:11px;letter-spacing:0.10em;'>" + predicted + "</span>"
                 + "</div>"
                 + finalBarHtml("Collapse", massPct, "255,107,139")
@@ -1656,7 +1789,12 @@
             + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px;'>"
             + "<span style='color:rgba(143,214,255,0.86);font-size:11px;letter-spacing:0.18em;'>LV " + pad2(getCoreLevel()) + " / " + CONFIG.buildVersion + "</span>"
             + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + stage.title + "</span>"
-            + "<span style='color:rgba(255,209,102,0.88);font-size:11px;letter-spacing:0.10em;'>STAR MASS " + state.coreMass.toFixed(0) + "</span>"
+            + "<span style='color:rgba(255,209,102,0.88);font-size:11px;letter-spacing:0.10em;'>" + getStarProfileLabel() + "</span>"
+            + "</div>"
+            + "<div style='display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:9px;color:rgba(180,205,235,0.78);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.10em;'>"
+            + "<span>MASS " + state.coreMass.toFixed(0) + "</span>"
+            + "<span>TEMP " + state.starProfileTemp.toFixed(0) + "</span>"
+            + "<span>STAB " + state.starProfileStability.toFixed(0) + "</span>"
             + "</div>"
             + "<div style='display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;'>"
             + reactionHtml(recipe, true)
@@ -1670,7 +1808,7 @@
         return ""
             + "<div style='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;'>"
             + collapseLegendCell("LIGHT", "H D He", "+ Stability", "143,214,255")
-            + collapseLegendCell("FUSION", "Reactions still work", "Build what you need", "255,209,102")
+            + collapseLegendCell("DEFLECT", "Cursor field", "Push nuclei away", "255,209,102")
             + collapseLegendCell("HEAVY", "Si Fe", "+ Collapse / - Stability", "255,107,139")
             + "</div>";
     }
@@ -1837,10 +1975,10 @@
         ensureFinalUi();
 
         var remnantColor = state.endingType === "BLACK HOLE" ? "255, 160, 82" : "143, 214, 255";
-        var discovered = Object.keys(state.absorbedProducts).length;
+        var discovered = Object.keys(state.discoveredProducts).length;
         var thanks = state.endingType === "BLACK HOLE"
-            ? "The core crossed the stability limit and collapsed into a black hole."
-            : "The supernova left behind a compact neutron star.";
+            ? "The failed blast folded inward. The remnant collapsed past the stability limit."
+            : "The shock escaped outward. The collapse left behind a compact neutron star.";
 
         state.finalRoot.innerHTML = ""
             + "<div style='color:rgba(255,209,102,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.22em;margin-bottom:8px;'>FINAL REMNANT</div>"
@@ -1851,7 +1989,7 @@
             + finalSummaryCell("Collapse", clamp(state.collapseMass / CONFIG.game.collapseCriticalMass * 100, 0, 999).toFixed(0) + "%")
             + finalSummaryCell("Stability", clamp(state.stability, 0, 100).toFixed(0) + "%")
             + "</div>"
-            + "<div style='color:rgba(139,155,176,0.92);font:800 12px SFMono-Regular,Consolas,monospace;margin-bottom:18px;'>Discovered nuclei: " + discovered + " / " + CONFIG.reactions.length + "<br>Thanks for playing.</div>"
+            + "<div style='color:rgba(139,155,176,0.92);font:800 12px SFMono-Regular,Consolas,monospace;margin-bottom:18px;'>Star profile: " + getStarProfileLabel() + "<br>Discovered nuclei: " + discovered + " / " + CONFIG.reactions.length + "<br>Thanks for playing.</div>"
             + "<div style='display:flex;justify-content:center;gap:12px;flex-wrap:wrap;'>"
             + "<button id='final-new-star' type='button' style='min-height:44px;padding:0 18px;border:1px solid rgba(143,214,255,0.42);border-radius:14px;background:rgba(99,166,255,0.16);color:rgba(235,245,255,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;cursor:pointer;'>NEW STAR</button>"
             + "<button id='final-exit' type='button' style='min-height:44px;padding:0 18px;border:1px solid rgba(255,209,102,0.34);border-radius:14px;background:rgba(255,209,102,0.14);color:rgba(255,244,228,0.96);font:900 12px SFMono-Regular,Consolas,monospace;letter-spacing:0.12em;cursor:pointer;'>EXIT</button>"
@@ -2030,6 +2168,9 @@
             n.vy *= Math.pow(damping, dt * 60);
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
+            if (isCollapsePhase()) {
+                maxSpeed *= state.pointer.active ? 0.92 : 0.72;
+            }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
                 if (n.synthesized && n.nucleusName !== "H") {
@@ -2064,7 +2205,7 @@
             }
 
             var core = getCore();
-            if (core) {
+            if (core && !isCollapsePhase()) {
                 var cdx = n.x - core.x;
                 var cdy = n.y - core.y;
                 var cd = Math.sqrt(cdx * cdx + cdy * cdy) + 0.001;
@@ -2105,8 +2246,8 @@
         if (!isFusionPhase()) return;
 
         state.finalPhase = "collapse";
-        state.collapseMass = 0;
-        state.stability = 62;
+        state.collapseMass = clamp(state.starProfileMass * 0.20 + state.starProfileTemp * 0.18 - state.starProfileStability * 0.08, 0, 58);
+        state.stability = clamp(48 + state.starProfileStability * 0.48 - state.starProfileTemp * 0.20, 26, 88);
         state.supernovaTimer = 0;
         state.endingType = "";
         state.lastReaction = "IRON CORE COLLAPSE";
@@ -2164,6 +2305,93 @@
         state.ironCoreSupportTimer = 1.2;
     }
 
+    function applyIronCoreInfall(dt, time) {
+        var core = getCore();
+        if (!core) return;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+
+            var dx = core.x - n.x;
+            var dy = core.y - n.y;
+            var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+            var nx = dx / d;
+            var ny = dy / d;
+            var tx = -ny;
+            var ty = nx;
+            var mass01 = clamp((n.mass - 1) / 55, 0, 1);
+            var zone01 = clamp(d / Math.max(1, fusionRadius()), 0.25, 1.35);
+            var infall = CONFIG.game.ironCoreInfallForce * (0.72 + zone01 * 0.42) * (1 + mass01 * CONFIG.game.ironCoreInfallHeavyBoost);
+
+            n.vx += nx * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
+            n.vy += ny * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
+
+            var swirl = CONFIG.game.ironCoreTangentialForce * (1.0 - mass01 * 0.28) * (n.orbitSpeed >= 0 ? 1 : -1);
+            n.vx += tx * swirl * dt;
+            n.vy += ty * swirl * dt;
+
+            n.vx *= Math.pow(0.992, dt * 60);
+            n.vy *= Math.pow(0.992, dt * 60);
+        }
+    }
+
+    function applyIronCoreDeflection(dt) {
+        if (!state.pointer.active) return;
+
+        var radius = state.pointer.down ? CONFIG.game.ironCoreDeflectPushRadius : CONFIG.game.ironCoreDeflectRadius;
+        var strength = state.pointer.down ? CONFIG.game.ironCoreDeflectPushForce : CONFIG.game.ironCoreDeflectForce;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+
+            var dx = n.x - state.pointer.x;
+            var dy = n.y - state.pointer.y;
+            var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+            if (d > radius) continue;
+
+            var t = 1 - d / radius;
+            var falloff = Math.pow(t, 1.35);
+            var massScale = Math.pow(Math.max(1, n.mass), 0.20);
+            var force = strength * falloff / massScale;
+
+            n.vx += (dx / d) * force * dt;
+            n.vy += (dy / d) * force * dt;
+
+            if (state.pointer.speed > 0.25) {
+                n.vx += state.pointer.vx * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
+                n.vy += state.pointer.vy * CONFIG.game.ironCoreDeflectMotionForce * falloff * dt / massScale;
+            }
+        }
+    }
+
+    function autoAbsorbIronCore() {
+        if (!isCollapsePhase()) return;
+
+        var core = getCore();
+        if (!core) return;
+
+        var absorbed = 0;
+        for (var i = state.nodes.length - 1; i >= 1; i -= 1) {
+            if (absorbed >= CONFIG.game.ironCoreMaxAutoAbsorbsPerFrame) break;
+
+            var n = state.nodes[i];
+            if (!n || n.core) continue;
+
+            var dx = n.x - core.x;
+            var dy = n.y - core.y;
+            var d = Math.sqrt(dx * dx + dy * dy);
+            var absorbRadius = coreRadius() + n.radius * CONFIG.game.visualScale + CONFIG.game.ironCoreAutoAbsorbPadding;
+
+            if (d <= absorbRadius) {
+                absorbCollapseNode(n);
+                absorbed += 1;
+                if (!isCollapsePhase()) break;
+            }
+        }
+    }
+
     function triggerSupernova() {
         if (!isCollapsePhase()) return;
 
@@ -2190,17 +2418,37 @@
         state.supernovaTimer -= dt;
         state.collapseMass = Math.min(CONFIG.game.collapseBlackHoleMass, state.collapseMass + dt * 4.0);
 
+        var core = getCore();
+        if (!core) return;
+
+        var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+        var blackHole = state.endingType === "BLACK HOLE";
+
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
             if (n.core) continue;
 
-            var core = getCore();
             var dx = n.x - core.x;
             var dy = n.y - core.y;
             var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
-            var push = 420 * dt / Math.pow(Math.max(1, n.mass), 0.32);
-            n.vx += (dx / d) * push;
-            n.vy += (dy / d) * push;
+
+            if (blackHole) {
+                if (t < 0.22) {
+                    var weakPush = 95 * (1 - t / 0.22) * dt / Math.pow(Math.max(1, n.mass), 0.32);
+                    n.vx += (dx / d) * weakPush;
+                    n.vy += (dy / d) * weakPush;
+                } else {
+                    var pull = (160 + t * 620) * dt / Math.pow(Math.max(1, n.mass), 0.20);
+                    n.vx -= (dx / d) * pull;
+                    n.vy -= (dy / d) * pull;
+                    n.vx *= Math.pow(0.965, dt * 60);
+                    n.vy *= Math.pow(0.965, dt * 60);
+                }
+            } else {
+                var push = (360 + t * 180) * dt / Math.pow(Math.max(1, n.mass), 0.32);
+                n.vx += (dx / d) * push;
+                n.vy += (dy / d) * push;
+            }
         }
 
         integrateGameNodes(dt);
@@ -2230,13 +2478,27 @@
             return;
         }
 
+        if (isCollapsePhase()) {
+            updateSpawner(dt);
+            updateIronCoreSupport(dt);
+            applyIronCoreInfall(dt, time);
+            applyIronCoreDeflection(dt);
+            applyPulseForces(dt * 0.82);
+            state.hotPairs = [];
+            state.invalidPairs = [];
+            state.linkCount = 0;
+            integrateGameNodes(dt);
+            autoAbsorbIronCore();
+            updateAbsorbButtons(false);
+            return;
+        }
+
         updateSpawner(dt);
-        updateIronCoreSupport(dt);
         applyOrbitForces(dt, time);
         applyGamePointerForces(dt);
         applyPulseForces(dt);
 
-        if (isFusionPhase() || isCollapsePhase()) {
+        if (isFusionPhase()) {
             applyPairForcesAndFusion(dt);
         } else {
             state.hotPairs = [];
@@ -2246,7 +2508,7 @@
 
         integrateGameNodes(dt);
 
-        if (isFusionPhase() || isCollapsePhase()) {
+        if (isFusionPhase()) {
             decayUnstableNuclei();
         }
 
@@ -2256,7 +2518,7 @@
     function drawGameBackdrop() {
         if (!state.gameMode) return;
 
-        var darkness = clamp(0.80 - Math.log(1 + state.coreMass) * 0.055, 0.34, 0.80);
+        var darkness = clamp(0.80 - Math.log(1 + state.visualCoreMass) * 0.055, 0.34, 0.80);
 
         if (isCollapsePhase()) {
             darkness = 0.48;
@@ -2318,15 +2580,24 @@
         var fr = fusionRadius();
         var cr = coreRadius();
         var level = getCoreLevel();
-        var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.coreMass) * 0.006, 0.12, 0.48);
-        var coreColor = "255, 209, 102";
+        var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.visualCoreMass) * 0.006, 0.12, 0.48);
+        var coreColor = getStarProfileCoreColor();
+
+        if (isFusionPhase()) {
+            glow = clamp(glow + getStarProfileGlowBoost(), 0.12, 0.62);
+        }
 
         if (isCollapsePhase()) {
             coreColor = "255, 107, 139";
             glow = 0.42 + (1 - state.stability / 100) * 0.26;
         } else if (isSupernovaPhase()) {
-            coreColor = "255, 245, 190";
-            glow = 0.92;
+            if (state.endingType === "BLACK HOLE") {
+                coreColor = "8, 12, 20";
+                glow = 0.34;
+            } else {
+                coreColor = "255, 245, 190";
+                glow = 0.92;
+            }
         } else if (isEndingPhase()) {
             coreColor = state.endingType === "BLACK HOLE" ? "8, 12, 20" : "143, 214, 255";
             glow = state.endingType === "BLACK HOLE" ? 0.42 : 0.72;
@@ -2355,14 +2626,15 @@
         ctx.arc(core.x, core.y, cr, 0, Math.PI * 2);
 
         if (isEndingPhase() && state.endingType === "BLACK HOLE") {
-            var black = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, cr * 2.2);
+            var black = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, cr * 2.6);
             black.addColorStop(0, "rgba(0, 0, 0, 1)");
-            black.addColorStop(0.62, "rgba(2, 5, 12, 1)");
-            black.addColorStop(0.72, "rgba(255, 160, 82, 0.75)");
+            black.addColorStop(0.58, "rgba(0, 0, 0, 1)");
+            black.addColorStop(0.68, "rgba(255, 160, 82, 0.86)");
+            black.addColorStop(0.82, "rgba(255, 107, 139, 0.32)");
             black.addColorStop(1, "rgba(255, 107, 139, 0)");
             ctx.fillStyle = black;
-            ctx.shadowColor = "rgba(255, 107, 139, 0.62)";
-            ctx.shadowBlur = 38;
+            ctx.shadowColor = "rgba(255, 107, 139, 0.72)";
+            ctx.shadowBlur = 44;
         } else {
             ctx.fillStyle = "rgba(" + coreColor + ", 0.68)";
             ctx.shadowColor = "rgba(" + coreColor + ", 0.58)";
@@ -2571,10 +2843,17 @@
 
         ctx.save();
         var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, r);
-        gradient.addColorStop(0, "rgba(99, 166, 255, 0.25)");
-        gradient.addColorStop(0.20, "rgba(99, 166, 255, 0.15)");
-        gradient.addColorStop(0.55, "rgba(99, 166, 255, 0.045)");
-        gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
+        if (isCollapsePhase()) {
+            gradient.addColorStop(0, "rgba(255, 209, 102, 0.36)");
+            gradient.addColorStop(0.22, "rgba(255, 160, 82, 0.20)");
+            gradient.addColorStop(0.58, "rgba(255, 107, 139, 0.060)");
+            gradient.addColorStop(1, "rgba(255, 107, 139, 0)");
+        } else {
+            gradient.addColorStop(0, "rgba(99, 166, 255, 0.25)");
+            gradient.addColorStop(0.20, "rgba(99, 166, 255, 0.15)");
+            gradient.addColorStop(0.55, "rgba(99, 166, 255, 0.045)");
+            gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
+        }
         ctx.fillStyle = gradient;
         ctx.beginPath();
         ctx.arc(state.pointer.x, state.pointer.y, r, 0, Math.PI * 2);
@@ -2599,20 +2878,71 @@
 
         if (isSupernovaPhase()) {
             var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
-            for (var i = 0; i < 4; i += 1) {
-                var r = (t * 900) + i * 120;
-                ctx.beginPath();
-                ctx.arc(core.x, core.y, r, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 209, 102, " + (0.42 * (1 - t) / (i + 1)).toFixed(4) + ")";
-                ctx.lineWidth = 2 + i;
-                ctx.stroke();
-            }
 
-            ctx.fillStyle = "rgba(255, 245, 190, " + (0.26 * (1 - Math.abs(t - 0.45))).toFixed(4) + ")";
-            ctx.fillRect(0, 0, state.width, state.height);
+            if (state.endingType === "BLACK HOLE") {
+                var darkAlpha = clamp(0.18 + t * 0.58, 0, 0.82);
+                ctx.fillStyle = "rgba(0, 0, 0, " + darkAlpha.toFixed(4) + ")";
+                ctx.fillRect(0, 0, state.width, state.height);
+
+                var ringT = clamp((t - 0.18) / 0.72, 0, 1);
+                var ringR = coreRadius() * (2.0 + ringT * 1.7);
+
+                ctx.save();
+                ctx.translate(core.x, core.y);
+                ctx.rotate(time * 0.0017);
+                ctx.scale(1.85, 0.44);
+                ctx.beginPath();
+                ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 160, 82, " + (0.55 * ringT).toFixed(4) + ")";
+                ctx.lineWidth = 4.0;
+                ctx.shadowColor = "rgba(255, 107, 139, 0.62)";
+                ctx.shadowBlur = 28;
+                ctx.stroke();
+                ctx.restore();
+
+                for (var i = 0; i < 3; i += 1) {
+                    var r = coreRadius() * (1.15 + i * 0.42 + ringT * 0.28);
+                    ctx.beginPath();
+                    ctx.arc(core.x, core.y, r, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(255, 107, 139, " + ((0.24 + i * 0.06) * (1 - t * 0.45)).toFixed(4) + ")";
+                    ctx.lineWidth = 1.4 + i;
+                    ctx.stroke();
+                }
+
+                ctx.beginPath();
+                ctx.arc(core.x, core.y, coreRadius() * (0.75 + ringT * 0.2), 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(0, 0, 0, 0.96)";
+                ctx.shadowColor = "rgba(255, 160, 82, 0.55)";
+                ctx.shadowBlur = 24;
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            } else {
+                var hold = clamp(t / 0.18, 0, 1);
+                var flash = clamp(1 - Math.abs(t - 0.34) / 0.34, 0, 1);
+
+                ctx.fillStyle = "rgba(255, 245, 190, " + (0.10 + flash * 0.36).toFixed(4) + ")";
+                ctx.fillRect(0, 0, state.width, state.height);
+
+                for (var j = 0; j < 4; j += 1) {
+                    var waveR = (t * 980) + j * 125;
+                    ctx.beginPath();
+                    ctx.arc(core.x, core.y, waveR, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(255, 209, 102, " + (0.42 * (1 - t) / (j + 1)).toFixed(4) + ")";
+                    ctx.lineWidth = 2 + j;
+                    ctx.shadowColor = "rgba(255, 245, 190, 0.38)";
+                    ctx.shadowBlur = 12;
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+
+                ctx.beginPath();
+                ctx.arc(core.x, core.y, coreRadius() * (1.15 + hold * 0.22), 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 245, 190, " + (0.18 + flash * 0.28).toFixed(4) + ")";
+                ctx.fill();
+            }
         }
 
-        if (isEndingPhase()) {
+        if (isEndingPhase() && !state.finalRoot) {
             ctx.textAlign = "center";
             ctx.font = "900 46px Inter, Arial, sans-serif";
             ctx.fillStyle = state.endingType === "BLACK HOLE" ? "rgba(255, 180, 130, 0.98)" : "rgba(180, 225, 255, 0.98)";
@@ -2663,14 +2993,14 @@
 
         if (dom.gameMessage && state.gameMode) {
             if (isCollapsePhase()) {
-                dom.gameMessage.textContent = "IRON CORE: fusion still works. Click any nucleus inside the larger core zone to feed Collapse or Stability.";
+                dom.gameMessage.textContent = "IRON CORE SLOW-MO: nuclei fall into the core automatically. Deflect what you do not want to feed.";
             } else if (isSupernovaPhase()) {
                 dom.gameMessage.textContent = "SUPERNOVA | Outcome: " + state.endingType;
             } else if (isEndingPhase()) {
                 dom.gameMessage.textContent = "Final remnant formed: " + state.endingType;
             } else {
                 var recipe = getPrimaryRecipe();
-                var hasAnyAbsorb = Object.keys(state.absorbedProducts).length > 0;
+                var hasAnyAbsorb = Object.keys(state.discoveredProducts).length > 0;
                 var hasTarget = false;
 
                 for (var i = 0; i < state.nodes.length; i += 1) {
@@ -2681,9 +3011,9 @@
                 }
 
                 if (hasTarget && recipe) {
-                    dom.gameMessage.textContent = "Click the glowing " + recipe.product + " inside the core zone to absorb it and unlock the next reaction.";
+                    dom.gameMessage.textContent = "Optional: click synthesized nuclei inside the core zone to shape Mass, Temp, and Stability.";
                 } else if (hasAnyAbsorb && recipe) {
-                    dom.gameMessage.textContent = "Current goal: fuse " + recipe.a + " + " + recipe.b + " near the core, then absorb the product.";
+                    dom.gameMessage.textContent = "Current fusion goal: " + recipe.a + " + " + recipe.b + ". Absorb extra products only if you want to shape the star profile.";
                 } else {
                     dom.gameMessage.textContent = "Push atoms into the dashed core zone. Compatible nuclei fuse when held close together.";
                 }
@@ -2723,6 +3053,7 @@
         updateScroll();
         updateMetrics();
         updateMiniOrbitProbe(time);
+        updateVisualCoreState(dt);
 
         ctx.clearRect(0, 0, state.width, state.height);
         drawGameBackdrop();
@@ -2801,7 +3132,7 @@
 
         state.pointer.down = true;
 
-        if (state.gameMode && tryAbsorbAtPointer()) {
+        if (state.gameMode && !isCollapsePhase() && tryAbsorbAtPointer()) {
             return;
         }
 
