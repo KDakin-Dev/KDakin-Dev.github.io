@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.1-iron-core-deflect",
+        buildVersion: "0.11.2-core-gravity-zone",
 
         portfolio: {
             minNodes: 48,
@@ -58,8 +58,8 @@
             orbitPullBase: 1.08,
             orbitPullControlDamp: 0.065,
             orbitNoise: 5.2,
-            coreGravityBase: 0.34,
-            coreGravityMassScale: 0.018,
+            coreGravityBase: 0.408,
+            coreGravityMassScale: 0.0198,
             coreGravityHeavyScale: 0.78,
             outerOrbitBias: 0.78,
 
@@ -79,9 +79,9 @@
             insideCoreHeavySpeedPower: 0.16,
             insideCoreDamping: 0.985,
             insideCoreOrbitPullScale: 0.42,
-            insideCoreRetainForce: 1.15,
-            insideCoreRetainHeavyPower: 0.34,
-            insideCoreRetainRadiusScale: 0.74,
+            insideCoreRetainForce: 4.85,
+            insideCoreRetainHeavyPower: 0.44,
+            insideCoreRetainRadiusScale: 0.66,
             insideCoreTangentialForce: 22,
             innerHydrogenEscapeForce: 38,
             innerProductOrbitAssist: 18,
@@ -1184,6 +1184,33 @@
                 var orbitAssist = CONFIG.game.insideCoreTangentialForce / Math.pow(Math.max(1, n.mass), 0.16);
                 n.vx += tx * orbitAssist * dt * (n.orbitSpeed >= 0 ? 1 : -1);
                 n.vy += ty * orbitAssist * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+
+                if (n.mass > 4 && !isCollapsePhase()) {
+                    var zoneHeavy01 = clamp((n.mass - 4) / 52, 0, 1);
+                    var zoneHoldRadius = fusionRadius() * (CONFIG.game.insideCoreRetainRadiusScale - zoneHeavy01 * 0.16);
+                    var zoneHoldForce = CONFIG.game.insideCoreRetainForce * (1.0 + Math.pow(zoneHeavy01, 0.75) * 2.4);
+
+                    if (cd > zoneHoldRadius) {
+                        var retain = (cd - zoneHoldRadius) * zoneHoldForce;
+                        n.vx += (cdx / cd) * retain * dt / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreRetainHeavyPower);
+                        n.vy += (cdy / cd) * retain * dt / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreRetainHeavyPower);
+                    }
+
+                    if (cd > fusionRadius() * 0.82) {
+                        var outx = -cdx / cd;
+                        var outy = -cdy / cd;
+                        var radialOut = n.vx * outx + n.vy * outy;
+                        if (radialOut > 0) {
+                            var brake = 0.48 + zoneHeavy01 * 0.36;
+                            n.vx -= outx * radialOut * brake;
+                            n.vy -= outy * radialOut * brake;
+                        }
+                    }
+
+                    var tightOrbit = (8 + zoneHeavy01 * 10) / Math.pow(Math.max(1, n.mass), 0.08);
+                    n.vx += tx * tightOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+                    n.vy += ty * tightOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
+                }
 
                 if (n.synthesized && n.nucleusName !== "H") {
                     var keep = CONFIG.game.innerProductOrbitAssist / Math.pow(Math.max(1, n.mass), 0.12);
