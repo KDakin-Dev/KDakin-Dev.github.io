@@ -22,94 +22,103 @@
             playAreaTop: 124,
             playAreaBottom: 26,
 
-            coreZoneRadius: 180,
-            fusionDistance: 72,
-            fusionHeatSeconds: 0.64,
-            fusionHeatDecay: 0.95,
-            unstableLifetime: 9.0,
-            levelAdvanceDelayMs: 900,
+            initialCoreMass: 2.0,
+            coreRadiusBase: 9.0,
+            coreRadiusScale: 1.42,
+            coreRadiusMax: 44.0,
+            fusionRadiusBase: 78.0,
+            fusionRadiusScale: 7.0,
+            fusionRadiusMax: 245.0,
 
-            pointerRadius: 220,
-            pointerPushRadius: 320,
-            pointerForce: 720,
-            pointerPushForce: 1280,
+            spawnInterval: 1.15,
+            spawnBurstBase: 7,
+            spawnByMassScale: 2.3,
+            spawnMax: 48,
+            spawnSpeedBase: 11.0,
+            spawnSpeedByCoreLevel: 0.65,
+
+            fusionDistance: 64,
+            fusionHeatSeconds: 0.82,
+            fusionHeatDecay: 1.15,
+            validPairAttractRange: 132,
+            validPairAttractForce: 72,
+            invalidPairRange: 86,
+            invalidPairRepelForce: 135,
+
+            pointerRadius: 205,
+            pointerPushRadius: 310,
+            pointerForce: 620,
+            pointerPushForce: 1180,
+            pointerCenterPower: 2.45,
+            pointerMotionForce: 14.0,
             pulseForce: 390,
 
-            orbitPullBase: 0.72,
-            orbitPullConnected: 0.34,
-            orbitPullControlDamp: 0.08,
-            ambientNoise: 6.5,
-            compatibleAssistDistance: 190,
-            compatibleAssistForce: 42,
+            orbitPullBase: 0.86,
+            orbitPullControlDamp: 0.12,
+            orbitNoise: 6.0,
+            outerOrbitBias: 0.46,
 
-            baseDamping: 0.988,
-            maxSpeedBase: 58,
-            maxSpeedPerLevel: 2.5,
-            spawnSpeedBase: 12,
-            spawnSpeedPerLevel: 0.8,
+            baseDamping: 0.989,
+            maxSpeedBase: 62,
+            maxSpeedPerLevel: 1.7,
 
             hotLinkAlpha: 0.72,
-            previewAlpha: 0.16
+            previewAlpha: 0.16,
+            absorbButtonUpdateInterval: 0.15,
+            levelAdvancePulseMass: 0.0
         },
 
         nuclei: {
-            CORE: { name: "CORE", mass: 9999, radius: 7.0, color: "143, 214, 255" },
-
-            H: { name: "H", mass: 1, radius: 2.7, color: "99, 166, 255" },
-            D: { name: "D", mass: 2, radius: 3.0, color: "126, 242, 176" },
-            He3: { name: "He3", mass: 3, radius: 3.4, color: "120, 210, 255" },
-            He4: { name: "He4", mass: 4, radius: 3.7, color: "255, 209, 102" },
-            Be8: { name: "Be8", mass: 8, radius: 4.3, color: "255, 160, 82", unstable: true },
-
-            C12: { name: "C12", mass: 12, radius: 4.7, color: "185, 148, 255" },
-            O16: { name: "O16", mass: 16, radius: 5.0, color: "255, 116, 116" },
-            Ne20: { name: "Ne20", mass: 20, radius: 5.3, color: "125, 190, 255" },
-            Mg24: { name: "Mg24", mass: 24, radius: 5.6, color: "120, 220, 190" },
-            Si28: { name: "Si28", mass: 28, radius: 5.9, color: "255, 145, 77" },
-            S32: { name: "S32", mass: 32, radius: 6.1, color: "255, 230, 96" },
-            Ar36: { name: "Ar36", mass: 36, radius: 6.3, color: "145, 210, 255" },
-            Ca40: { name: "Ca40", mass: 40, radius: 6.5, color: "160, 255, 180" },
-            Ti44: { name: "Ti44", mass: 44, radius: 6.7, color: "210, 180, 255" },
-            Cr48: { name: "Cr48", mass: 48, radius: 6.9, color: "190, 190, 210" },
-            Fe52: { name: "Fe52", mass: 52, radius: 7.1, color: "255, 120, 120" },
-            Fe56: { name: "Fe56", mass: 56, radius: 7.3, color: "255, 107, 139" }
+            CORE: { name: "CORE", mass: 9999, radius: 7.0, color: "143, 214, 255", absorb: 0 },
+            H: { name: "H", mass: 1, radius: 2.7, color: "99, 166, 255", absorb: 0.6 },
+            D: { name: "D", mass: 2, radius: 3.0, color: "126, 242, 176", absorb: 1.7 },
+            He3: { name: "He3", mass: 3, radius: 3.4, color: "120, 210, 255", absorb: 3.4 },
+            He4: { name: "He4", mass: 4, radius: 3.7, color: "255, 209, 102", absorb: 8.5 },
+            Be8: { name: "Be8", mass: 8, radius: 4.3, color: "255, 160, 82", absorb: 13.0, unstable: true },
+            C12: { name: "C12", mass: 12, radius: 4.7, color: "185, 148, 255", absorb: 32.0 },
+            O16: { name: "O16", mass: 16, radius: 5.0, color: "255, 116, 116", absorb: 52.0 },
+            Ne20: { name: "Ne20", mass: 20, radius: 5.3, color: "125, 190, 255", absorb: 74.0 },
+            Mg24: { name: "Mg24", mass: 24, radius: 5.6, color: "120, 220, 190", absorb: 98.0 },
+            Si28: { name: "Si28", mass: 28, radius: 5.9, color: "255, 145, 77", absorb: 130.0 },
+            S32: { name: "S32", mass: 32, radius: 6.1, color: "255, 230, 96", absorb: 164.0 },
+            Ar36: { name: "Ar36", mass: 36, radius: 6.3, color: "145, 210, 255", absorb: 202.0 },
+            Ca40: { name: "Ca40", mass: 40, radius: 6.5, color: "160, 255, 180", absorb: 245.0 },
+            Ti44: { name: "Ti44", mass: 44, radius: 6.7, color: "210, 180, 255", absorb: 292.0 },
+            Cr48: { name: "Cr48", mass: 48, radius: 6.9, color: "190, 190, 210", absorb: 344.0 },
+            Fe52: { name: "Fe52", mass: 52, radius: 7.1, color: "255, 120, 120", absorb: 402.0 },
+            Fe56: { name: "Fe56", mass: 56, radius: 7.3, color: "255, 107, 139", absorb: 470.0 }
         },
 
-        reactions: [
-            { a: "H", b: "H", product: "D", label: "p-p -> D", heat: 0.58, bonus: ["e+", "nu"] },
-            { a: "D", b: "H", product: "He3", label: "D+p -> He3", heat: 0.62 },
-            { a: "He3", b: "He3", product: "He4", label: "He3+He3 -> He4", heat: 0.72, spawn: ["H", "H"] },
-            { a: "He4", b: "He4", product: "Be8", label: "alpha+alpha -> Be8", heat: 0.82 },
-            { a: "Be8", b: "He4", product: "C12", label: "Be8+alpha -> C12", heat: 0.82 },
-            { a: "C12", b: "He4", product: "O16", label: "C12+alpha -> O16", heat: 0.88 },
-            { a: "O16", b: "He4", product: "Ne20", label: "O16+alpha -> Ne20", heat: 0.92 },
-            { a: "Ne20", b: "He4", product: "Mg24", label: "Ne20+alpha -> Mg24", heat: 0.96 },
-            { a: "Mg24", b: "He4", product: "Si28", label: "Mg24+alpha -> Si28", heat: 1.00 },
-            { a: "Si28", b: "He4", product: "S32", label: "Si28+alpha -> S32", heat: 1.04 },
-            { a: "S32", b: "He4", product: "Ar36", label: "S32+alpha -> Ar36", heat: 1.08 },
-            { a: "Ar36", b: "He4", product: "Ca40", label: "Ar36+alpha -> Ca40", heat: 1.12 },
-            { a: "Ca40", b: "He4", product: "Ti44", label: "Ca40+alpha -> Ti44", heat: 1.16 },
-            { a: "Ti44", b: "He4", product: "Cr48", label: "Ti44+alpha -> Cr48", heat: 1.20 },
-            { a: "Cr48", b: "He4", product: "Fe52", label: "Cr48+alpha -> Fe52", heat: 1.24 },
-            { a: "Fe52", b: "He4", product: "Fe56", label: "Fe52+alpha -> Fe56", heat: 1.30 }
+        growthStages: [
+            { level: 1, mass: 0, title: "Proton seed", hint: "Need: H + H -> D" },
+            { level: 2, mass: 8, title: "Deuterium burn", hint: "Need: D + H -> He3" },
+            { level: 3, mass: 22, title: "Helium-3 branch", hint: "Need: He3 + He3 -> He4" },
+            { level: 4, mass: 52, title: "Alpha seed", hint: "Need: He4 + He4 -> Be8" },
+            { level: 5, mass: 105, title: "Triple-alpha", hint: "Need: Be8 + He4 -> C12" },
+            { level: 6, mass: 185, title: "Carbon capture", hint: "Need: C12 + He4 -> O16" },
+            { level: 7, mass: 300, title: "Oxygen capture", hint: "Need: O16 + He4 -> Ne20" },
+            { level: 8, mass: 460, title: "Neon capture", hint: "Need: Ne20 + He4 -> Mg24" },
+            { level: 9, mass: 680, title: "Magnesium capture", hint: "Need: Mg24 + He4 -> Si28" },
+            { level: 10, mass: 960, title: "Silicon chain", hint: "Need: alpha chain to Fe56" }
         ],
 
-        stages: [
-            { label: "Proton capture", nuclei: ["H", "H", "H"], goal: "D", target: 1, allowedProducts: ["D"] },
-            { label: "Deuterium burn", nuclei: ["D", "H", "H"], goal: "He3", target: 1, allowedProducts: ["He3"] },
-            { label: "Helium-3 branch", nuclei: ["He3", "He3", "H"], goal: "He4", target: 1, allowedProducts: ["He4"] },
-            { label: "Triple-alpha seed", nuclei: ["He4", "He4", "He4", "He4"], goal: "C12", target: 1, allowedProducts: ["Be8", "C12"] },
-            { label: "Carbon alpha capture", nuclei: ["C12", "He4", "H"], goal: "O16", target: 1, allowedProducts: ["O16"] },
-            { label: "Oxygen alpha capture", nuclei: ["O16", "He4", "D"], goal: "Ne20", target: 1, allowedProducts: ["Ne20"] },
-            { label: "Neon alpha capture", nuclei: ["Ne20", "He4", "H"], goal: "Mg24", target: 1, allowedProducts: ["Mg24"] },
-            { label: "Magnesium alpha capture", nuclei: ["Mg24", "He4", "D"], goal: "Si28", target: 1, allowedProducts: ["Si28"] },
-            { label: "Silicon alpha chain", nuclei: ["Si28", "He4", "H"], goal: "S32", target: 1, allowedProducts: ["S32"] },
-            { label: "Sulfur alpha chain", nuclei: ["S32", "He4", "D"], goal: "Ar36", target: 1, allowedProducts: ["Ar36"] },
-            { label: "Argon alpha chain", nuclei: ["Ar36", "He4", "H"], goal: "Ca40", target: 1, allowedProducts: ["Ca40"] },
-            { label: "Calcium alpha chain", nuclei: ["Ca40", "He4", "D"], goal: "Ti44", target: 1, allowedProducts: ["Ti44"] },
-            { label: "Titanium alpha chain", nuclei: ["Ti44", "He4", "H"], goal: "Cr48", target: 1, allowedProducts: ["Cr48"] },
-            { label: "Chromium alpha chain", nuclei: ["Cr48", "He4", "D"], goal: "Fe52", target: 1, allowedProducts: ["Fe52"] },
-            { label: "Iron-group target", nuclei: ["Fe52", "He4", "H"], goal: "Fe56", target: 1, allowedProducts: ["Fe56"] }
+        reactions: [
+            { a: "H", b: "H", product: "D", unlock: 1, label: "H + H -> D", heat: 0.58 },
+            { a: "D", b: "H", product: "He3", unlock: 2, label: "D + H -> He3", heat: 0.64 },
+            { a: "He3", b: "He3", product: "He4", unlock: 3, label: "He3 + He3 -> He4", heat: 0.76, spawn: ["H", "H"] },
+            { a: "He4", b: "He4", product: "Be8", unlock: 4, label: "He4 + He4 -> Be8", heat: 0.84 },
+            { a: "Be8", b: "He4", product: "C12", unlock: 5, label: "Be8 + He4 -> C12", heat: 0.72 },
+            { a: "C12", b: "He4", product: "O16", unlock: 6, label: "C12 + He4 -> O16", heat: 0.88 },
+            { a: "O16", b: "He4", product: "Ne20", unlock: 7, label: "O16 + He4 -> Ne20", heat: 0.92 },
+            { a: "Ne20", b: "He4", product: "Mg24", unlock: 8, label: "Ne20 + He4 -> Mg24", heat: 0.96 },
+            { a: "Mg24", b: "He4", product: "Si28", unlock: 9, label: "Mg24 + He4 -> Si28", heat: 1.00 },
+            { a: "Si28", b: "He4", product: "S32", unlock: 10, label: "Si28 + He4 -> S32", heat: 1.04 },
+            { a: "S32", b: "He4", product: "Ar36", unlock: 10, label: "S32 + He4 -> Ar36", heat: 1.08 },
+            { a: "Ar36", b: "He4", product: "Ca40", unlock: 10, label: "Ar36 + He4 -> Ca40", heat: 1.12 },
+            { a: "Ca40", b: "He4", product: "Ti44", unlock: 10, label: "Ca40 + He4 -> Ti44", heat: 1.16 },
+            { a: "Ti44", b: "He4", product: "Cr48", unlock: 10, label: "Ti44 + He4 -> Cr48", heat: 1.20 },
+            { a: "Cr48", b: "He4", product: "Fe52", unlock: 10, label: "Cr48 + He4 -> Fe52", heat: 1.24 },
+            { a: "Fe52", b: "He4", product: "Fe56", unlock: 10, label: "Fe52 + He4 -> Fe56", heat: 1.30 }
         ]
     };
 
@@ -148,11 +157,14 @@
         pulses: [],
         fusionHeat: Object.create(null),
         hotPairs: [],
+        invalidPairs: [],
         pointer: {
             x: 0,
             y: 0,
             px: 0,
             py: 0,
+            vx: 0,
+            vy: 0,
             active: false,
             down: false,
             speed: 0
@@ -160,13 +172,14 @@
         scroll01: 0,
         linkCount: 0,
         gameMode: false,
-        level: 1,
-        stage: null,
-        goalCount: 0,
-        target: 1,
+        coreMass: CONFIG.game.initialCoreMass,
+        coreLevel: 1,
         nextNodeId: 1,
-        levelAdvancePending: false,
-        lastReaction: "READY"
+        spawnTimer: 0,
+        absorbUiTimer: 0,
+        levelFlash: 0,
+        lastReaction: "READY",
+        absorbRoot: null
     };
 
     function clamp(value, min, max) {
@@ -178,17 +191,75 @@
     }
 
     function pad3(value) {
-        return String(value).padStart(3, "0").slice(-3);
+        return String(Math.floor(value)).padStart(3, "0").slice(-3);
     }
 
     function pad2(value) {
-        return String(value).padStart(2, "0");
+        return String(Math.floor(value)).padStart(2, "0");
     }
 
     function distSq(a, b) {
         var dx = a.x - b.x;
         var dy = a.y - b.y;
         return dx * dx + dy * dy;
+    }
+
+    function getNucleus(name) {
+        return CONFIG.nuclei[name] || CONFIG.nuclei.H;
+    }
+
+    function getCore() {
+        return state.nodes.length > 0 ? state.nodes[0] : null;
+    }
+
+    function getGameBounds() {
+        return {
+            left: CONFIG.game.playAreaLeft,
+            right: state.width - CONFIG.game.playAreaRight,
+            top: CONFIG.game.playAreaTop,
+            bottom: state.height - CONFIG.game.playAreaBottom
+        };
+    }
+
+    function coreRadius() {
+        return clamp(
+            CONFIG.game.coreRadiusBase + Math.sqrt(state.coreMass) * CONFIG.game.coreRadiusScale,
+            CONFIG.game.coreRadiusBase,
+            CONFIG.game.coreRadiusMax
+        );
+    }
+
+    function fusionRadius() {
+        return clamp(
+            CONFIG.game.fusionRadiusBase + Math.sqrt(state.coreMass) * CONFIG.game.fusionRadiusScale,
+            CONFIG.game.fusionRadiusBase,
+            CONFIG.game.fusionRadiusMax
+        );
+    }
+
+    function getCoreLevel() {
+        var level = 1;
+        for (var i = 0; i < CONFIG.growthStages.length; i += 1) {
+            if (state.coreMass >= CONFIG.growthStages[i].mass) {
+                level = CONFIG.growthStages[i].level;
+            }
+        }
+        return level;
+    }
+
+    function getGrowthStage() {
+        var level = getCoreLevel();
+        return CONFIG.growthStages[Math.min(level - 1, CONFIG.growthStages.length - 1)];
+    }
+
+    function getNextStageMass() {
+        var level = getCoreLevel();
+        for (var i = 0; i < CONFIG.growthStages.length; i += 1) {
+            if (CONFIG.growthStages[i].level === level + 1) {
+                return CONFIG.growthStages[i].mass;
+            }
+        }
+        return Math.ceil(state.coreMass + 250);
     }
 
     function resize() {
@@ -208,23 +279,6 @@
         }
     }
 
-    function getGameBounds() {
-        return {
-            left: CONFIG.game.playAreaLeft,
-            right: state.width - CONFIG.game.playAreaRight,
-            top: CONFIG.game.playAreaTop,
-            bottom: state.height - CONFIG.game.playAreaBottom
-        };
-    }
-
-    function getCore() {
-        return state.nodes.length > 0 ? state.nodes[0] : null;
-    }
-
-    function getNucleus(name) {
-        return CONFIG.nuclei[name] || CONFIG.nuclei.H;
-    }
-
     function wantedPortfolioNodeCount() {
         var area = state.width * state.height;
         return clamp(
@@ -234,7 +288,7 @@
         );
     }
 
-    function getOrbitCenter(time) {
+    function getOrbitCenter() {
         return {
             x: state.width * 0.5,
             y: state.height * 0.48
@@ -265,7 +319,7 @@
     }
 
     function createPortfolioNode(index) {
-        var center = getOrbitCenter(0);
+        var center = getOrbitCenter();
         var params = getOrbitParams(index, 1.0);
         var phase = rand(0, Math.PI * 2);
         var point = orbitPoint(center.x, center.y, params.a, params.b, params.rot, phase);
@@ -300,30 +354,16 @@
         if (dom.metricNodes) dom.metricNodes.textContent = pad3(state.nodes.length);
     }
 
-    function getStage(level) {
-        if (level <= CONFIG.stages.length) {
-            return CONFIG.stages[level - 1];
-        }
-
-        return {
-            label: "Iron-group loop",
-            nuclei: ["Fe52", "He4", "H"],
-            goal: "Fe56",
-            target: 1,
-            allowedProducts: ["Fe56"]
-        };
-    }
-
     function createGameNode(id, nucleusName, x, y, core) {
         var nucleus = getNucleus(nucleusName);
-        var speed = CONFIG.game.spawnSpeedBase + state.level * CONFIG.game.spawnSpeedPerLevel;
-        var speedScale = 1 / Math.pow(Math.max(1, nucleus.mass), 0.38);
-        var orbitScale = core ? 0 : rand(0.26, 0.47);
         var bounds = getGameBounds();
         var minDim = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top);
+        var speed = CONFIG.game.spawnSpeedBase + getCoreLevel() * CONFIG.game.spawnSpeedByCoreLevel;
+        var speedScale = 1 / Math.pow(Math.max(1, nucleus.mass), 0.36);
+        var orbitScale = core ? 0 : rand(0.36, CONFIG.game.outerOrbitBias);
         var orbitA = minDim * orbitScale;
-        var orbitB = orbitA * rand(0.42, 0.72);
-        var orbitSpeed = (Math.random() < 0.5 ? -1 : 1) * rand(0.28, 0.56) / Math.pow(Math.max(1, nucleus.mass), 0.33);
+        var orbitB = orbitA * rand(0.48, 0.78);
+        var orbitSpeed = (Math.random() < 0.5 ? -1 : 1) * rand(0.28, 0.62) / Math.pow(Math.max(1, nucleus.mass), 0.30);
 
         return {
             id: id,
@@ -347,53 +387,79 @@
         };
     }
 
-    function beginLevel(level) {
-        var stage = getStage(level);
+    function resetCoreGame() {
         var bounds = getGameBounds();
         var cx = (bounds.left + bounds.right) * 0.5;
         var cy = (bounds.top + bounds.bottom) * 0.5;
 
-        state.level = level;
-        state.stage = stage;
         state.nodes = [];
         state.pulses = [];
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
-        state.goalCount = 0;
-        state.target = stage.target || 1;
+        state.invalidPairs = [];
+        state.coreMass = CONFIG.game.initialCoreMass;
+        state.coreLevel = 1;
         state.nextNodeId = 1;
-        state.levelAdvancePending = false;
-        state.lastReaction = getNeedLabel(stage);
+        state.spawnTimer = 0;
+        state.absorbUiTimer = 0;
+        state.levelFlash = 0;
+        state.lastReaction = "Feed H into the core";
 
         state.nodes.push(createGameNode(0, "CORE", cx, cy, true));
 
-        var count = stage.nuclei.length;
-        for (var i = 0; i < count; i += 1) {
-            spawnNucleus(stage.nuclei[i], null, i, count);
+        var initialCount = CONFIG.game.spawnBurstBase;
+        for (var i = 0; i < initialCount; i += 1) {
+            spawnNucleus("H", null);
         }
 
+        updateAbsorbButtons(true);
         updateGameStats();
     }
 
-    function spawnNucleus(nucleusName, origin, index, count) {
+    function particleCapacity() {
+        return clamp(
+            Math.floor(CONFIG.game.spawnBurstBase + Math.sqrt(state.coreMass) * CONFIG.game.spawnByMassScale),
+            CONFIG.game.spawnBurstBase,
+            CONFIG.game.spawnMax
+        );
+    }
+
+    function countNonCoreNodes() {
+        var count = 0;
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            if (!state.nodes[i].core) count += 1;
+        }
+        return count;
+    }
+
+    function pickSpawnType() {
+        var level = getCoreLevel();
+        var roll = Math.random();
+
+        if (level >= 5 && roll > 0.965) return "He4";
+        if (level >= 3 && roll > 0.93) return "D";
+        return "H";
+    }
+
+    function spawnNucleus(nucleusName, origin) {
         var bounds = getGameBounds();
         var core = getCore();
         var cx = core ? core.x : (bounds.left + bounds.right) * 0.5;
         var cy = core ? core.y : (bounds.top + bounds.bottom) * 0.5;
-        var angle;
-        var ring;
         var x;
         var y;
+        var angle;
+        var radius;
 
         if (origin) {
             angle = rand(0, Math.PI * 2);
             x = origin.x + Math.cos(angle) * rand(18, 48);
             y = origin.y + Math.sin(angle) * rand(18, 48);
         } else {
-            angle = (Math.PI * 2 * index) / Math.max(1, count) + rand(-0.34, 0.34);
-            ring = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) * rand(0.30, 0.46);
-            x = cx + Math.cos(angle) * ring + rand(-42, 42);
-            y = cy + Math.sin(angle) * ring + rand(-42, 42);
+            angle = rand(0, Math.PI * 2);
+            radius = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top) * rand(0.42, 0.50);
+            x = cx + Math.cos(angle) * radius;
+            y = cy + Math.sin(angle) * radius;
         }
 
         x = clamp(x, bounds.left + 44, bounds.right - 44);
@@ -406,7 +472,7 @@
             var dx = node.x - origin.x;
             var dy = node.y - origin.y;
             var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
-            var push = 52 / Math.pow(Math.max(1, node.mass), 0.35);
+            var push = 52 / Math.pow(Math.max(1, node.mass), 0.32);
             node.vx = (dx / d) * push + rand(-8, 8);
             node.vy = (dy / d) * push + rand(-8, 8);
         }
@@ -438,10 +504,10 @@
         p.py = p.y;
         p.x = x;
         p.y = y;
+        p.vx = p.x - p.px;
+        p.vy = p.y - p.py;
         p.active = active;
-        var dx = p.x - p.px;
-        var dy = p.y - p.py;
-        p.speed = Math.sqrt(dx * dx + dy * dy);
+        p.speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
     }
 
     function addPulse(x, y, power) {
@@ -460,10 +526,14 @@
     function enterGameMode() {
         state.gameMode = true;
         document.body.classList.add("game-mode");
-        beginLevel(1);
+        resetCoreGame();
+
         if (dom.gameMessage) {
-            dom.gameMessage.textContent = "Each level has one active fusion target. Incompatible pairs do not lock or consume nuclei. Push the needed pair into the CORE zone and hold it there.";
+            dom.gameMessage.textContent = "Push H from the outer orbit into the core zone. Fuse nuclei, then absorb products manually. Heavier products feed the core much better than raw H.";
         }
+
+        ensureAbsorbUi();
+
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(function () {});
         }
@@ -475,8 +545,11 @@
         state.nodes = state.portfolioNodes;
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
+        state.invalidPairs = [];
+        hideAbsorbUi();
         rebuildPortfolioNodes();
         updateGameStats();
+
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(function () {});
         }
@@ -510,7 +583,7 @@
 
     function updatePortfolioNode(node, dt, time) {
         var margin = 26 + node.size;
-        var center = getOrbitCenter(time);
+        var center = getOrbitCenter();
         var rot = node.rot + Math.sin(time * 0.00006 + node.orbitGroup) * 0.035;
         var t = node.phase + time * 0.001 * node.speed;
         var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
@@ -556,12 +629,18 @@
             var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
             if (d > radius) continue;
 
-            var normalized = 1 - d / radius;
-            var coreBoost = 0.20 + Math.pow(normalized, 1.55) * 1.35;
-            var massScale = Math.pow(Math.max(1, n.mass), 0.30);
-            var force = strength * coreBoost / massScale;
+            var t = 1 - d / radius;
+            var falloff = Math.pow(t, CONFIG.game.pointerCenterPower);
+            var massScale = Math.pow(Math.max(1, n.mass), 0.36);
+            var force = strength * falloff / massScale;
+
             n.vx += (dx / d) * force * dt;
             n.vy += (dy / d) * force * dt;
+
+            if (state.pointer.speed > 0.4) {
+                n.vx += state.pointer.vx * CONFIG.game.pointerMotionForce * falloff * dt / massScale;
+                n.vy += state.pointer.vy * CONFIG.game.pointerMotionForce * falloff * dt / massScale;
+            }
         }
     }
 
@@ -580,7 +659,7 @@
                 if (band > 92) continue;
 
                 var falloff = (1 - band / 92) * pulse.life;
-                var massScale = Math.pow(Math.max(1, n.mass), 0.34);
+                var massScale = Math.pow(Math.max(1, n.mass), 0.38);
                 var force = pulse.power * falloff / massScale;
                 n.vx += (dx / d) * force * dt;
                 n.vy += (dy / d) * force * dt;
@@ -609,65 +688,18 @@
                 var pd = Math.sqrt(pdx * pdx + pdy * pdy);
                 var radius = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
                 if (pd < radius) {
-                    controlDamp = CONFIG.game.orbitPullControlDamp;
+                    var f = 1 - pd / radius;
+                    controlDamp = 1 - (1 - CONFIG.game.orbitPullControlDamp) * f;
                 }
             }
 
-            var pull = CONFIG.game.orbitPullBase * controlDamp / Math.pow(Math.max(1, n.mass), 0.22);
+            var pull = CONFIG.game.orbitPullBase * controlDamp / Math.pow(Math.max(1, n.mass), 0.20);
             n.vx += dx * pull * dt;
             n.vy += dy * pull * dt;
 
-            var noise = CONFIG.game.ambientNoise / Math.pow(Math.max(1, n.mass), 0.45);
+            var noise = CONFIG.game.orbitNoise / Math.pow(Math.max(1, n.mass), 0.45);
             n.vx += Math.sin(time * 0.0011 + n.pulse) * noise * dt;
             n.vy += Math.cos(time * 0.0009 + n.pulse) * noise * dt;
-        }
-    }
-
-    function integrateGameNodes(dt) {
-        var bounds = getGameBounds();
-
-        for (var i = 0; i < state.nodes.length; i += 1) {
-            var n = state.nodes[i];
-
-            if (n.core) {
-                n.x = (bounds.left + bounds.right) * 0.5;
-                n.y = (bounds.top + bounds.bottom) * 0.5;
-                n.vx = 0;
-                n.vy = 0;
-                continue;
-            }
-
-            n.age += dt;
-            n.vx *= Math.pow(CONFIG.game.baseDamping, dt * 60);
-            n.vy *= Math.pow(CONFIG.game.baseDamping, dt * 60);
-
-            var maxSpeed = (CONFIG.game.maxSpeedBase + state.level * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.18);
-            var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
-            if (speed > maxSpeed) {
-                n.vx = n.vx / speed * maxSpeed;
-                n.vy = n.vy / speed * maxSpeed;
-            }
-
-            n.x += n.vx * dt;
-            n.y += n.vy * dt;
-
-            var margin = 22 + n.radius;
-            if (n.x < bounds.left + margin) {
-                n.x = bounds.left + margin;
-                n.vx = Math.abs(n.vx) * 0.78;
-            }
-            if (n.x > bounds.right - margin) {
-                n.x = bounds.right - margin;
-                n.vx = -Math.abs(n.vx) * 0.78;
-            }
-            if (n.y < bounds.top + margin) {
-                n.y = bounds.top + margin;
-                n.vy = Math.abs(n.vy) * 0.78;
-            }
-            if (n.y > bounds.bottom - margin) {
-                n.y = bounds.bottom - margin;
-                n.vy = -Math.abs(n.vy) * 0.78;
-            }
         }
     }
 
@@ -675,25 +707,13 @@
         return a.id < b.id ? a.id + ":" + b.id : b.id + ":" + a.id;
     }
 
-    function isReactionAllowedForStage(reaction) {
-        if (!state.gameMode || !state.stage) return true;
-
-        var allowed = state.stage.allowedProducts || [state.stage.goal];
-        for (var i = 0; i < allowed.length; i += 1) {
-            if (allowed[i] === reaction.product) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     function findReaction(a, b) {
         if (a.core || b.core) return null;
 
+        var level = getCoreLevel();
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             var r = CONFIG.reactions[i];
-            if (!isReactionAllowedForStage(r)) continue;
+            if (r.unlock > level) continue;
             if ((r.a === a.nucleusName && r.b === b.nucleusName) || (r.a === b.nucleusName && r.b === a.nucleusName)) {
                 return r;
             }
@@ -702,29 +722,17 @@
         return null;
     }
 
-    function getNeedLabel(stage) {
-        var products = stage.allowedProducts || [stage.goal];
-        var goal = stage.goal;
+    function anyFutureReaction(a, b) {
+        if (a.core || b.core) return false;
 
-        for (var p = 0; p < products.length; p += 1) {
-            if (products[p] === goal) {
-                for (var i = 0; i < CONFIG.reactions.length; i += 1) {
-                    var r = CONFIG.reactions[i];
-                    if (r.product === goal) {
-                        return "Need: " + r.a + " + " + r.b + " -> " + r.product;
-                    }
-                }
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            var r = CONFIG.reactions[i];
+            if ((r.a === a.nucleusName && r.b === b.nucleusName) || (r.a === b.nucleusName && r.b === a.nucleusName)) {
+                return true;
             }
         }
 
-        for (var j = 0; j < CONFIG.reactions.length; j += 1) {
-            var rr = CONFIG.reactions[j];
-            if (rr.product === products[0]) {
-                return "Need: " + rr.a + " + " + rr.b + " -> " + rr.product;
-            }
-        }
-
-        return "Need: " + stage.goal;
+        return false;
     }
 
     function isInsideFusionZone(n) {
@@ -733,64 +741,79 @@
 
         var dx = n.x - core.x;
         var dy = n.y - core.y;
-        var r = CONFIG.game.coreZoneRadius;
+        var r = fusionRadius();
         return dx * dx + dy * dy <= r * r;
     }
 
-    function updateFusionPairs(dt) {
+    function applyPairForcesAndFusion(dt) {
         var activeKeys = Object.create(null);
         state.hotPairs = [];
+        state.invalidPairs = [];
         state.linkCount = 0;
 
         for (var i = 1; i < state.nodes.length; i += 1) {
             var a = state.nodes[i];
+
             for (var j = i + 1; j < state.nodes.length; j += 1) {
                 var b = state.nodes[j];
+                var dx = b.x - a.x;
+                var dy = b.y - a.y;
+                var d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+                var nx = dx / d;
+                var ny = dy / d;
                 var reaction = findReaction(a, b);
-                if (!reaction) continue;
+                var inZone = isInsideFusionZone(a) && isInsideFusionZone(b);
 
-                var dx = a.x - b.x;
-                var dy = a.y - b.y;
-                var d = Math.sqrt(dx * dx + dy * dy);
-                var maxD = CONFIG.game.fusionDistance + a.radius + b.radius;
-                if (d > maxD) continue;
+                if (reaction && d < CONFIG.game.validPairAttractRange) {
+                    var attract01 = 1 - d / CONFIG.game.validPairAttractRange;
+                    var attract = CONFIG.game.validPairAttractForce * attract01 * (inZone ? 1.35 : 0.55);
 
-                var zoneA = isInsideFusionZone(a);
-                var zoneB = isInsideFusionZone(b);
-                var inZone = zoneA && zoneB;
-                var key = reactionKey(a, b);
-                var heatTarget = reaction.heat || CONFIG.game.fusionHeatSeconds;
-
-                activeKeys[key] = true;
-                state.linkCount += 1;
-
-                if (!state.fusionHeat[key]) {
-                    state.fusionHeat[key] = {
-                        heat: 0,
-                        label: reaction.label,
-                        a: a.id,
-                        b: b.id
-                    };
+                    a.vx += nx * attract * dt / Math.pow(Math.max(1, a.mass), 0.42);
+                    a.vy += ny * attract * dt / Math.pow(Math.max(1, a.mass), 0.42);
+                    b.vx -= nx * attract * dt / Math.pow(Math.max(1, b.mass), 0.42);
+                    b.vy -= ny * attract * dt / Math.pow(Math.max(1, b.mass), 0.42);
                 }
 
-                if (inZone) {
-                    state.fusionHeat[key].heat += dt;
-                } else {
-                    state.fusionHeat[key].heat = Math.max(0, state.fusionHeat[key].heat - CONFIG.game.fusionHeatDecay * dt);
-                }
+                if (reaction && d < CONFIG.game.fusionDistance + a.radius + b.radius) {
+                    var key = reactionKey(a, b);
+                    var heatTarget = reaction.heat || CONFIG.game.fusionHeatSeconds;
 
-                var heat01 = clamp(state.fusionHeat[key].heat / heatTarget, 0, 1);
-                state.hotPairs.push({
-                    a: a,
-                    b: b,
-                    reaction: reaction,
-                    heat01: heat01,
-                    inZone: inZone
-                });
+                    activeKeys[key] = true;
+                    state.linkCount += 1;
 
-                if (state.fusionHeat[key].heat >= heatTarget) {
-                    performFusion(a, b, reaction);
-                    return;
+                    if (!state.fusionHeat[key]) {
+                        state.fusionHeat[key] = { heat: 0, label: reaction.label };
+                    }
+
+                    if (inZone) {
+                        state.fusionHeat[key].heat += dt;
+                    } else {
+                        state.fusionHeat[key].heat = Math.max(0, state.fusionHeat[key].heat - CONFIG.game.fusionHeatDecay * dt);
+                    }
+
+                    var heat01 = clamp(state.fusionHeat[key].heat / heatTarget, 0, 1);
+                    state.hotPairs.push({
+                        a: a,
+                        b: b,
+                        reaction: reaction,
+                        heat01: heat01,
+                        inZone: inZone
+                    });
+
+                    if (state.fusionHeat[key].heat >= heatTarget) {
+                        performFusion(a, b, reaction);
+                        return;
+                    }
+                } else if (inZone && !reaction && d < CONFIG.game.invalidPairRange && !anyFutureReaction(a, b)) {
+                    var repel01 = 1 - d / CONFIG.game.invalidPairRange;
+                    var repel = CONFIG.game.invalidPairRepelForce * repel01;
+
+                    a.vx -= nx * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
+                    a.vy -= ny * repel * dt / Math.pow(Math.max(1, a.mass), 0.42);
+                    b.vx += nx * repel * dt / Math.pow(Math.max(1, b.mass), 0.42);
+                    b.vy += ny * repel * dt / Math.pow(Math.max(1, b.mass), 0.42);
+
+                    state.invalidPairs.push({ a: a, b: b, alpha: repel01 });
                 }
             }
         }
@@ -833,87 +856,261 @@
 
         if (reaction.spawn) {
             for (var i = 0; i < reaction.spawn.length; i += 1) {
-                spawnNucleus(reaction.spawn[i], origin, i, reaction.spawn.length);
+                spawnNucleus(reaction.spawn[i], origin);
             }
         }
 
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
         state.lastReaction = reaction.label;
+        addPulse(x, y, 170);
+        updateAbsorbButtons(true);
+    }
 
-        if (reaction.product === state.stage.goal) {
-            state.goalCount += 1;
-            if (!state.levelAdvancePending && state.goalCount >= state.target) {
-                state.levelAdvancePending = true;
-                window.setTimeout(function () {
-                    if (state.gameMode) {
-                        beginLevel(state.level + 1);
-                    }
-                }, CONFIG.game.levelAdvanceDelayMs);
+    function absorbNode(node) {
+        if (!node || node.core) return;
+
+        var nucleus = getNucleus(node.nucleusName);
+        var oldLevel = getCoreLevel();
+        var value = nucleus.absorb || nucleus.mass || 1;
+
+        state.coreMass += value;
+        state.lastReaction = "Absorbed " + nucleus.name + " +" + value.toFixed(1);
+        removeNode(node);
+        addPulse(node.x, node.y, 130 + Math.min(240, value * 1.5));
+
+        var newLevel = getCoreLevel();
+        if (newLevel > oldLevel) {
+            state.levelFlash = 1.0;
+            state.lastReaction = "Core stage " + newLevel + " unlocked";
+        }
+
+        updateAbsorbButtons(true);
+        updateGameStats();
+    }
+
+    function getAbsorbableNodesByType() {
+        var groups = Object.create(null);
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+            if (!isInsideFusionZone(n)) continue;
+
+            if (!groups[n.nucleusName]) {
+                groups[n.nucleusName] = [];
+            }
+            groups[n.nucleusName].push(n);
+        }
+
+        return groups;
+    }
+
+    function ensureAbsorbUi() {
+        if (state.absorbRoot) {
+            state.absorbRoot.style.display = state.gameMode ? "flex" : "none";
+            return;
+        }
+
+        var root = document.createElement("div");
+        root.id = "absorb-controls";
+        root.style.position = "fixed";
+        root.style.right = "18px";
+        root.style.bottom = "18px";
+        root.style.zIndex = "12";
+        root.style.display = "none";
+        root.style.flexDirection = "column";
+        root.style.gap = "8px";
+        root.style.pointerEvents = "auto";
+        root.style.maxWidth = "min(360px, calc(100vw - 36px))";
+
+        document.body.appendChild(root);
+        state.absorbRoot = root;
+    }
+
+    function hideAbsorbUi() {
+        if (state.absorbRoot) {
+            state.absorbRoot.style.display = "none";
+        }
+    }
+
+    function makeAbsorbButton(typeName, count) {
+        var nucleus = getNucleus(typeName);
+        var button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Absorb " + nucleus.name + " +" + (nucleus.absorb || nucleus.mass).toFixed(1) + " x" + count;
+        button.style.minHeight = "42px";
+        button.style.padding = "0 14px";
+        button.style.border = "1px solid rgba(" + nucleus.color + ", 0.42)";
+        button.style.borderRadius = "14px";
+        button.style.background = "rgba(5, 10, 16, 0.78)";
+        button.style.color = "rgba(215, 227, 244, 0.94)";
+        button.style.cursor = "pointer";
+        button.style.font = "700 12px SFMono-Regular, Consolas, monospace";
+        button.style.letterSpacing = "0.06em";
+        button.style.boxShadow = "0 10px 38px rgba(0, 0, 0, 0.34)";
+
+        button.addEventListener("click", function () {
+            var groups = getAbsorbableNodesByType();
+            var list = groups[typeName] || [];
+            if (list.length <= 0) return;
+
+            var core = getCore();
+            var best = list[0];
+            var bestSq = core ? distSq(best, core) : 0;
+
+            for (var i = 1; i < list.length; i += 1) {
+                var dSq = core ? distSq(list[i], core) : 0;
+                if (dSq < bestSq) {
+                    bestSq = dSq;
+                    best = list[i];
+                }
+            }
+
+            absorbNode(best);
+        });
+
+        return button;
+    }
+
+    function updateAbsorbButtons(force) {
+        ensureAbsorbUi();
+
+        if (!state.gameMode) {
+            hideAbsorbUi();
+            return;
+        }
+
+        if (!force && state.absorbUiTimer > 0) return;
+        state.absorbUiTimer = CONFIG.game.absorbButtonUpdateInterval;
+
+        var root = state.absorbRoot;
+        while (root.firstChild) {
+            root.removeChild(root.firstChild);
+        }
+
+        var groups = getAbsorbableNodesByType();
+        var names = Object.keys(groups).sort(function (a, b) {
+            return (getNucleus(b).absorb || 0) - (getNucleus(a).absorb || 0);
+        });
+
+        if (names.length <= 0) {
+            var empty = document.createElement("div");
+            empty.textContent = "No nuclei in core zone";
+            empty.style.padding = "12px 14px";
+            empty.style.border = "1px solid rgba(99, 166, 255, 0.18)";
+            empty.style.borderRadius = "14px";
+            empty.style.background = "rgba(5, 10, 16, 0.62)";
+            empty.style.color = "rgba(139, 155, 176, 0.9)";
+            empty.style.font = "700 12px SFMono-Regular, Consolas, monospace";
+            root.appendChild(empty);
+        } else {
+            for (var i = 0; i < names.length; i += 1) {
+                root.appendChild(makeAbsorbButton(names[i], groups[names[i]].length));
             }
         }
 
-        addPulse(x, y, 170);
+        root.style.display = "flex";
+    }
+
+    function updateSpawner(dt) {
+        var capacity = particleCapacity();
+        if (countNonCoreNodes() >= capacity) return;
+
+        state.spawnTimer -= dt;
+        if (state.spawnTimer > 0) return;
+
+        state.spawnTimer = Math.max(0.38, CONFIG.game.spawnInterval - Math.sqrt(state.coreMass) * 0.014);
+        spawnNucleus(pickSpawnType(), null);
+    }
+
+    function integrateGameNodes(dt) {
+        var bounds = getGameBounds();
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+
+            if (n.core) {
+                n.x = (bounds.left + bounds.right) * 0.5;
+                n.y = (bounds.top + bounds.bottom) * 0.5;
+                n.vx = 0;
+                n.vy = 0;
+                continue;
+            }
+
+            n.age += dt;
+            n.vx *= Math.pow(CONFIG.game.baseDamping, dt * 60);
+            n.vy *= Math.pow(CONFIG.game.baseDamping, dt * 60);
+
+            var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
+            var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
+            if (speed > maxSpeed) {
+                n.vx = n.vx / speed * maxSpeed;
+                n.vy = n.vy / speed * maxSpeed;
+            }
+
+            n.x += n.vx * dt;
+            n.y += n.vy * dt;
+
+            var margin = 22 + n.radius;
+            if (n.x < bounds.left + margin) {
+                n.x = bounds.left + margin;
+                n.vx = Math.abs(n.vx) * 0.78;
+            }
+            if (n.x > bounds.right - margin) {
+                n.x = bounds.right - margin;
+                n.vx = -Math.abs(n.vx) * 0.78;
+            }
+            if (n.y < bounds.top + margin) {
+                n.y = bounds.top + margin;
+                n.vy = Math.abs(n.vy) * 0.78;
+            }
+            if (n.y > bounds.bottom - margin) {
+                n.y = bounds.bottom - margin;
+                n.vy = -Math.abs(n.vy) * 0.78;
+            }
+        }
     }
 
     function decayUnstableNuclei() {
         for (var i = state.nodes.length - 1; i >= 0; i -= 1) {
             var n = state.nodes[i];
             if (!n.unstable) continue;
-            if (n.age < CONFIG.game.unstableLifetime) continue;
+            if (n.age < 10.0) continue;
 
             var origin = { x: n.x, y: n.y };
             removeNode(n);
-            spawnNucleus("He4", origin, 0, 2);
-            spawnNucleus("He4", origin, 1, 2);
+            spawnNucleus("He4", origin);
+            spawnNucleus("He4", origin);
             state.lastReaction = "Be8 decayed";
             addPulse(origin.x, origin.y, 110);
         }
     }
 
-    function applyCompatibleAssistForces(dt) {
-        var assistDistance = CONFIG.game.compatibleAssistDistance;
-        var assistDistanceSq = assistDistance * assistDistance;
-
-        for (var i = 1; i < state.nodes.length; i += 1) {
-            var a = state.nodes[i];
-            for (var j = i + 1; j < state.nodes.length; j += 1) {
-                var b = state.nodes[j];
-                var reaction = findReaction(a, b);
-                if (!reaction) continue;
-
-                var zoneA = isInsideFusionZone(a);
-                var zoneB = isInsideFusionZone(b);
-                if (!zoneA && !zoneB) continue;
-
-                var dx = b.x - a.x;
-                var dy = b.y - a.y;
-                var dSq = dx * dx + dy * dy;
-                if (dSq > assistDistanceSq) continue;
-
-                var d = Math.sqrt(dSq) + 0.001;
-                var nx = dx / d;
-                var ny = dy / d;
-                var close01 = 1 - d / assistDistance;
-                var zoneBoost = zoneA && zoneB ? 1.0 : 0.45;
-                var force = CONFIG.game.compatibleAssistForce * close01 * close01 * zoneBoost;
-
-                a.vx += nx * force * dt / Math.pow(Math.max(1, a.mass), 0.38);
-                a.vy += ny * force * dt / Math.pow(Math.max(1, a.mass), 0.38);
-                b.vx -= nx * force * dt / Math.pow(Math.max(1, b.mass), 0.38);
-                b.vy -= ny * force * dt / Math.pow(Math.max(1, b.mass), 0.38);
-            }
-        }
-    }
-
     function updateGamePhysics(dt, time) {
+        state.absorbUiTimer -= dt;
+        state.levelFlash = Math.max(0, state.levelFlash - dt * 1.8);
+
+        updateSpawner(dt);
         applyOrbitForces(dt, time);
-        applyCompatibleAssistForces(dt);
         applyGamePointerForces(dt);
         applyPulseForces(dt);
+        applyPairForcesAndFusion(dt);
         integrateGameNodes(dt);
-        updateFusionPairs(dt);
         decayUnstableNuclei();
+        updateAbsorbButtons(false);
+    }
+
+    function drawGameBackdrop() {
+        if (!state.gameMode) return;
+
+        var level = getCoreLevel();
+        var darkness = clamp(0.62 - level * 0.026, 0.32, 0.62);
+
+        ctx.save();
+        ctx.fillStyle = "rgba(0, 0, 0, " + darkness.toFixed(4) + ")";
+        ctx.fillRect(0, 0, state.width, state.height);
+        ctx.restore();
     }
 
     function drawGrid(time) {
@@ -946,7 +1143,7 @@
 
         var bounds = getGameBounds();
         ctx.save();
-        ctx.strokeStyle = "rgba(143, 214, 255, 0.26)";
+        ctx.strokeStyle = "rgba(143, 214, 255, 0.22)";
         ctx.lineWidth = 1;
         ctx.setLineDash([9, 10]);
         ctx.strokeRect(bounds.left, bounds.top, bounds.right - bounds.left, bounds.bottom - bounds.top);
@@ -959,27 +1156,52 @@
         var core = getCore();
         if (!core) return;
 
+        var fr = fusionRadius();
+        var cr = coreRadius();
+        var level = getCoreLevel();
+        var glow = clamp(0.10 + level * 0.035 + Math.sqrt(state.coreMass) * 0.006, 0.12, 0.48);
+
         ctx.save();
-        var gradient = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, CONFIG.game.coreZoneRadius);
-        gradient.addColorStop(0, "rgba(255, 209, 102, 0.14)");
-        gradient.addColorStop(0.55, "rgba(99, 166, 255, 0.055)");
+
+        var gradient = ctx.createRadialGradient(core.x, core.y, 0, core.x, core.y, fr);
+        gradient.addColorStop(0, "rgba(255, 209, 102, " + glow.toFixed(4) + ")");
+        gradient.addColorStop(0.32, "rgba(99, 166, 255, 0.075)");
         gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(core.x, core.y, CONFIG.game.coreZoneRadius, 0, Math.PI * 2);
+        ctx.arc(core.x, core.y, fr, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = "rgba(255, 209, 102, 0.18)";
+        ctx.strokeStyle = "rgba(255, 209, 102, 0.22)";
         ctx.lineWidth = 1;
         ctx.setLineDash([6, 10]);
         ctx.beginPath();
-        ctx.arc(core.x, core.y, CONFIG.game.coreZoneRadius, 0, Math.PI * 2);
+        ctx.arc(core.x, core.y, fr, 0, Math.PI * 2);
         ctx.stroke();
+
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(core.x, core.y, cr, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 209, 102, 0.62)";
+        ctx.shadowColor = "rgba(255, 209, 102, 0.58)";
+        ctx.shadowBlur = 26 + level * 4;
+        ctx.fill();
+
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255, 245, 190, 0.64)";
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(5, 10, 16, 0.78)";
+        ctx.font = "10px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.fillText("CORE", core.x, core.y + 3);
+
         ctx.restore();
     }
 
     function drawOrbitTraces(time) {
-        var center = getOrbitCenter(time);
+        var center = getOrbitCenter();
         var count = state.gameMode ? 2 : 5;
         ctx.save();
 
@@ -1032,18 +1254,28 @@
 
     function drawFusionLinks() {
         ctx.save();
-        ctx.lineWidth = 1.7;
 
+        for (var r = 0; r < state.invalidPairs.length; r += 1) {
+            var pair = state.invalidPairs[r];
+            ctx.lineWidth = 1.2;
+            ctx.strokeStyle = "rgba(255, 107, 139, " + (0.15 + pair.alpha * 0.32).toFixed(4) + ")";
+            ctx.beginPath();
+            ctx.moveTo(pair.a.x, pair.a.y);
+            ctx.lineTo(pair.b.x, pair.b.y);
+            ctx.stroke();
+        }
+
+        ctx.lineWidth = 1.7;
         for (var i = 0; i < state.hotPairs.length; i += 1) {
-            var pair = state.hotPairs[i];
-            var a = pair.a;
-            var b = pair.b;
-            var alpha = CONFIG.game.previewAlpha + pair.heat01 * CONFIG.game.hotLinkAlpha;
-            var color = pair.inZone ? "255, 209, 102" : "99, 166, 255";
+            var hot = state.hotPairs[i];
+            var a = hot.a;
+            var b = hot.b;
+            var alpha = CONFIG.game.previewAlpha + hot.heat01 * CONFIG.game.hotLinkAlpha;
+            var color = hot.inZone ? "255, 209, 102" : "99, 166, 255";
 
             ctx.strokeStyle = "rgba(" + color + ", " + alpha.toFixed(4) + ")";
             ctx.shadowColor = "rgba(" + color + ", 0.35)";
-            ctx.shadowBlur = 6 + pair.heat01 * 18;
+            ctx.shadowBlur = 6 + hot.heat01 * 18;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -1061,10 +1293,12 @@
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
+            if (n.core && state.gameMode) continue;
+
             var nucleusColor = n.nucleus ? n.nucleus.color : "99, 166, 255";
             var pulse = 0.75 + Math.sin(time * 0.002 + (n.pulse || n.phase || 0)) * 0.25;
             var radius = n.radius || n.size || 2;
-            var size = n.core ? radius + pulse * 1.2 : radius + pulse * (state.gameMode ? 1.05 : 0.8);
+            var size = radius + pulse * (state.gameMode ? 1.05 : 0.8);
             var alpha = state.gameMode ? 0.78 : 0.42;
 
             if (n.unstable) {
@@ -1080,14 +1314,14 @@
 
             ctx.shadowBlur = 0;
             ctx.beginPath();
-            ctx.arc(n.x, n.y, size + (n.core ? 7 : 4), 0, Math.PI * 2);
+            ctx.arc(n.x, n.y, size + 4, 0, Math.PI * 2);
             ctx.strokeStyle = "rgba(" + nucleusColor + ", " + (state.gameMode ? 0.20 : 0.08).toFixed(4) + ")";
-            ctx.lineWidth = n.core ? 1.6 : 1;
+            ctx.lineWidth = 1;
             ctx.stroke();
 
             if (state.gameMode) {
                 ctx.fillStyle = "rgba(215, 227, 244, 0.84)";
-                ctx.font = n.core ? "11px SFMono-Regular, Consolas, monospace" : "10px SFMono-Regular, Consolas, monospace";
+                ctx.font = "10px SFMono-Regular, Consolas, monospace";
                 ctx.textAlign = "center";
                 ctx.fillText(n.nucleus.name, n.x, n.y - size - 8);
             }
@@ -1131,8 +1365,9 @@
 
         ctx.save();
         var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, r);
-        gradient.addColorStop(0, "rgba(99, 166, 255, 0.20)");
-        gradient.addColorStop(0.44, "rgba(99, 166, 255, 0.07)");
+        gradient.addColorStop(0, "rgba(99, 166, 255, 0.25)");
+        gradient.addColorStop(0.20, "rgba(99, 166, 255, 0.15)");
+        gradient.addColorStop(0.55, "rgba(99, 166, 255, 0.045)");
         gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
         ctx.fillStyle = gradient;
         ctx.beginPath();
@@ -1141,7 +1376,7 @@
 
         ctx.beginPath();
         ctx.arc(state.pointer.x, state.pointer.y, 12, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(143, 214, 255, 0.62)";
+        ctx.strokeStyle = "rgba(143, 214, 255, 0.66)";
         ctx.lineWidth = 1;
         ctx.stroke();
         ctx.restore();
@@ -1160,15 +1395,27 @@
     }
 
     function updateGameStats() {
-        var stage = state.stage || getStage(state.level);
-        if (dom.gameLevel) dom.gameLevel.textContent = pad2(state.level);
-        if (dom.gameCollected) dom.gameCollected.textContent = pad3(state.goalCount);
-        if (dom.gameTarget) dom.gameTarget.textContent = pad3(state.target);
+        var level = getCoreLevel();
+        var stage = getGrowthStage();
+        var nextMass = getNextStageMass();
+
+        state.coreLevel = level;
+
+        if (dom.gameLevel) dom.gameLevel.textContent = pad2(level);
+        if (dom.gameCollected) dom.gameCollected.textContent = pad3(state.coreMass);
+        if (dom.gameTarget) dom.gameTarget.textContent = pad3(nextMass);
         if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
-        if (dom.gameNodes) dom.gameNodes.textContent = pad3(state.gameMode ? state.nodes.length : state.portfolioNodes.length);
-        if (dom.gameAtoms) dom.gameAtoms.textContent = getNeedLabel(stage);
+        if (dom.gameNodes) dom.gameNodes.textContent = pad3(state.gameMode ? countNonCoreNodes() : state.portfolioNodes.length);
+        if (dom.gameAtoms) dom.gameAtoms.textContent = stage.title;
+
         if (dom.gameProgressFill) {
-            dom.gameProgressFill.style.width = clamp(state.goalCount / Math.max(1, state.target) * 100, 0, 100).toFixed(2) + "%";
+            var prev = stage.mass;
+            var progress = (state.coreMass - prev) / Math.max(1, nextMass - prev);
+            dom.gameProgressFill.style.width = clamp(progress * 100, 0, 100).toFixed(2) + "%";
+        }
+
+        if (dom.gameMessage && state.gameMode) {
+            dom.gameMessage.textContent = stage.hint + " | " + state.lastReaction + " | Absorb inside core zone. Heavy products feed the core better.";
         }
     }
 
@@ -1204,6 +1451,7 @@
         updateMiniOrbitProbe(time);
 
         ctx.clearRect(0, 0, state.width, state.height);
+        drawGameBackdrop();
         drawGrid(time);
         drawBounds();
         drawOrbitTraces(time);
