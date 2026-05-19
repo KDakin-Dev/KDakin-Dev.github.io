@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.10.4-heavy-core-final",
+        buildVersion: "0.10.5-balance-fix",
 
         portfolio: {
             minNodes: 48,
@@ -32,10 +32,10 @@
             fusionRadiusScale: 6.0,
             fusionRadiusMax: 245.0,
 
-            spawnInterval: 0.98,
+            spawnInterval: 0.90,
             spawnBurstBase: 13,
             spawnByMassScale: 1.85,
-            spawnMax: 42,
+            spawnMax: 46,
             spawnSpeedBase: 11.0,
             spawnSpeedByCoreLevel: 0.65,
 
@@ -85,9 +85,9 @@
             absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0,
 
-            collapseCriticalMass: 100,
-            collapseBlackHoleMass: 118,
-            collapseNeutronStabilityMin: 28,
+            collapseCriticalMass: 150,
+            collapseBlackHoleMass: 176,
+            collapseNeutronStabilityMin: 38,
             supernovaDuration: 3.2,
             finalSpawnInterval: 0.72
         },
@@ -462,7 +462,7 @@
             if (isCollapsePhase()) {
                 orbitScale = rand(0.24, 0.42) - heavy01 * 0.10;
             } else {
-                orbitScale = rand(0.40, 0.62) - heavy01 * 0.12;
+                orbitScale = rand(0.34, 0.54) - heavy01 * 0.12;
             }
         } else if (!core && isCollapsePhase() && nucleus.mass >= 12) {
             var midHeavy01 = clamp((nucleus.mass - 12) / 16, 0, 1);
@@ -667,24 +667,28 @@
     function pickCollapseSpawnType() {
         var list = [];
 
-        list.push({ type: "H", weight: 80 });
-        list.push({ type: "D", weight: 16 });
-        list.push({ type: "He3", weight: 10 });
-        list.push({ type: "He4", weight: 34 });
-        list.push({ type: "C12", weight: 14 });
-        list.push({ type: "O16", weight: 13 });
-        list.push({ type: "Si28", weight: 9 });
-        list.push({ type: "Fe52", weight: 7 });
-        list.push({ type: "Fe56", weight: 5 });
+        list.push({ type: "H", weight: 58 });
+        list.push({ type: "D", weight: 10 });
+        list.push({ type: "He3", weight: 8 });
+        list.push({ type: "He4", weight: 28 });
+        list.push({ type: "C12", weight: 18 });
+        list.push({ type: "O16", weight: 17 });
+        list.push({ type: "Ne20", weight: 11 });
+        list.push({ type: "Mg24", weight: 10 });
+        list.push({ type: "Si28", weight: 13 });
+        list.push({ type: "S32", weight: 10 });
+        list.push({ type: "Fe52", weight: 8 });
+        list.push({ type: "Fe56", weight: 7 });
 
-        if (state.stability < 35) {
-            list.push({ type: "H", weight: 55 });
-            list.push({ type: "He4", weight: 28 });
+        if (state.stability < 38) {
+            list.push({ type: "H", weight: 36 });
+            list.push({ type: "He4", weight: 24 });
         }
 
-        if (state.collapseMass > 72) {
-            list.push({ type: "Fe56", weight: 8 });
-            list.push({ type: "Si28", weight: 8 });
+        if (state.collapseMass > 95) {
+            list.push({ type: "Fe56", weight: 10 });
+            list.push({ type: "Si28", weight: 10 });
+            list.push({ type: "S32", weight: 8 });
         }
 
         return pickWeightedSpawn(list);
@@ -706,9 +710,9 @@
 
         // Hydrogen remains the main raw material. Late game gets more flow,
         // but not by throwing near-current heavy nuclei at the player.
-        var hWeight = 130 + level * 10;
-        if (hCount < 10 + Math.floor(level * 0.85)) {
-            hWeight += 115;
+        var hWeight = 150 + level * 12;
+        if (hCount < 12 + Math.floor(level * 0.95)) {
+            hWeight += 130;
         }
         pushWeightedSpawn(list, "H", hWeight);
 
@@ -767,7 +771,7 @@
             angle = rand(0, Math.PI * 2);
             var heavyMass = getNucleus(nucleusName).mass;
             var heavy01 = clamp((heavyMass - 28) / 28, 0, 1);
-            radius = fusionRadius() * rand(0.72, 1.18 - heavy01 * 0.22);
+            radius = fusionRadius() * rand(0.62, 1.02 - heavy01 * 0.18);
             if (isCollapsePhase()) {
                 radius = fusionRadius() * rand(0.46, 0.88 - heavy01 * 0.16);
             }
@@ -1086,17 +1090,17 @@
                 if (isCollapsePhase()) {
                     desiredOrbit *= 0.78 - heavy01b * 0.36;
                 } else {
-                    desiredOrbit *= 1.18 - heavy01b * 0.42;
+                    desiredOrbit *= 1.06 - heavy01b * 0.46;
                 }
 
                 if (cd > desiredOrbit) {
-                    var pullGain = isCollapsePhase() ? (1.35 + heavy01b * 3.25) : (0.42 + heavy01b * 1.65);
+                    var pullGain = isCollapsePhase() ? (1.35 + heavy01b * 3.25) : (0.68 + heavy01b * 2.15);
                     var inward = (cd - desiredOrbit) * pullGain;
                     n.vx += (cdx / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
                     n.vy += (cdy / cd) * inward * dt / Math.pow(Math.max(1, n.mass), 0.12);
                 }
 
-                var heavyOrbit = (isCollapsePhase() ? 18 + heavy01b * 18 : 7 + heavy01b * 12) / Math.pow(Math.max(1, n.mass), 0.10);
+                var heavyOrbit = (isCollapsePhase() ? 18 + heavy01b * 18 : 9 + heavy01b * 14) / Math.pow(Math.max(1, n.mass), 0.10);
                 n.vx += tx * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
                 n.vy += ty * heavyOrbit * dt * (n.orbitSpeed >= 0 ? 1 : -1);
             }
@@ -1355,24 +1359,24 @@
         // Final phase is intentionally a two-bar decision:
         // Collapse gets the star to the supernova event.
         // Stability decides whether the remnant becomes a neutron star or a black hole.
-        if (typeName === "H") return { core: 0.18, collapse: 0.4, stability: 8.0, role: "stability" };
-        if (typeName === "D") return { core: 0.32, collapse: 0.7, stability: 10.0, role: "stability" };
-        if (typeName === "He3") return { core: 0.48, collapse: 1.0, stability: 9.0, role: "stability" };
-        if (typeName === "He4") return { core: 0.72, collapse: 1.7, stability: 7.0, role: "stability" };
+        if (typeName === "H") return { core: 0.16, collapse: 0.3, stability: 5.5, role: "stability" };
+        if (typeName === "D") return { core: 0.28, collapse: 0.5, stability: 6.5, role: "stability" };
+        if (typeName === "He3") return { core: 0.42, collapse: 0.8, stability: 6.0, role: "stability" };
+        if (typeName === "He4") return { core: 0.64, collapse: 1.3, stability: 5.2, role: "stability" };
 
         if (mass < 28) {
-            return { core: 1.6, collapse: 5.5, stability: 2.5, role: "balanced" };
+            return { core: 1.4, collapse: 4.4, stability: 1.8, role: "balanced" };
         }
 
         if (mass < 44) {
-            return { core: 2.6, collapse: 10.5, stability: -4.5, role: "collapse" };
+            return { core: 2.4, collapse: 10.8, stability: -8.0, role: "collapse" };
         }
 
         if (mass < 52) {
-            return { core: 3.6, collapse: 15.5, stability: -9.5, role: "collapse" };
+            return { core: 3.4, collapse: 15.8, stability: -13.0, role: "collapse" };
         }
 
-        return { core: 5.0, collapse: 23.0, stability: -17.0, role: "collapse" };
+        return { core: 4.8, collapse: 21.5, stability: -19.0, role: "collapse" };
     }
 
     function absorbCollapseNode(node) {
@@ -1679,6 +1683,7 @@
 
     function ensureVersionUi() {
         if (state.versionRoot) {
+            state.versionRoot.textContent = "build " + CONFIG.buildVersion;
             state.versionRoot.style.display = state.gameMode ? "block" : "none";
             return;
         }
@@ -1687,9 +1692,9 @@
         root.id = "build-version-badge";
         root.textContent = "build " + CONFIG.buildVersion;
         root.style.position = "fixed";
-        root.style.left = "18px";
-        root.style.top = "18px";
-        root.style.zIndex = "16";
+        root.style.right = "18px";
+        root.style.bottom = "18px";
+        root.style.zIndex = "90";
         root.style.padding = "8px 10px";
         root.style.border = "1px solid rgba(99, 166, 255, 0.16)";
         root.style.borderRadius = "12px";
@@ -2061,7 +2066,7 @@
 
         state.finalPhase = "collapse";
         state.collapseMass = 0;
-        state.stability = 76;
+        state.stability = 68;
         state.supernovaTimer = 0;
         state.endingType = "";
         state.lastReaction = "IRON CORE COLLAPSE";
