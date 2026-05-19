@@ -65,6 +65,11 @@
             hotLinkAlpha: 0.72,
             previewAlpha: 0.16,
             absorbButtonUpdateInterval: 0.15,
+            fusionHoldScaleInsideCore: 0.72,
+            insideCoreSpeedScale: 0.58,
+            insideCoreDamping: 0.965,
+            insideCoreOrbitPullScale: 0.22,
+            absorbClickRadiusBonus: 12,
             levelAdvancePulseMass: 0.0
         },
 
@@ -179,7 +184,8 @@
         absorbUiTimer: 0,
         levelFlash: 0,
         lastReaction: "READY",
-        absorbRoot: null
+        absorbRoot: null,
+        recipeRoot: null
     };
 
     function clamp(value, min, max) {
@@ -532,7 +538,8 @@
             dom.gameMessage.textContent = "Push H from the outer orbit into the core zone. Fuse nuclei, then absorb products manually. Heavier products feed the core much better than raw H.";
         }
 
-        ensureAbsorbUi();
+        ensureRecipeUi();
+        hideAbsorbUi();
 
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(function () {});
@@ -547,6 +554,7 @@
         state.hotPairs = [];
         state.invalidPairs = [];
         hideAbsorbUi();
+        hideRecipeUi();
         rebuildPortfolioNodes();
         updateGameStats();
 
@@ -693,6 +701,10 @@
                 }
             }
 
+            if (isInsideFusionZone(n)) {
+                controlDamp *= CONFIG.game.insideCoreOrbitPullScale;
+            }
+
             var pull = CONFIG.game.orbitPullBase * controlDamp / Math.pow(Math.max(1, n.mass), 0.20);
             n.vx += dx * pull * dt;
             n.vy += dy * pull * dt;
@@ -776,7 +788,7 @@
 
                 if (reaction && d < CONFIG.game.fusionDistance + a.radius + b.radius) {
                     var key = reactionKey(a, b);
-                    var heatTarget = reaction.heat || CONFIG.game.fusionHeatSeconds;
+                    var heatTarget = (reaction.heat || CONFIG.game.fusionHeatSeconds) * CONFIG.game.fusionHoldScaleInsideCore;
 
                     activeKeys[key] = true;
                     state.linkCount += 1;
@@ -906,6 +918,89 @@
         return groups;
     }
 
+    function findAbsorbNodeAt(x, y) {
+        if (!state.gameMode) return null;
+
+        var best = null;
+        var bestSq = Infinity;
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (n.core) continue;
+            if (!isInsideFusionZone(n)) continue;
+
+            var dx = x - n.x;
+            var dy = y - n.y;
+            var radius = n.radius + CONFIG.game.absorbClickRadiusBonus;
+            var dSq = dx * dx + dy * dy;
+
+            if (dSq <= radius * radius && dSq < bestSq) {
+                best = n;
+                bestSq = dSq;
+            }
+        }
+
+        return best;
+    }
+
+    function tryAbsorbAtPointer() {
+        var n = findAbsorbNodeAt(state.pointer.x, state.pointer.y);
+        if (!n) return false;
+        absorbNode(n);
+        return true;
+    }
+
+    function ensureRecipeUi() {
+        if (state.recipeRoot) {
+            state.recipeRoot.style.display = state.gameMode ? "block" : "none";
+            return;
+        }
+
+        var root = document.createElement("div");
+        root.id = "fusion-recipe-hud";
+        root.style.position = "fixed";
+        root.style.left = "50%";
+        root.style.top = "96px";
+        root.style.transform = "translateX(-50%)";
+        root.style.zIndex = "12";
+        root.style.display = "none";
+        root.style.minWidth = "min(560px, calc(100vw - 36px))";
+        root.style.padding = "12px 16px";
+        root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
+        root.style.borderRadius = "18px";
+        root.style.background = "rgba(5, 10, 16, 0.78)";
+        root.style.backdropFilter = "blur(14px)";
+        root.style.boxShadow = "0 16px 60px rgba(0, 0, 0, 0.36)";
+        root.style.color = "rgba(215, 227, 244, 0.96)";
+        root.style.font = "800 13px SFMono-Regular, Consolas, monospace";
+        root.style.letterSpacing = "0.06em";
+        root.style.textAlign = "center";
+        root.style.pointerEvents = "none";
+
+        document.body.appendChild(root);
+        state.recipeRoot = root;
+    }
+
+    function hideRecipeUi() {
+        if (state.recipeRoot) {
+            state.recipeRoot.style.display = "none";
+        }
+    }
+
+    function updateRecipeUi() {
+        if (!state.gameMode) {
+            hideRecipeUi();
+            return;
+        }
+
+        ensureRecipeUi();
+        var stage = getGrowthStage();
+        var nextMass = getNextStageMass();
+        var massText = state.coreMass.toFixed(1) + " / " + nextMass.toFixed(0);
+        state.recipeRoot.textContent = stage.hint + " | Core mass: " + massText + " | Click nucleus inside zone to absorb";
+        state.recipeRoot.style.display = "block";
+    }
+
     function ensureAbsorbUi() {
         if (state.absorbRoot) {
             state.absorbRoot.style.display = state.gameMode ? "flex" : "none";
@@ -974,6 +1069,9 @@
     }
 
     function updateAbsorbButtons(force) {
+        hideAbsorbUi();
+        return;
+
         ensureAbsorbUi();
 
         if (!state.gameMode) {
@@ -1039,10 +1137,15 @@
             }
 
             n.age += dt;
-            n.vx *= Math.pow(CONFIG.game.baseDamping, dt * 60);
-            n.vy *= Math.pow(CONFIG.game.baseDamping, dt * 60);
+            var insideCoreZone = isInsideFusionZone(n);
+            var damping = insideCoreZone ? CONFIG.game.insideCoreDamping : CONFIG.game.baseDamping;
+            n.vx *= Math.pow(damping, dt * 60);
+            n.vy *= Math.pow(damping, dt * 60);
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
+            if (insideCoreZone) {
+                maxSpeed *= CONFIG.game.insideCoreSpeedScale;
+            }
             var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
             if (speed > maxSpeed) {
                 n.vx = n.vx / speed * maxSpeed;
@@ -1319,6 +1422,14 @@
             ctx.lineWidth = 1;
             ctx.stroke();
 
+            if (state.gameMode && isInsideFusionZone(n)) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, size + 9, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 209, 102, 0.42)";
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+            }
+
             if (state.gameMode) {
                 ctx.fillStyle = "rgba(215, 227, 244, 0.84)";
                 ctx.font = "10px SFMono-Regular, Consolas, monospace";
@@ -1415,8 +1526,10 @@
         }
 
         if (dom.gameMessage && state.gameMode) {
-            dom.gameMessage.textContent = stage.hint + " | " + state.lastReaction + " | Absorb inside core zone. Heavy products feed the core better.";
+            dom.gameMessage.textContent = state.lastReaction + " | Heavy products feed the core better than raw H.";
         }
+
+        updateRecipeUi();
     }
 
     function updateMiniOrbitProbe(time) {
@@ -1519,6 +1632,11 @@
     window.addEventListener("pointerdown", function (event) {
         state.pointer.down = true;
         setPointer(event.clientX, event.clientY, true);
+
+        if (state.gameMode && tryAbsorbAtPointer()) {
+            return;
+        }
+
         addPulse(event.clientX, event.clientY, state.gameMode ? CONFIG.game.pulseForce : 180);
     });
 
