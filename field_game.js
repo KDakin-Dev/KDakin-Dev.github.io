@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.9.0-supernova-endings",
+        buildVersion: "0.10.1-spawn-balance",
 
         portfolio: {
             minNodes: 48,
@@ -561,6 +561,62 @@
         list.push({ type: typeName, weight: weight });
     }
 
+    function getReactionProductIndex(typeName) {
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            if (CONFIG.reactions[i].product === typeName) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    function getCurrentRecipeIndex() {
+        var recipe = getCurrentRecipe();
+        if (!recipe) return 0;
+
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            if (CONFIG.reactions[i] === recipe) {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    function pushLaggedHeavySupport(list, currentIndex) {
+        // Heavy support should lag behind current progress. It helps recovery
+        // without turning late-game synthesis into automatic free heavy drops.
+        var start = Math.max(0, currentIndex - 5);
+        var end = Math.max(0, currentIndex - 3);
+
+        for (var i = start; i <= end; i += 1) {
+            var typeName = CONFIG.reactions[i].product;
+            if (!typeName) continue;
+            if (typeName === "D" || typeName === "He3" || typeName === "He4") continue;
+            if (!hasAbsorbed(typeName)) continue;
+
+            var age = currentIndex - i;
+            var weight = age >= 5 ? 2.4 : 1.4;
+            pushWeightedSpawn(list, typeName, weight);
+        }
+    }
+
+    function pushRareRecoverySeed(list, recipe, currentIndex) {
+        if (!recipe || !recipe.a || recipe.a === "He4") return;
+        if (!hasAbsorbed(recipe.a)) return;
+
+        // Current heavy ingredient is a rare anti-softlock seed, not normal fuel.
+        // It becomes slightly more likely only if none of that type is on field.
+        var count = countNodesByType(recipe.a);
+        var weight = count <= 0 ? 2.8 : 0.7;
+
+        if (currentIndex >= 8) {
+            weight += 0.6;
+        }
+
+        pushWeightedSpawn(list, recipe.a, weight);
+    }
+
     function pickWeightedSpawn(list) {
         var total = 0;
         for (var i = 0; i < list.length; i += 1) {
@@ -610,56 +666,53 @@
 
         var recipe = getCurrentRecipe();
         var level = getCoreLevel();
+        var currentIndex = getCurrentRecipeIndex();
         var hCount = countNodesByType("H");
         var dCount = countNodesByType("D");
+        var he3Count = countNodesByType("He3");
         var he4Count = countNodesByType("He4");
         var list = [];
 
-        // Hydrogen stays the main fuel. On late stages we add helper nuclei,
-        // but we do not flood the field with D because too much D slows flow.
-        var hWeight = 100 + level * 7;
-        if (hCount < 8 + level) {
-            hWeight += 90;
+        // Hydrogen remains the main raw material. Late game gets more flow,
+        // but not by throwing near-current heavy nuclei at the player.
+        var hWeight = 130 + level * 10;
+        if (hCount < 10 + Math.floor(level * 0.85)) {
+            hWeight += 115;
         }
         pushWeightedSpawn(list, "H", hWeight);
 
-        if (level >= 2 && dCount < 2) {
-            pushWeightedSpawn(list, "D", 6);
+        // D is useful as a small support, but too much D clogs the field.
+        if (level >= 2 && dCount < 1) {
+            pushWeightedSpawn(list, "D", 3.0);
         }
 
-        if (level >= 3 && hasAbsorbed("He3")) {
-            pushWeightedSpawn(list, "He3", recipe.a === "He3" || recipe.b === "He3" ? 10 : 3);
+        // He3 appears as a small bridge only while it is still relevant.
+        if (level >= 3 && hasAbsorbed("He3") && he3Count < 1) {
+            var he3Need = recipe && (recipe.a === "He3" || recipe.b === "He3");
+            pushWeightedSpawn(list, "He3", he3Need ? 4.0 : 1.2);
         }
 
+        // He4 is the main alpha-chain support, but it should not flood the game.
         if (level >= 4 && hasAbsorbed("He4")) {
-            var he4Need = recipe.a === "He4" || recipe.b === "He4";
-            var he4Weight = he4Need ? 24 : 10;
+            var he4Need = recipe && (recipe.a === "He4" || recipe.b === "He4");
+            var he4Weight = he4Need ? 18.0 : 6.0;
             if (he4Count < 2) {
-                he4Weight += 24;
+                he4Weight += 12.0;
             }
             pushWeightedSpawn(list, "He4", he4Weight);
         }
 
-        // After a heavy nucleus was discovered, it may reappear as a rare seed.
-        // This keeps late progression moving without making the game automatic.
-        if (level >= 5) {
-            if (recipe.a !== "He4") {
-                pushWeightedSpawn(list, recipe.a, 16);
-            }
-            if (recipe.b !== "He4") {
-                pushWeightedSpawn(list, recipe.b, 16);
-            }
+        // Heavy seeds lag behind by about 4-5 reaction steps.
+        // Example: when current progress is around Ar36/Ca40, support should
+        // be closer to C12/O16/Ne20, not the immediately previous S32.
+        if (level >= 7) {
+            pushLaggedHeavySupport(list, currentIndex);
         }
 
-        // Very rare previous-stage helpers. These are only for recovery.
+        // Rare anti-softlock current seed. Very low weight on purpose.
+        // It should help if the chain stalls, not replace the chain.
         if (level >= 6) {
-            pushWeightedSpawn(list, "C12", 2);
-        }
-        if (level >= 7) {
-            pushWeightedSpawn(list, "O16", 2);
-        }
-        if (level >= 8) {
-            pushWeightedSpawn(list, "Ne20", 2);
+            pushRareRecoverySeed(list, recipe, currentIndex);
         }
 
         return pickWeightedSpawn(list);
@@ -1333,8 +1386,8 @@
         root.style.transform = "translateX(-50%)";
         root.style.zIndex = "12";
         root.style.display = "none";
-        root.style.minWidth = "min(620px, calc(100vw - 36px))";
-        root.style.padding = "14px 18px";
+        root.style.minWidth = "min(760px, calc(100vw - 36px))";
+        root.style.padding = "13px 18px 14px";
         root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
         root.style.borderRadius = "18px";
         root.style.background = "rgba(5, 10, 16, 0.78)";
@@ -1356,11 +1409,53 @@
         }
     }
 
-    function nucleusChipHtml(name, dimmed) {
+    function nucleusChipHtml(name, dimmed, sizePx) {
         var n = getNucleus(name);
-        var opacity = dimmed ? "0.38" : "0.92";
-        var border = dimmed ? "0.16" : "0.46";
-        return "<span style='display:inline-flex;align-items:center;justify-content:center;min-width:58px;height:38px;margin:0 4px;padding:0 13px;border-radius:999px;border:1px solid rgba(" + n.color + "," + border + ");background:rgba(" + n.color + ",0.14);color:rgba(235,245,255," + opacity + ");box-shadow:0 0 24px rgba(" + n.color + ",0.24);font-size:15px;'>" + n.name + "</span>";
+        var size = sizePx || 48;
+        var opacity = dimmed ? "0.38" : "0.96";
+        var border = dimmed ? "0.16" : "0.58";
+        var glow = dimmed ? "0.06" : "0.30";
+        var fontSize = size >= 46 ? 13 : 10;
+
+        return "<span style='display:inline-flex;align-items:center;justify-content:center;width:" + size + "px;height:" + size + "px;margin:0 2px;border-radius:999px;border:1px solid rgba(" + n.color + "," + border + ");background:radial-gradient(circle at 35% 30%,rgba(255,255,255,0.22),rgba(" + n.color + ",0.34) 42%,rgba(5,10,16,0.72) 100%);color:rgba(235,245,255," + opacity + ");box-shadow:0 0 " + Math.round(size * 0.55) + "px rgba(" + n.color + "," + glow + ");font:900 " + fontSize + "px SFMono-Regular,Consolas,monospace;letter-spacing:0.03em;text-align:center;'>" + n.name + "</span>";
+    }
+
+    function recipeArrowHtml(dimmed) {
+        var color = dimmed ? "rgba(139,155,176,0.34)" : "rgba(255,209,102,0.95)";
+        return "<span style='display:inline-flex;align-items:center;justify-content:center;width:30px;color:" + color + ";font:900 21px SFMono-Regular,Consolas,monospace;'>=> </span>";
+    }
+
+    function reactionHtml(reaction, active) {
+        var dimmed = !active;
+        var size = active ? 48 : 26;
+        var gap = active ? 8 : 4;
+        var opacity = active ? "1" : "0.42";
+
+        return "<span style='display:inline-flex;align-items:center;justify-content:center;gap:" + gap + "px;opacity:" + opacity + ";white-space:nowrap;'>"
+            + nucleusChipHtml(reaction.a, dimmed, size)
+            + "<span style='color:rgba(139,155,176," + (active ? "0.82" : "0.38") + ");font:900 " + (active ? 18 : 11) + "px SFMono-Regular,Consolas,monospace;'>+</span>"
+            + nucleusChipHtml(reaction.b, dimmed, size)
+            + recipeArrowHtml(dimmed)
+            + nucleusChipHtml(reaction.product, dimmed, size)
+            + "</span>";
+    }
+
+    function unlockedRecipeStripHtml(primary) {
+        var unlocked = getUnlockedRecipeList();
+        var items = [];
+        var start = Math.max(0, unlocked.length - 6);
+
+        for (var i = start; i < unlocked.length; i += 1) {
+            var reaction = unlocked[i];
+            if (primary && reaction.product === primary.product) continue;
+            items.push(reactionHtml(reaction, false));
+        }
+
+        if (items.length <= 0) return "";
+
+        return "<div style='display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;overflow:hidden;max-width:min(860px,calc(100vw - 60px));'>"
+            + items.join("")
+            + "</div>";
     }
 
     function updateRecipeUi() {
@@ -1404,23 +1499,21 @@
         var recipe = getPrimaryRecipe();
         var unlocked = isReactionUnlocked(recipe);
         var stage = getGrowthStage();
-        var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font-size:10px;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
-        var html = ""
-            + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px;'>"
+        var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font:900 10px SFMono-Regular,Consolas,monospace;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
+        var strip = unlockedRecipeStripHtml(recipe);
+
+        state.recipeRoot.innerHTML = ""
+            + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px;'>"
             + "<span style='color:rgba(143,214,255,0.86);font-size:11px;letter-spacing:0.18em;'>LV " + pad2(getCoreLevel()) + "</span>"
             + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + stage.title + "</span>"
-            + "<span style='color:rgba(255,209,102,0.86);font-size:11px;'>M " + state.coreMass.toFixed(0) + "</span>"
+            + "<span style='color:rgba(255,209,102,0.88);font-size:11px;letter-spacing:0.10em;'>STAR MASS " + state.coreMass.toFixed(0) + "</span>"
             + "</div>"
             + "<div style='display:flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;'>"
-            + nucleusChipHtml(recipe.a, !unlocked)
-            + "<span style='color:rgba(139,155,176,0.82);font-size:20px;'>+</span>"
-            + nucleusChipHtml(recipe.b, !unlocked)
-            + "<span style='color:rgba(255,209,102,0.95);font-size:24px;margin:0 4px;'>=> </span>"
-            + nucleusChipHtml(recipe.product, !unlocked)
+            + reactionHtml(recipe, true)
             + lockText
-            + "</div>";
+            + "</div>"
+            + strip;
 
-        state.recipeRoot.innerHTML = html;
         state.recipeRoot.style.display = "block";
     }
 
@@ -1471,13 +1564,13 @@
         root.textContent = "build " + CONFIG.buildVersion;
         root.style.position = "fixed";
         root.style.left = "18px";
-        root.style.bottom = "18px";
-        root.style.zIndex = "12";
+        root.style.top = "18px";
+        root.style.zIndex = "16";
         root.style.padding = "8px 10px";
         root.style.border = "1px solid rgba(99, 166, 255, 0.16)";
         root.style.borderRadius = "12px";
-        root.style.background = "rgba(5, 10, 16, 0.58)";
-        root.style.color = "rgba(139, 155, 176, 0.86)";
+        root.style.background = "rgba(5, 10, 16, 0.72)";
+        root.style.color = "rgba(180, 205, 235, 0.92)";
         root.style.font = "700 11px SFMono-Regular, Consolas, monospace";
         root.style.letterSpacing = "0.08em";
         root.style.pointerEvents = "none";
@@ -1862,11 +1955,10 @@
     function drawGameBackdrop() {
         if (!state.gameMode) return;
 
-        var level = getCoreLevel();
-        var darkness = clamp(0.62 - level * 0.026, 0.32, 0.62);
+        var darkness = clamp(0.80 - Math.log(1 + state.coreMass) * 0.055, 0.34, 0.80);
 
         if (isCollapsePhase()) {
-            darkness = 0.42;
+            darkness = 0.48;
         } else if (isSupernovaPhase()) {
             darkness = 0.22;
         } else if (isEndingPhase()) {
@@ -2073,6 +2165,12 @@
         if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
     }
 
+    function isPrimaryAbsorbTarget(n) {
+        if (!n || !isFusionPhase()) return false;
+        var recipe = getPrimaryRecipe();
+        return !!recipe && n.nucleusName === recipe.product;
+    }
+
     function drawNodes(time) {
         ctx.save();
 
@@ -2093,17 +2191,22 @@
             }
 
             if (absorbable) {
+                var primaryGlow = isPrimaryAbsorbTarget(n);
+                var glowPulse = primaryGlow ? blink : 0.25 + blink * 0.22;
+                var glowAlpha = primaryGlow ? (0.045 + glowPulse * 0.075) : (0.025 + glowPulse * 0.035);
+                var ringAlpha = primaryGlow ? (0.24 + glowPulse * 0.26) : (0.16 + glowPulse * 0.10);
+
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, size + 16 + blink * 8, 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 209, 102, " + (0.08 + blink * 0.12).toFixed(4) + ")";
-                ctx.shadowColor = "rgba(255, 209, 102, 0.55)";
-                ctx.shadowBlur = 20 + blink * 18;
+                ctx.arc(n.x, n.y, size + (primaryGlow ? 14 : 10) + glowPulse * 4, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255, 209, 102, " + glowAlpha.toFixed(4) + ")";
+                ctx.shadowColor = "rgba(255, 209, 102, " + (primaryGlow ? "0.38" : "0.18") + ")";
+                ctx.shadowBlur = primaryGlow ? 16 + glowPulse * 12 : 9 + glowPulse * 5;
                 ctx.fill();
 
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, size + 9 + blink * 4, 0, Math.PI * 2);
-                ctx.strokeStyle = "rgba(255, 245, 190, " + (0.38 + blink * 0.34).toFixed(4) + ")";
-                ctx.lineWidth = 1.6;
+                ctx.arc(n.x, n.y, size + (primaryGlow ? 8 : 6) + glowPulse * 2, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(255, 245, 190, " + ringAlpha.toFixed(4) + ")";
+                ctx.lineWidth = primaryGlow ? 1.35 : 1.0;
                 ctx.stroke();
             }
 
