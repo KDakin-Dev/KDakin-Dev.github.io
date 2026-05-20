@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.18-iron-core-cursor-rewrite",
+        buildVersion: "0.11.19-iron-core-impulse-retain",
 
         portfolio: {
             minNodes: 48,
@@ -106,7 +106,12 @@
             ironCoreCursorMotionDeadZone: 1.4,
             ironCoreCursorMotionMax: 34,
             ironCoreCursorMaxSpeed: 245,
-            ironCoreCursorShieldTime: 0.72,
+            ironCoreCursorShieldTime: 1.45,
+            ironCoreCursorShieldInfallScale: 0.14,
+            ironCoreCursorCarryTime: 1.65,
+            ironCoreCursorCarryForce: 38,
+            ironCoreCursorCarryDamping: 0.994,
+            ironCoreCursorCarryPower: 1.25,
             ironCoreAutoAbsorbPadding: 6,
             ironCoreMaxAutoAbsorbsPerFrame: 1,
             ironCoreAbsorbRadiusScale: 0.92,
@@ -610,7 +615,11 @@
             orbitSpeed: orbitSpeed,
             synthesized: false,
             age: 0,
-            unstable: !!nucleus.unstable
+            unstable: !!nucleus.unstable,
+            ironCoreCursorShield: 0,
+            ironCoreCursorCarryTimer: 0,
+            ironCoreCursorCarryX: 0,
+            ironCoreCursorCarryY: 0
         };
     }
 
@@ -1007,6 +1016,9 @@
             node.vx = (fallDx / fallD) * fallSpeed + (-fallDy / fallD) * tangent;
             node.vy = (fallDy / fallD) * fallSpeed + (fallDx / fallD) * tangent;
             node.ironCoreCursorShield = 0;
+            node.ironCoreCursorCarryTimer = 0;
+            node.ironCoreCursorCarryX = 0;
+            node.ironCoreCursorCarryY = 0;
         }
 
         state.nodes.push(node);
@@ -2416,18 +2428,25 @@ function getFusionAbsorbProfileValue(typeName) {
             if (n.ironCoreCursorShield && n.ironCoreCursorShield > 0) {
                 n.ironCoreCursorShield = Math.max(0, n.ironCoreCursorShield - dt);
             }
+            if (n.ironCoreCursorCarryTimer && n.ironCoreCursorCarryTimer > 0) {
+                n.ironCoreCursorCarryTimer = Math.max(0, n.ironCoreCursorCarryTimer - dt);
+            }
 
+            var hasIronCoreCursorCarry = isCollapsePhase() && (
+                (n.ironCoreCursorShield && n.ironCoreCursorShield > 0) ||
+                (n.ironCoreCursorCarryTimer && n.ironCoreCursorCarryTimer > 0)
+            );
             var insideCoreZone = isInsideFusionZone(n);
             var damping = insideCoreZone ? CONFIG.game.insideCoreDamping : CONFIG.game.baseDamping;
-            if (isCollapsePhase() && n.ironCoreCursorShield && n.ironCoreCursorShield > 0) {
-                damping = 0.986;
+            if (hasIronCoreCursorCarry) {
+                damping = CONFIG.game.ironCoreCursorCarryDamping;
             }
             n.vx *= Math.pow(damping, dt * 60);
             n.vy *= Math.pow(damping, dt * 60);
 
             var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
             if (isCollapsePhase()) {
-                maxSpeed *= (n.ironCoreCursorShield && n.ironCoreCursorShield > 0) ? 2.55 : 1.08;
+                maxSpeed *= hasIronCoreCursorCarry ? 2.85 : 1.08;
             }
             if (insideCoreZone) {
                 maxSpeed *= CONFIG.game.insideCoreSpeedScale / Math.pow(Math.max(1, n.mass), CONFIG.game.insideCoreHeavySpeedPower);
@@ -2619,12 +2638,28 @@ function getFusionAbsorbProfileValue(typeName) {
             var mass01 = clamp((n.mass - 1) / 55, 0, 1);
             var zone01 = clamp(d / Math.max(1, fusionRadius()), 0.25, 1.35);
             var infall = CONFIG.game.ironCoreInfallForce * (0.72 + zone01 * 0.42) * (1 + mass01 * CONFIG.game.ironCoreInfallHeavyBoost);
-            if (n.ironCoreCursorShield && n.ironCoreCursorShield > 0) {
-                infall *= 0.32;
+            var shield01 = clamp((n.ironCoreCursorShield || 0) / Math.max(0.001, CONFIG.game.ironCoreCursorShieldTime), 0, 1);
+            var carry01 = clamp((n.ironCoreCursorCarryTimer || 0) / Math.max(0.001, CONFIG.game.ironCoreCursorCarryTime), 0, 1);
+            var protect01 = Math.max(shield01, carry01);
+            if (protect01 > 0) {
+                infall *= 1 - protect01 * (1 - CONFIG.game.ironCoreCursorShieldInfallScale);
             }
 
             n.vx += nx * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
             n.vy += ny * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
+
+            if (carry01 > 0) {
+                var carryLen = Math.sqrt(
+                    (n.ironCoreCursorCarryX || 0) * (n.ironCoreCursorCarryX || 0) +
+                    (n.ironCoreCursorCarryY || 0) * (n.ironCoreCursorCarryY || 0)
+                );
+                if (carryLen > 0.001) {
+                    var carryForce = CONFIG.game.ironCoreCursorCarryForce * Math.pow(carry01, CONFIG.game.ironCoreCursorCarryPower);
+                    var carryMassScale = Math.pow(Math.max(1, n.mass), 0.16);
+                    n.vx += (n.ironCoreCursorCarryX / carryLen) * carryForce * dt / carryMassScale;
+                    n.vy += (n.ironCoreCursorCarryY / carryLen) * carryForce * dt / carryMassScale;
+                }
+            }
 
             var swirl = CONFIG.game.ironCoreTangentialForce * (1.0 - mass01 * 0.28) * (n.orbitSpeed >= 0 ? 1 : -1);
             n.vx += tx * swirl * dt;
@@ -2683,16 +2718,28 @@ function getFusionAbsorbProfileValue(typeName) {
             var repelForce = CONFIG.game.ironCoreCursorRepelForce * falloff / massScale;
             var sweepForce = CONFIG.game.ironCoreCursorSweepForce * falloff * motion01 / massScale;
             var starPushForce = CONFIG.game.ironCoreCursorStarPushForce * falloff * (1 - motion01) / massScale;
-
-            n.vx += repelX * repelForce * dt;
-            n.vy += repelY * repelForce * dt;
+            var impulseX = repelX * repelForce;
+            var impulseY = repelY * repelForce;
 
             if (motion01 > 0) {
-                n.vx += sweepX * sweepForce * dt;
-                n.vy += sweepY * sweepForce * dt;
+                impulseX += sweepX * sweepForce;
+                impulseY += sweepY * sweepForce;
             } else {
-                n.vx += coreOutX * starPushForce * dt;
-                n.vy += coreOutY * starPushForce * dt;
+                impulseX += coreOutX * starPushForce;
+                impulseY += coreOutY * starPushForce;
+            }
+
+            n.vx += impulseX * dt;
+            n.vy += impulseY * dt;
+
+            var impulseLen = Math.sqrt(impulseX * impulseX + impulseY * impulseY);
+            if (impulseLen > 0.001) {
+                n.ironCoreCursorCarryX = impulseX / impulseLen;
+                n.ironCoreCursorCarryY = impulseY / impulseLen;
+                n.ironCoreCursorCarryTimer = Math.max(
+                    n.ironCoreCursorCarryTimer || 0,
+                    CONFIG.game.ironCoreCursorCarryTime * (0.42 + falloff * 0.58)
+                );
             }
 
             n.ironCoreCursorShield = Math.max(
