@@ -1,0 +1,155 @@
+#field-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100vw;
+    height: 100vh;
+    display: block;
+    background: transparent;
+    cursor: crosshair;
+}
+
+.field-scanlines {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.18;
+    background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: 100% 4px;
+    mix-blend-mode: screen;
+}
+
+.field-vignette {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(circle at 58% 36%, transparent 0%, transparent 48%, rgba(0, 0, 0, 0.54) 100%);
+}
+
+.game-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    display: none;
+    pointer-events: none;
+}
+
+body.game-mode .game-overlay {
+    display: block;
+}
+
+.game-topbar {
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 18px;
+    display: grid;
+    grid-template-columns: repeat(7, minmax(96px, 1fr)) auto;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.game-stat,
+.game-exit {
+    border: 1px solid rgba(99, 166, 255, 0.2);
+    border-radius: 16px;
+    background: rgba(5, 10, 16, 0.78);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 16px 60px rgba(0, 0, 0, 0.34);
+}
+
+.game-stat {
+    min-height: 66px;
+    padding: 12px 14px;
+}
+
+.game-stat span {
+    display: block;
+    color: rgba(139, 155, 176, 0.96);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.game-stat strong {
+    display: block;
+    margin-top: 8px;
+    color: rgba(215, 227, 244, 0.98);
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 20px;
+    font-weight: 900;
+}
+
+.game-exit {
+    min-width: 96px;
+    min-height: 66px;
+    padding: 0 18px;
+    color: rgba(215, 227, 244, 0.98);
+    background: rgba(255, 255, 255, 0.035);
+    cursor: pointer;
+    pointer-events: auto;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.game-exit:hover {
+    border-color: rgba(143, 214, 255, 0.65);
+    background: rgba(99, 166, 255, 0.12);
+}
+
+.game-progress {
+    position: absolute;
+    left: 18px;
+    top: 96px;
+    width: min(420px, calc(100vw - 36px));
+    height: 10px;
+    border: 1px solid rgba(99, 166, 255, 0.2);
+    border-radius: 999px;
+    background: rgba(5, 10, 16, 0.62);
+    overflow: hidden;
+}
+
+.game-progress-fill {
+    width: 0%;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(126, 242, 176, 0.8), rgba(143, 214, 255, 0.9), rgba(255, 209, 102, 0.9));
+    box-shadow: 0 0 18px rgba(143, 214, 255, 0.55);
+    transition: width 160ms ease;
+}
+
+.game-message {
+    position: absolute;
+    left: 18px;
+    bottom: 18px;
+    max-width: min(720px, calc(100vw - 36px));
+    padding: 14px 16px;
+    border: 1px solid rgba(99, 166, 255, 0.18);
+    border-radius: 18px;
+    background: rgba(5, 10, 16, 0.68);
+    backdrop-filter: blur(14px);
+    color: rgba(139, 155, 176, 0.96);
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+@media (max-width: 1120px) {
+    .game-topbar {
+        grid-template-columns: repeat(4, minmax(96px, 1fr));
+    }
+}
+
+@media (max-width: 680px) {
+    .game-topbar {
+        grid-template-columns: repeat(2, minmax(96px, 1fr));
+    }
+
+    .game-message {
+        display: none;
+    }
+}
