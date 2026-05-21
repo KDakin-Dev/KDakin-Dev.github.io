@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.18-tutorial-layout-fix",
+        buildVersion: "0.12.19-fixed-tutorial-panels",
 
         game: {
             playAreaLeft: 18,
@@ -2410,13 +2410,14 @@
         var root = document.createElement("button");
         root.id = "tutorial-close-button";
         root.type = "button";
-        root.textContent = "HINTS X";
+        root.textContent = "Hide hints";
         root.style.position = "fixed";
         root.style.right = "18px";
         root.style.top = "72px";
         root.style.zIndex = "1000";
         root.style.minHeight = "32px";
-        root.style.padding = "0 11px";
+        root.style.minWidth = "96px";
+        root.style.padding = "0 12px";
         root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
         root.style.borderRadius = "12px";
         root.style.background = "rgba(5, 10, 16, 0.78)";
@@ -4046,6 +4047,21 @@
         ctx.restore();
     }
 
+    function getFixedTutorialPanel(w, h, slot) {
+        var bounds = getGameBounds();
+        var x = bounds.left + 32;
+        var y = bounds.top + 34;
+
+        if (slot === "absorb") {
+            y = bounds.top + 146;
+        }
+
+        return {
+            x: clampTutorialPanelX(x, w),
+            y: clampTutorialPanelY(y, h)
+        };
+    }
+
     function drawFusionControlTutorial(time) {
         if (state.tutorial.pushDone || state.tutorial.allClosed) return;
         if (!isTutorialIntroReady()) return;
@@ -4058,7 +4074,7 @@
 
         var w = Math.min(292, Math.max(245, state.width * 0.22));
         var h = 92;
-        var panel = getTutorialPanelNearTarget(target, w, h);
+        var panel = getFixedTutorialPanel(w, h, "push");
         var x = panel.x;
         var y = panel.y;
         var boxH = drawTutorialBox(x, y, w, "PUSH", [
@@ -4084,7 +4100,7 @@
 
         var w = Math.min(318, Math.max(260, state.width * 0.24));
         var h = state.massGateActive ? 110 : 94;
-        var panel = getTutorialPanelNearTarget(target, w, h);
+        var panel = getFixedTutorialPanel(w, h, "absorb");
         var x = panel.x;
         var y = panel.y;
         var lines = state.massGateActive
