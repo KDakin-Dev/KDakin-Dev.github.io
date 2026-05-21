@@ -112,7 +112,6 @@ body.game-mode .site-page {
 }
 
 .site-block-hero {
-    min-height: calc(100vh - 96px);
     display: flex;
     align-items: stretch;
     background:
@@ -136,12 +135,20 @@ body.game-mode .site-page {
     display: grid;
     grid-template-columns: minmax(0, 0.94fr) minmax(380px, 480px);
     gap: 76px;
-    align-items: center;
-    padding: 150px 0 104px;
+    align-items: stretch;
+    padding: 108px 0 72px;
 }
 
 .site-hero-copy {
-    max-width: 780px;
+    max-width: none;
+    min-height: 100%;
+    padding: 30px;
+    border: 1px solid var(--site-line-soft);
+    background:
+        linear-gradient(180deg, rgba(9, 12, 15, 0.66), rgba(0, 0, 0, 0.28));
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .site-section-label {
@@ -171,14 +178,19 @@ body.game-mode .site-page {
 }
 
 .site-lead {
-    max-width: 760px;
+    max-width: 820px;
     margin: 0;
-    font-size: clamp(22px, 2.15vw, 30px);
+    color: #bfccda;
+    font-size: clamp(21px, 1.85vw, 28px);
+    line-height: 1.45;
 }
 
 .site-lead-secondary {
-    margin-top: 24px;
-    font-size: clamp(16px, 1.35vw, 19px);
+    max-width: 760px;
+    margin-top: 26px;
+    color: var(--site-muted);
+    font-size: clamp(16px, 1.22vw, 18px);
+    line-height: 1.64;
 }
 
 .site-button {
@@ -587,6 +599,18 @@ html.site-reveal-ready [data-reveal].is-visible {
     transform: translateY(0);
 }
 
+
+@media (min-width: 1101px) {
+    .site-hero-copy,
+    .site-game-panel {
+        align-self: stretch;
+    }
+
+    .site-game-panel {
+        min-height: 0;
+    }
+}
+
 @media (max-width: 1100px) {
     .site-inner {
         width: min(100% - 44px, 860px);
@@ -609,6 +633,10 @@ html.site-reveal-ready [data-reveal].is-visible {
 
     .site-hero-layout {
         gap: 36px;
+    }
+
+    .site-hero-copy {
+        min-height: 0;
     }
 
     .site-project-item {
@@ -639,6 +667,10 @@ html.site-reveal-ready [data-reveal].is-visible {
     .site-block-skills .site-inner,
     .site-block-contact .site-inner {
         padding: 54px 0;
+    }
+
+    .site-hero-copy {
+        padding: 18px;
     }
 
     .site-game-panel {
