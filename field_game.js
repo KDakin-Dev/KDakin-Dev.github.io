@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.19-fixed-tutorial-panels",
+        buildVersion: "0.12.20-iron-core-cooling-shorter",
 
         game: {
             playAreaLeft: 18,
@@ -86,8 +86,8 @@
                 { afterRecipeCount: 16, mass: 1202 }
             ],
 
-            collapseCriticalMass: 320,
-            collapseBlackHoleMass: 380,
+            collapseCriticalMass: 256,
+            collapseBlackHoleMass: 304,
             collapseNeutronStabilityMin: 50,
             supernovaBlastDuration: 4.4,
             supernovaDuration: 12.0,
@@ -1791,7 +1791,8 @@
     function getIronCoreRisk01() {
         var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
         var instability01 = clamp(1 - state.stability / 100, 0, 1);
-        return clamp(instability01 * 0.68 + collapse01 * 0.32, 0, 1);
+        var heat01 = clamp(state.starProfileTemp / 100, 0, 1);
+        return clamp(instability01 * 0.45 + heat01 * 0.40 + collapse01 * 0.15, 0, 1);
     }
 
     function getIronCoreColor() {
@@ -1898,27 +1899,27 @@
         var nucleus = getNucleus(typeName);
         var mass = nucleus.mass || 1;
 
-        // Final phase is intentionally a two-bar decision:
-        // Collapse gets the star to the supernova event.
-        // Stability decides whether the remnant becomes a neutron star or a black hole.
-        if (typeName === "H") return { core: 0.12, collapse: 0.10, stability: 2.8, role: "stability" };
-        if (typeName === "D") return { core: 0.22, collapse: 0.18, stability: 3.5, role: "stability" };
-        if (typeName === "He3") return { core: 0.34, collapse: 0.30, stability: 3.2, role: "stability" };
-        if (typeName === "He4") return { core: 0.54, collapse: 0.55, stability: 2.8, role: "stability" };
+        // Final phase has three separate levers:
+        // Collapse fills the supernova trigger, stability controls failure risk,
+        // and light nuclei can still cool the visible remnant color.
+        if (typeName === "H") return { core: 0.12, collapse: 0.10, stability: 2.8, temp: -2.2, role: "stability" };
+        if (typeName === "D") return { core: 0.22, collapse: 0.18, stability: 3.5, temp: -3.0, role: "stability" };
+        if (typeName === "He3") return { core: 0.34, collapse: 0.30, stability: 3.2, temp: -2.5, role: "stability" };
+        if (typeName === "He4") return { core: 0.54, collapse: 0.55, stability: 2.8, temp: -1.8, role: "stability" };
 
         if (mass < 28) {
-            return { core: 1.05, collapse: 2.4, stability: 0.8, role: "balanced" };
+            return { core: 1.05, collapse: 2.4, stability: 0.8, temp: -0.2, role: "balanced" };
         }
 
         if (mass < 44) {
-            return { core: 1.85, collapse: 5.6, stability: -2.4, role: "collapse" };
+            return { core: 1.85, collapse: 5.6, stability: -2.4, temp: 0.0, role: "collapse" };
         }
 
         if (mass < 52) {
-            return { core: 2.7, collapse: 7.4, stability: -4.4, role: "collapse" };
+            return { core: 2.7, collapse: 7.4, stability: -4.4, temp: 0.0, role: "collapse" };
         }
 
-        return { core: 3.8, collapse: 8.9, stability: -6.4, role: "collapse" };
+        return { core: 3.8, collapse: 8.9, stability: -6.4, temp: 0.0, role: "collapse" };
     }
 
     function absorbCollapseNode(node) {
@@ -1928,9 +1929,10 @@
         state.coreMass += effect.core;
         state.collapseMass += effect.collapse;
         state.stability = clamp(state.stability + effect.stability, 0, 100);
+        state.starProfileTemp = clamp(state.starProfileTemp + (effect.temp || 0), 0, 100);
 
         if (effect.role === "stability") {
-            state.lastReaction = nucleus.name + " stabilized the core";
+            state.lastReaction = nucleus.name + " cooled and stabilized the core";
         } else if (effect.role === "balanced") {
             state.lastReaction = nucleus.name + " balanced the collapse";
         } else {
