@@ -95,11 +95,11 @@
 
                     <button id="enter-game" class="site-button site-play-button" type="button">Play</button>
 
-                    <div class="site-star-stats" aria-label="Future game statistics">
-                        <div><span>Created</span><strong>000</strong></div>
-                        <div><span>Stable</span><strong>000</strong></div>
-                        <div><span>Magnetars</span><strong>000</strong></div>
-                        <div><span>Black holes</span><strong>000</strong></div>
+                    <div class="site-star-stats" aria-label="Shared player statistics">
+                        <div><span>Created</span><strong data-star-stat="created">000</strong></div>
+                        <div><span>Stable</span><strong data-star-stat="stable">000</strong></div>
+                        <div><span>Magnetars</span><strong data-star-stat="magnetars">000</strong></div>
+                        <div><span>Black holes</span><strong data-star-stat="blackHoles">000</strong></div>
                     </div>
                 </aside>
             </div>
@@ -222,6 +222,7 @@
         </footer>
     </main>
 
-    <script src="./field_game.js?v=8" defer></script>
+    <script type="module" src="./firebase_stats.js?v=1"></script>
+    <script src="./field_game.js?v=9" defer></script>
 </body>
 </html>
