@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.14-player-tutorial-hints",
+        buildVersion: "0.12.15-once-tutorial-dismiss",
 
         game: {
             playAreaLeft: 18,
@@ -273,6 +273,17 @@
         versionRoot: null,
         unlockRoot: null,
         finalRoot: null,
+        tutorialRoot: null,
+        tutorial: {
+            pushDone: false,
+            absorbDone: false,
+            massGateDone: false,
+            massGateSeen: false,
+            starPathClosed: false,
+            allClosed: false,
+            pushTargetId: null,
+            closeRects: []
+        },
         unlockTimer: 0,
         unlockName: ""
     };
@@ -732,9 +743,18 @@
         state.absorbUiTimer = 0;
         state.levelFlash = 0;
         state.lastReaction = "Feed H into the core";
+        state.tutorial.pushDone = false;
+        state.tutorial.absorbDone = false;
+        state.tutorial.massGateDone = false;
+        state.tutorial.massGateSeen = false;
+        state.tutorial.starPathClosed = false;
+        state.tutorial.allClosed = false;
+        state.tutorial.pushTargetId = null;
+        state.tutorial.closeRects = [];
         state.unlockTimer = 0;
         state.unlockName = "";
         hideFinalUi();
+        updateTutorialUiVisibility();
 
         state.nodes.push(createGameNode(0, "CORE", cx, cy, true));
 
@@ -1206,6 +1226,7 @@
         ensureRecipeUi();
         ensureVersionUi();
         ensureUnlockUi();
+        ensureTutorialUi();
         configureLegacyGameHud(true);
         hideAbsorbUi();
 
@@ -1227,6 +1248,7 @@
         hideVersionUi();
         hideUnlockUi();
         hideFinalUi();
+        hideTutorialUi();
         configureLegacyGameHud(false);
         updateGameStats();
 
@@ -1836,6 +1858,7 @@
         }
 
         applyStarProfileAbsorb(node);
+        state.tutorial.absorbDone = true;
         removeNode(node);
         addPulse(node.x, node.y, 120 + Math.min(240, (node.mass || 1) * 4.0));
         updateAbsorbButtons(true);
@@ -2287,6 +2310,87 @@
             exit.style.padding = enabled ? "0 14px" : "";
             exit.style.pointerEvents = "auto";
         }
+    }
+
+    function tutorialHasVisibleContent() {
+        if (!state.gameMode) return false;
+        if (state.tutorial.allClosed) return false;
+        if (!state.tutorial.starPathClosed) return true;
+        if (!state.tutorial.pushDone && isFusionPhase() && !state.massGateActive && !isIronCorePreparation()) return true;
+        if (!state.tutorial.absorbDone && isFusionPhase() && !state.massGateActive && Object.keys(state.discoveredProducts).length > 0) return true;
+        if (!state.tutorial.massGateDone && isFusionPhase() && state.massGateActive) return true;
+        return false;
+    }
+
+    function updateTutorialUiVisibility() {
+        if (!state.tutorialRoot) return;
+        state.tutorialRoot.style.display = tutorialHasVisibleContent() ? "block" : "none";
+    }
+
+    function closeAllTutorialHints() {
+        state.tutorial.pushDone = true;
+        state.tutorial.absorbDone = true;
+        state.tutorial.massGateDone = true;
+        state.tutorial.massGateSeen = true;
+        state.tutorial.starPathClosed = true;
+        state.tutorial.allClosed = true;
+        state.tutorial.closeRects = [];
+        updateTutorialUiVisibility();
+    }
+
+    function closeTutorialHint(key) {
+        if (key === "push") {
+            state.tutorial.pushDone = true;
+            state.tutorial.pushTargetId = null;
+        } else if (key === "absorb") {
+            state.tutorial.absorbDone = true;
+        } else if (key === "massGate") {
+            state.tutorial.massGateDone = true;
+            state.tutorial.massGateSeen = true;
+        } else if (key === "starPath") {
+            state.tutorial.starPathClosed = true;
+        } else if (key === "all") {
+            closeAllTutorialHints();
+            return;
+        }
+        updateTutorialUiVisibility();
+    }
+
+    function ensureTutorialUi() {
+        if (state.tutorialRoot) {
+            updateTutorialUiVisibility();
+            return;
+        }
+
+        var root = document.createElement("button");
+        root.id = "tutorial-close-button";
+        root.type = "button";
+        root.textContent = "HINTS X";
+        root.style.position = "fixed";
+        root.style.right = "18px";
+        root.style.top = "72px";
+        root.style.zIndex = "1000";
+        root.style.minHeight = "32px";
+        root.style.padding = "0 11px";
+        root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
+        root.style.borderRadius = "12px";
+        root.style.background = "rgba(5, 10, 16, 0.78)";
+        root.style.color = "rgba(255, 244, 228, 0.94)";
+        root.style.font = "900 10px SFMono-Regular, Consolas, monospace";
+        root.style.letterSpacing = "0.10em";
+        root.style.cursor = "pointer";
+        root.style.boxShadow = "0 10px 30px rgba(0,0,0,0.30)";
+        root.style.display = "none";
+        root.addEventListener("click", function () {
+            closeAllTutorialHints();
+        });
+        document.body.appendChild(root);
+        state.tutorialRoot = root;
+        updateTutorialUiVisibility();
+    }
+
+    function hideTutorialUi() {
+        if (state.tutorialRoot) state.tutorialRoot.style.display = "none";
     }
 
     function ensureVersionUi() {
@@ -3551,7 +3655,64 @@
         return lines;
     }
 
-    function drawTutorialBox(x, y, w, title, bodyLines, color, alpha) {
+    function resetTutorialHitRects() {
+        state.tutorial.closeRects = [];
+    }
+
+    function addTutorialHitRect(x, y, w, h, action, key) {
+        state.tutorial.closeRects.push({
+            x: x,
+            y: y,
+            w: w,
+            h: h,
+            action: action,
+            key: key
+        });
+    }
+
+    function isInsideRect(x, y, rect) {
+        return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+    }
+
+    function handleTutorialPointerDown(x, y) {
+        if (!state.gameMode || state.tutorial.allClosed) return false;
+
+        for (var i = state.tutorial.closeRects.length - 1; i >= 0; i -= 1) {
+            var rect = state.tutorial.closeRects[i];
+            if (!isInsideRect(x, y, rect)) continue;
+            if (rect.action === "close") {
+                closeTutorialHint(rect.key);
+                return true;
+            }
+            if (rect.action === "ok") {
+                closeTutorialHint(rect.key);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function drawTutorialCloseButton(x, y, color, closeKey) {
+        var size = 22;
+        var bx = x;
+        var by = y;
+        drawRoundRectPath(bx, by, size, size, 8);
+        ctx.fillStyle = "rgba(5, 10, 16, 0.72)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(" + color + ", 0.44)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = "rgba(" + color + ", 0.94)";
+        ctx.font = "900 13px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("X", bx + size * 0.5, by + size * 0.52);
+        ctx.textBaseline = "alphabetic";
+        addTutorialHitRect(bx - 5, by - 5, size + 10, size + 10, "close", closeKey);
+    }
+
+    function drawTutorialBox(x, y, w, title, bodyLines, color, alpha, closeKey) {
         var boxAlpha = alpha == null ? 1 : alpha;
         var lines = [];
         ctx.save();
@@ -3576,6 +3737,10 @@
         ctx.font = "900 11px SFMono-Regular, Consolas, monospace";
         ctx.textAlign = "left";
         ctx.fillText(title, x + 15, y + 22);
+
+        if (closeKey) {
+            drawTutorialCloseButton(x + w - 32, y + 10, color, closeKey);
+        }
 
         ctx.fillStyle = "rgba(215, 227, 244, " + (0.88 * boxAlpha).toFixed(4) + ")";
         ctx.font = "800 12px SFMono-Regular, Consolas, monospace";
@@ -3627,6 +3792,14 @@
         ctx.restore();
     }
 
+    function findNodeById(id) {
+        if (id == null) return null;
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            if (state.nodes[i] && state.nodes[i].id === id) return state.nodes[i];
+        }
+        return null;
+    }
+
     function findTutorialParticleTarget(preferAbsorbable) {
         var core = getCore();
         var best = null;
@@ -3660,29 +3833,116 @@
         return best;
     }
 
-    function drawStarPathTutorialPanel(time) {
-        var w = Math.min(340, Math.max(260, state.width * 0.25));
-        var x = Math.max(20, state.width - w - 24);
-        var y = Math.max(getGameBounds().top + 184, state.height - 238);
-        var alpha = isCollapsePhase() ? 0.72 : 0.92;
-        var predicted = isCollapsePhase() || isIronCorePreparation() ? getPredictedEndingType() : "NEUTRON / MAGNETAR / BLACK HOLE";
+    function getPushTutorialTarget() {
+        var target = findNodeById(state.tutorial.pushTargetId);
+        if (target && !target.core) return target;
 
-        drawTutorialBox(x, y, w, "STAR PATH", [
-            "D-He4: cool TEMP and raise STAB.",
-            "Be8-Ne20: near-neutral TEMP control.",
-            "Mg24-Fe56: add MASS and heat.",
-            "Endings depend on MASS / TEMP / STAB.",
-            "Current target: " + predicted + "."
-        ], "255,209,102", alpha);
+        target = findTutorialParticleTarget(false);
+        state.tutorial.pushTargetId = target ? target.id : null;
+        return target;
+    }
+
+    function updateTutorialProgress() {
+        if (!state.gameMode || state.tutorial.allClosed) return;
+
+        var pushTarget = findNodeById(state.tutorial.pushTargetId);
+        if (!state.tutorial.pushDone && pushTarget && isInsideFusionZone(pushTarget)) {
+            state.tutorial.pushDone = true;
+            state.tutorial.pushTargetId = null;
+        }
+
+        if (state.tutorial.massGateSeen && !state.massGateActive) {
+            state.tutorial.massGateDone = true;
+        }
+    }
+
+    function drawTutorialLegendRow(x, y, w, label, caption, color, fill01) {
+        var fillW = clamp(fill01, 0, 1) * (w - 122);
+        ctx.fillStyle = "rgba(215, 227, 244, 0.90)";
+        ctx.font = "900 10px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(label, x, y + 10);
+
+        drawRoundRectPath(x + 78, y, w - 122, 11, 999);
+        ctx.fillStyle = "rgba(5, 10, 16, 0.70)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(" + color + ", 0.26)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        drawRoundRectPath(x + 78, y, fillW, 11, 999);
+        ctx.fillStyle = "rgba(" + color + ", 0.78)";
+        ctx.fill();
+
+        ctx.fillStyle = "rgba(139, 155, 176, 0.94)";
+        ctx.font = "900 9px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "right";
+        ctx.fillText(caption, x + w, y + 10);
+    }
+
+    function drawStarPathTutorialPanel(time) {
+        if (state.tutorial.starPathClosed || state.tutorial.allClosed) return;
+
+        var w = Math.min(390, Math.max(310, state.width * 0.30));
+        var h = 190;
+        var x = Math.max(18, state.width - w - 24);
+        var y = Math.max(getGameBounds().top + 118, Math.min(state.height - h - 24, getGameBounds().top + 186));
+        var color = "255,209,102";
+
+        ctx.save();
+        drawRoundRectPath(x, y, w, h, 18);
+        ctx.fillStyle = "rgba(5, 10, 16, 0.84)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(" + color + ", 0.42)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(" + color + ", 0.98)";
+        ctx.font = "900 12px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("STAR PATH", x + 16, y + 24);
+        drawTutorialCloseButton(x + w - 34, y + 10, color, "starPath");
+
+        ctx.fillStyle = "rgba(215, 227, 244, 0.84)";
+        ctx.font = "800 11px SFMono-Regular, Consolas, monospace";
+        ctx.fillText("Absorbs steer MASS / TEMP / STAB.", x + 16, y + 48);
+
+        drawTutorialLegendRow(x + 16, y + 69, w - 32, "D-He4", "COOL", "80,245,255", 0.35);
+        drawTutorialLegendRow(x + 16, y + 93, w - 32, "Be8-Ne20", "BALANCE", "255,230,85", 0.58);
+        drawTutorialLegendRow(x + 16, y + 117, w - 32, "Mg24-Fe56", "MASS", "255,107,139", 0.82);
+
+        ctx.fillStyle = "rgba(139, 155, 176, 0.94)";
+        ctx.font = "900 9px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText("ENDINGS: NEUTRON / MAGNETAR / BLACK HOLE", x + 16, y + 146);
+
+        var bw = 72;
+        var bh = 28;
+        var bx = x + w - bw - 16;
+        var by = y + h - bh - 14;
+        drawRoundRectPath(bx, by, bw, bh, 12);
+        ctx.fillStyle = "rgba(" + color + ", 0.17)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(" + color + ", 0.45)";
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255, 244, 228, 0.96)";
+        ctx.font = "900 11px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("OK", bx + bw * 0.5, by + bh * 0.53);
+        ctx.textBaseline = "alphabetic";
+        addTutorialHitRect(bx - 4, by - 4, bw + 8, bh + 8, "ok", "starPath");
+        ctx.restore();
     }
 
     function drawFusionControlTutorial(time) {
+        if (state.tutorial.pushDone || state.tutorial.allClosed) return;
         if (!isFusionPhase()) return;
         if (state.massGateActive || isIronCorePreparation()) return;
 
         var known = getKnownRecipeList();
         var early = known.length < 3;
-        var target = findTutorialParticleTarget(false);
+        var target = getPushTutorialTarget();
         var core = getCore();
         var bounds = getGameBounds();
         var leftX = bounds.left + 24;
@@ -3691,65 +3951,59 @@
 
         if (early && target) {
             var h1 = drawTutorialBox(leftX, topY, w, "PUSH", [
-                "Your cursor pushes nuclei toward the star core.",
-                "Move behind a particle and push it into the dashed zone."
-            ], "143,214,255", 0.92);
+                "Cursor pushes nuclei toward the star.",
+                "Push this marked particle into the core zone."
+            ], "143,214,255", 0.92, "push");
             drawTutorialArrow(leftX + w - 26, topY + h1 * 0.55, target.x, target.y, "143,214,255", time);
             drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 9, "143,214,255", time);
         }
 
         if (core && early) {
-            var rightW = Math.min(310, Math.max(250, state.width * 0.24));
+            var rightW = Math.min(270, Math.max(225, state.width * 0.21));
             var rightX = Math.max(bounds.left + 24, state.width - rightW - 24);
             var rightY = bounds.top + 30;
             var h2 = drawTutorialBox(rightX, rightY, rightW, "CORE ZONE", [
-                "Hold compatible particles inside this dashed star zone.",
-                "Fusion happens when the current recipe pair stays close."
-            ], "96,255,173", 0.92);
+                "Bring the marked particle here."
+            ], "96,255,173", 0.86, "push");
             drawTutorialArrow(rightX + 22, rightY + h2 * 0.62, core.x + fusionRadius() * 0.62, core.y - fusionRadius() * 0.20, "96,255,173", time);
             drawTutorialRing(core.x, core.y, fusionRadius(), "96,255,173", time);
         }
     }
 
     function drawAbsorbTutorial(time) {
+        if (state.tutorial.absorbDone || state.tutorial.allClosed) return;
         if (!isFusionPhase()) return;
         if (Object.keys(state.discoveredProducts).length <= 0) return;
         if (state.massGateActive) return;
 
         var target = findTutorialParticleTarget(true);
+        if (!target || !isNodeAbsorbable(target)) return;
+
         var bounds = getGameBounds();
-        var w = Math.min(310, Math.max(250, state.width * 0.25));
+        var w = Math.min(305, Math.max(245, state.width * 0.24));
         var x = bounds.left + 24;
-        var y = Math.max(bounds.top + 160, state.height - 250);
-        var alpha = target && isNodeAbsorbable(target) ? 0.92 : 0.78;
-        var lines = [
-            "Opened nuclei inside the core zone can be absorbed.",
-            "Absorb changes MASS, TEMP, STAB and the final remnant."
-        ];
-
-        if (state.starProfileTemp > 58) {
-            lines.push("Use D-He4 absorbs to cool an overheated star.");
-        }
-
-        var h = drawTutorialBox(x, y, w, "ABSORB", lines, "255,209,102", alpha);
-        if (target && isNodeAbsorbable(target)) {
-            drawTutorialArrow(x + w - 20, y + h * 0.48, target.x, target.y, "255,209,102", time);
-            drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 13, "255,209,102", time);
-        }
+        var y = Math.max(bounds.top + 160, state.height - 215);
+        var h = drawTutorialBox(x, y, w, "ABSORB", [
+            "While opened nuclei are in the core zone, click them to absorb."
+        ], "255,209,102", 0.92, "absorb");
+        drawTutorialArrow(x + w - 20, y + h * 0.48, target.x, target.y, "255,209,102", time);
+        drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 13, "255,209,102", time);
     }
 
     function drawMassGateTutorial(time) {
+        if (state.tutorial.massGateDone || state.tutorial.allClosed) return;
         if (!isFusionPhase() || !state.massGateActive) return;
+        state.tutorial.massGateSeen = true;
+
         var bounds = getGameBounds();
-        var w = Math.min(340, Math.max(260, state.width * 0.28));
+        var w = Math.min(330, Math.max(255, state.width * 0.26));
         var x = bounds.left + 24;
         var y = bounds.top + 32;
         var target = findTutorialParticleTarget(true);
         var h = drawTutorialBox(x, y, w, "MASS GATE", [
-            "Synthesis is paused until the MASS bar reaches target.",
-            "Create opened nuclei, then absorb them inside the core zone.",
-            "Mass gain is boosted during this gate."
-        ], "255,209,102", 0.94);
+            "Synthesis is paused.",
+            "Absorb opened nuclei to fill MASS."
+        ], "255,209,102", 0.94, "massGate");
 
         if (target) {
             drawTutorialArrow(x + w - 20, y + h * 0.52, target.x, target.y, "255,209,102", time);
@@ -3761,12 +4015,19 @@
         if (!state.gameMode) return;
         if (isSupernovaPhase() || isEndingPhase()) return;
 
+        updateTutorialProgress();
+        resetTutorialHitRects();
+        updateTutorialUiVisibility();
+
+        if (state.tutorial.allClosed) return;
+
         ctx.save();
         drawFusionControlTutorial(time);
         drawAbsorbTutorial(time);
         drawMassGateTutorial(time);
         drawStarPathTutorialPanel(time);
         ctx.restore();
+        updateTutorialUiVisibility();
     }
 
     function drawSupernovaOverlay(time) {
@@ -4039,6 +4300,11 @@
 
     window.addEventListener("pointerdown", function (event) {
         setPointer(event.clientX, event.clientY, true);
+
+        if (state.gameMode && handleTutorialPointerDown(event.clientX, event.clientY)) {
+            state.pointer.down = false;
+            return;
+        }
 
         if (state.gameMode && isCollapsePhase()) {
             state.pointer.down = false;
