@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.08-player-count-mass-gates",
+        buildVersion: "0.12.14-player-tutorial-hints",
 
         game: {
             playAreaLeft: 18,
@@ -76,20 +76,21 @@
             absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0,
             starReadinessTarget: 400,
-            ironCoreMassThreshold: 1442,
+            ironCoreMassThreshold: 1202,
             massGateGlobalMassMultiplier: 1.5,
             massGateTargets: [
-                { afterRecipeCount: 3, mass: 24.5 },
-                { afterRecipeCount: 5, mass: 78.5 },
-                { afterRecipeCount: 9, mass: 282.5 },
-                { afterRecipeCount: 13, mass: 714.5 },
-                { afterRecipeCount: 15, mass: 1442 }
+                { afterRecipeCount: 3, mass: 17 },
+                { afterRecipeCount: 5, mass: 53 },
+                { afterRecipeCount: 9, mass: 206 },
+                { afterRecipeCount: 13, mass: 530 },
+                { afterRecipeCount: 16, mass: 1202 }
             ],
 
             collapseCriticalMass: 320,
             collapseBlackHoleMass: 380,
             collapseNeutronStabilityMin: 50,
-            supernovaDuration: 4.4,
+            supernovaBlastDuration: 4.4,
+            supernovaDuration: 30.0,
             finalSpawnInterval: 2.55,
 
             ironCoreInfallForce: 82,
@@ -109,10 +110,15 @@
             ironCoreCursorCarryForce: 38,
             ironCoreCursorCarryDamping: 0.994,
             ironCoreCursorCarryPower: 1.25,
+            ironCoreCursorHeavyMass: 20,
+            ironCoreCursorHeavyResistanceScale: 0.5,
+            ironCoreCursorHeavyShieldInfallScale: 0.06,
             ironCoreAutoAbsorbPadding: 6,
             ironCoreMaxAutoAbsorbsPerFrame: 1,
             ironCoreAbsorbRadiusScale: 0.92,
-            ironCoreEscapeMargin: 95,
+            ironCoreEscapeMargin: 0,
+            ironCoreTopSpawnChance: 0.0,
+            ironCoreBottomSpawnChance: 0.05,
             ironCoreActiveLimit: 10,
             ironCoreActiveMin: 4
         },
@@ -148,21 +154,21 @@
         growthStages: [
             { level: 1, mass: 0, title: "Proton seed", hint: "Need: H + H -> D" },
             { level: 2, mass: 8, title: "Deuterium burn", hint: "Need: D + H -> He3" },
-            { level: 3, mass: 18, title: "Helium-3 branch", hint: "Need: He3 + He3 -> He4" },
-            { level: 4, mass: 24.5, title: "Alpha seed", hint: "Need: He4 + He4 -> Be8" },
-            { level: 5, mass: 52, title: "Beryllium bridge", hint: "Need: Be8 + He4 -> C12" },
-            { level: 6, mass: 78.5, title: "Triple-alpha", hint: "Need: C12 + He4 -> O16" },
-            { level: 7, mass: 130, title: "Carbon capture", hint: "Need: O16 + He4 -> Ne20" },
-            { level: 8, mass: 190, title: "Oxygen capture", hint: "Need: Ne20 + He4 -> Mg24" },
-            { level: 9, mass: 282.5, title: "Neon capture", hint: "Need: Mg24 + He4 -> Si28" },
-            { level: 10, mass: 390, title: "Magnesium capture", hint: "Need: Si28 + He4 -> S32" },
-            { level: 11, mass: 520, title: "Silicon alpha chain", hint: "Need: S32 + He4 -> Ar36" },
-            { level: 12, mass: 615, title: "Sulfur capture", hint: "Need: Ar36 + He4 -> Ca40" },
-            { level: 13, mass: 714.5, title: "Argon capture", hint: "Need: Ca40 + He4 -> Ti44" },
-            { level: 14, mass: 930, title: "Calcium capture", hint: "Need: Ti44 + He4 -> Cr48" },
-            { level: 15, mass: 1160, title: "Titanium capture", hint: "Need: Cr48 + He4 -> Fe52" },
-            { level: 16, mass: 1442, title: "Iron assembly", hint: "Need: Fe52 + He4 -> Fe56" },
-            { level: 17, mass: 1442, title: "Iron core", hint: "Need: stabilize Fe56 and build readiness" }
+            { level: 3, mass: 14, title: "Helium-3 branch", hint: "Need: He3 + He3 -> He4" },
+            { level: 4, mass: 17, title: "Alpha seed", hint: "Need: He4 + He4 -> Be8" },
+            { level: 5, mass: 35, title: "Beryllium bridge", hint: "Need: Be8 + He4 -> C12" },
+            { level: 6, mass: 53, title: "Triple-alpha", hint: "Need: C12 + He4 -> O16" },
+            { level: 7, mass: 90, title: "Carbon capture", hint: "Need: O16 + He4 -> Ne20" },
+            { level: 8, mass: 135, title: "Oxygen capture", hint: "Need: Ne20 + He4 -> Mg24" },
+            { level: 9, mass: 206, title: "Neon capture", hint: "Need: Mg24 + He4 -> Si28" },
+            { level: 10, mass: 275, title: "Magnesium capture", hint: "Need: Si28 + He4 -> S32" },
+            { level: 11, mass: 360, title: "Silicon alpha chain", hint: "Need: S32 + He4 -> Ar36" },
+            { level: 12, mass: 450, title: "Sulfur capture", hint: "Need: Ar36 + He4 -> Ca40" },
+            { level: 13, mass: 530, title: "Argon capture", hint: "Need: Ca40 + He4 -> Ti44" },
+            { level: 14, mass: 710, title: "Calcium capture", hint: "Need: Ti44 + He4 -> Cr48" },
+            { level: 15, mass: 920, title: "Titanium capture", hint: "Need: Cr48 + He4 -> Fe52" },
+            { level: 16, mass: 1080, title: "Iron assembly", hint: "Need: Fe52 + He4 -> Fe56" },
+            { level: 17, mass: 1202, title: "Iron core", hint: "Need: stabilize Fe56 and build readiness" }
         ],
 
         reactions: [
@@ -476,7 +482,7 @@
                 radius = Math.max(radius, state.ironCoreEntryCoreRadius * (1.55 + collapse01 * 0.28));
             }
         } else if (isSupernovaPhase()) {
-            var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+            var t = getSupernovaProgress01();
             if (state.endingType === "BLACK HOLE") {
                 radius = Math.max(26, radius * (1.12 - t * 0.78));
             } else {
@@ -831,6 +837,20 @@
         list.push({ type: typeName, weight: weight });
     }
 
+    function isPreparedFusionSpawnAllowed(typeName, currentIndex) {
+        if (!isFusionPhase()) return true;
+        if (typeName === "H" || typeName === "D" || typeName === "He3" || typeName === "He4") return true;
+
+        var nucleus = getNucleus(typeName);
+        if ((nucleus.mass || 0) > 20) return false;
+
+        if (typeName === "Ne20") {
+            return typeof currentIndex === "number" && currentIndex >= 10;
+        }
+
+        return true;
+    }
+
     function getReactionProductIndex(typeName) {
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
             if (CONFIG.reactions[i].product === typeName) {
@@ -864,6 +884,7 @@
             if (!typeName) continue;
             if (typeName === "D" || typeName === "He3" || typeName === "He4") continue;
             if (!hasAbsorbed(typeName)) continue;
+            if (!isPreparedFusionSpawnAllowed(typeName, currentIndex)) continue;
 
             var age = currentIndex - i;
             var weight = age >= 5 ? 2.4 : 1.4;
@@ -874,8 +895,9 @@
     function pushRareRecoverySeed(list, recipe, currentIndex) {
         if (!recipe || !recipe.a || recipe.a === "He4") return;
         if (!hasAbsorbed(recipe.a)) return;
+        if (!isPreparedFusionSpawnAllowed(recipe.a, currentIndex)) return;
 
-        // Current heavy ingredient is a rare anti-softlock seed, not normal fuel.
+        // Current ingredient is a rare anti-softlock seed, not normal fuel.
         // It becomes slightly more likely only if none of that type is on field.
         var count = countNodesByType(recipe.a);
         var weight = count <= 0 ? 2.8 : 0.7;
@@ -994,56 +1016,31 @@
         return pickWeightedSpawn(list);
     }
 
-    function spawnNucleus(nucleusName, origin) {
-        var bounds = getGameBounds();
-        var core = getCore();
-        var cx = core ? core.x : (bounds.left + bounds.right) * 0.5;
-        var cy = core ? core.y : (bounds.top + bounds.bottom) * 0.5;
-        var x;
-        var y;
-        var angle;
-        var radius;
+    function pickOuterSpawnPoint(bounds, cx, cy, pad, minDistance) {
+        var fallback = null;
+        var bestD2 = -1;
 
-        if (origin) {
-            angle = rand(0, Math.PI * 2);
-            x = origin.x + Math.cos(angle) * rand(18, 48);
-            y = origin.y + Math.sin(angle) * rand(18, 48);
-        } else if (isCollapsePhase()) {
-            var edgePad = 28;
-            var edgeSide = Math.floor(rand(0, 4));
-            if (edgeSide === 0) {
-                x = bounds.left + edgePad;
-                y = rand(bounds.top + edgePad, bounds.bottom - edgePad);
-            } else if (edgeSide === 1) {
-                x = bounds.right - edgePad;
-                y = rand(bounds.top + edgePad, bounds.bottom - edgePad);
-            } else if (edgeSide === 2) {
-                x = rand(bounds.left + edgePad, bounds.right - edgePad);
-                y = bounds.top + edgePad;
-            } else {
-                x = rand(bounds.left + edgePad, bounds.right - edgePad);
-                y = bounds.bottom - edgePad;
-            }
-        } else if (state.gameMode && getNucleus(nucleusName).mass >= 20) {
-            angle = rand(0, Math.PI * 2);
-            var heavyMass = getNucleus(nucleusName).mass;
-            var heavy01 = clamp((heavyMass - 20) / 36, 0, 1);
-            radius = fusionRadius() * rand(0.58, 0.98 - heavy01 * 0.20);
+        for (var i = 0; i < 18; i += 1) {
+            var side;
+            var x;
+            var y;
+
             if (isCollapsePhase()) {
-                radius = fusionRadius() * rand(0.44, 0.84 - heavy01 * 0.16);
+                var roll = Math.random();
+                var bottomChance = CONFIG.game.ironCoreBottomSpawnChance;
+                var topChance = CONFIG.game.ironCoreTopSpawnChance;
+
+                if (roll < topChance) {
+                    side = 2;
+                } else if (roll < topChance + bottomChance) {
+                    side = 3;
+                } else {
+                    side = Math.random() < 0.5 ? 0 : 1;
+                }
+            } else {
+                side = Math.floor(rand(0, 4));
             }
-            x = cx + Math.cos(angle) * radius;
-            y = cy + Math.sin(angle) * radius;
-        } else if (isCollapsePhase() && getNucleus(nucleusName).mass >= 12) {
-            angle = rand(0, Math.PI * 2);
-            var midHeavyMass = getNucleus(nucleusName).mass;
-            var midHeavy01 = clamp((midHeavyMass - 12) / 16, 0, 1);
-            radius = fusionRadius() * rand(0.56, 0.98 - midHeavy01 * 0.14);
-            x = cx + Math.cos(angle) * radius;
-            y = cy + Math.sin(angle) * radius;
-        } else {
-            var pad = 62;
-            var side = Math.floor(rand(0, 4));
+
             if (side === 0) {
                 x = bounds.left + pad;
                 y = rand(bounds.top + pad, bounds.bottom - pad);
@@ -1057,6 +1054,41 @@
                 x = rand(bounds.left + pad, bounds.right - pad);
                 y = bounds.bottom - pad;
             }
+
+            var dx = x - cx;
+            var dy = y - cy;
+            var d2 = dx * dx + dy * dy;
+            if (d2 > bestD2) {
+                bestD2 = d2;
+                fallback = { x: x, y: y };
+            }
+            if (d2 >= minDistance * minDistance) {
+                return { x: x, y: y };
+            }
+        }
+
+        return fallback || { x: bounds.left + pad, y: bounds.top + pad };
+    }
+
+    function spawnNucleus(nucleusName, origin) {
+        var bounds = getGameBounds();
+        var core = getCore();
+        var cx = core ? core.x : (bounds.left + bounds.right) * 0.5;
+        var cy = core ? core.y : (bounds.top + bounds.bottom) * 0.5;
+        var x;
+        var y;
+        var angle;
+
+        if (origin) {
+            angle = rand(0, Math.PI * 2);
+            x = origin.x + Math.cos(angle) * rand(18, 48);
+            y = origin.y + Math.sin(angle) * rand(18, 48);
+        } else {
+            var pad = isCollapsePhase() ? 28 : 72;
+            var minDistance = isCollapsePhase() ? coreRadius() + 58 : fusionRadius() + 36;
+            var point = pickOuterSpawnPoint(bounds, cx, cy, pad, minDistance);
+            x = point.x;
+            y = point.y;
         }
 
         if (isCollapsePhase()) {
@@ -1091,6 +1123,15 @@
             node.ironCoreCursorCarryTimer = 0;
             node.ironCoreCursorCarryX = 0;
             node.ironCoreCursorCarryY = 0;
+        } else {
+            var inDx = cx - node.x;
+            var inDy = cy - node.y;
+            var inD = Math.sqrt(inDx * inDx + inDy * inDy) + 0.001;
+            var inSpeed = rand(7.0, 15.0) / Math.pow(Math.max(1, node.mass), 0.10);
+            var inTangent = rand(-7.0, 7.0);
+
+            node.vx = (inDx / inD) * inSpeed + (-inDy / inD) * inTangent;
+            node.vy = (inDy / inD) * inSpeed + (inDx / inD) * inTangent;
         }
 
         state.nodes.push(node);
@@ -1578,13 +1619,13 @@
     function getFusionAbsorbProfileValue(typeName) {
         var nucleus = getNucleus(typeName);
         var profileByType = {
-            D: { stability: 2.6, temp: -0.3, readiness: 7.0, role: "stable" },
-            He3: { stability: 2.3, temp: 0.9, readiness: 8.0, role: "stable" },
-            He4: { stability: 2.0, temp: 1.6, readiness: 8.5, role: "balanced" },
-            Be8: { stability: 1.6, temp: 1.9, readiness: 10.0, role: "balanced" },
-            C12: { stability: 1.3, temp: 2.2, readiness: 12.0, role: "balanced" },
-            O16: { stability: 1.0, temp: 2.7, readiness: 16.0, role: "balanced" },
-            Ne20: { stability: 0.7, temp: 3.1, readiness: 18.0, role: "hot" },
+            D: { stability: 2.6, temp: -2.4, readiness: 7.0, role: "stable" },
+            He3: { stability: 2.3, temp: -1.8, readiness: 8.0, role: "stable" },
+            He4: { stability: 2.0, temp: -1.1, readiness: 8.5, role: "stable" },
+            Be8: { stability: 1.6, temp: -0.2, readiness: 10.0, role: "balanced" },
+            C12: { stability: 1.3, temp: 0.0, readiness: 12.0, role: "balanced" },
+            O16: { stability: 1.0, temp: 0.35, readiness: 16.0, role: "balanced" },
+            Ne20: { stability: 0.7, temp: 0.75, readiness: 18.0, role: "balanced" },
             Mg24: { stability: 0.5, temp: 3.5, readiness: 20.0, role: "hot" },
             Si28: { stability: 0.3, temp: 4.0, readiness: 22.0, role: "hot" },
             S32: { stability: 0.1, temp: 4.5, readiness: 24.0, role: "heavy" },
@@ -1681,6 +1722,25 @@
         return rgbString(mixRgb(white, red, (h - 0.72) / 0.28));
     }
 
+    function getFinalStarColor() {
+        if (state.endingType === "BLACK HOLE") {
+            return "8, 12, 20";
+        }
+        return getStarProfileCoreColor();
+    }
+
+    function getFinalRemnantUiColor() {
+        if (state.endingType === "BLACK HOLE") {
+            return "255, 160, 82";
+        }
+        return getStarProfileCoreColor();
+    }
+
+    function getSupernovaProgress01() {
+        var elapsed = CONFIG.game.supernovaDuration - state.supernovaTimer;
+        return clamp(elapsed / CONFIG.game.supernovaBlastDuration, 0, 1);
+    }
+
     function getIronCoreRisk01() {
         var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
         var instability01 = clamp(1 - state.stability / 100, 0, 1);
@@ -1707,12 +1767,18 @@
         return rgbString(mixRgb(collapseRed, darkRed, (risk - 0.90) / 0.10));
     }
 
+    function getIronCoreGlowPulse(time) {
+        var slow = 0.5 + Math.sin(time * 0.00105 + state.collapseMass * 0.035) * 0.5;
+        var deep = 0.5 + Math.sin(time * 0.00055 + state.stability * 0.021) * 0.5;
+        var blended = slow * 0.72 + deep * 0.28;
+        return blended * blended * (3 - blended * 2);
+    }
+
     function getIronCoreGlow(time) {
         var collapse01 = clamp(state.collapseMass / CONFIG.game.collapseCriticalMass, 0, 1);
         var risk = getIronCoreRisk01();
-        var pulseA = 0.5 + Math.sin(time * 0.006 + state.collapseMass * 0.055) * 0.5;
-        var pulseB = 0.5 + Math.sin(time * 0.013 + state.stability * 0.031) * 0.5;
-        return clamp(0.36 + risk * 0.30 + collapse01 * 0.16 + pulseA * 0.10 + pulseB * 0.045, 0.30, 0.92);
+        var glowPulse = getIronCoreGlowPulse(time || 0);
+        return clamp(0.36 + risk * 0.28 + collapse01 * 0.14 + glowPulse * 0.14, 0.30, 0.92);
     }
 
     function getStarProfileGlowBoost() {
@@ -2367,7 +2433,7 @@
         ensureFinalUi();
         reportStarGameComplete();
 
-        var remnantColor = state.endingType === "BLACK HOLE" ? "255, 160, 82" : (state.endingType === "MAGNETAR" ? "190, 143, 255" : "143, 214, 255");
+        var remnantColor = getFinalRemnantUiColor();
         var discovered = Object.keys(state.discoveredProducts).length;
         var thanks = state.endingType === "BLACK HOLE"
             ? "The failed blast folded inward. The remnant collapsed past the stability limit."
@@ -2563,6 +2629,25 @@
         spawnNucleus(pickSpawnType(), null);
     }
 
+    function isIronCoreCursorHeavyNode(n) {
+        return !!n && n.mass >= CONFIG.game.ironCoreCursorHeavyMass;
+    }
+
+    function getIronCoreCursorMassResistance(n, exponent) {
+        var scale = Math.pow(Math.max(1, n.mass), exponent);
+        if (isCollapsePhase() && isIronCoreCursorHeavyNode(n)) {
+            scale *= CONFIG.game.ironCoreCursorHeavyResistanceScale;
+        }
+        return Math.max(1, scale);
+    }
+
+    function getIronCoreCursorShieldInfallScale(n) {
+        if (isIronCoreCursorHeavyNode(n)) {
+            return CONFIG.game.ironCoreCursorHeavyShieldInfallScale;
+        }
+        return CONFIG.game.ironCoreCursorShieldInfallScale;
+    }
+
     function integrateGameNodes(dt) {
         var bounds = getGameBounds();
 
@@ -2597,7 +2682,11 @@
             n.vx *= Math.pow(damping, dt * 60);
             n.vy *= Math.pow(damping, dt * 60);
 
-            var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / Math.pow(Math.max(1, n.mass), 0.16);
+            var speedMassScale = Math.pow(Math.max(1, n.mass), 0.16);
+            if (isCollapsePhase() && hasIronCoreCursorCarry && isIronCoreCursorHeavyNode(n)) {
+                speedMassScale = getIronCoreCursorMassResistance(n, 0.16);
+            }
+            var maxSpeed = (CONFIG.game.maxSpeedBase + getCoreLevel() * CONFIG.game.maxSpeedPerLevel) / speedMassScale;
             if (isCollapsePhase()) {
                 maxSpeed *= hasIronCoreCursorCarry ? 2.85 : 1.08;
             }
@@ -2798,7 +2887,8 @@
             var carry01 = clamp((n.ironCoreCursorCarryTimer || 0) / Math.max(0.001, CONFIG.game.ironCoreCursorCarryTime), 0, 1);
             var protect01 = Math.max(shield01, carry01);
             if (protect01 > 0) {
-                infall *= 1 - protect01 * (1 - CONFIG.game.ironCoreCursorShieldInfallScale);
+                var shieldInfallScale = getIronCoreCursorShieldInfallScale(n);
+                infall *= 1 - protect01 * (1 - shieldInfallScale);
             }
 
             n.vx += nx * infall * dt / Math.pow(Math.max(1, n.mass), 0.12);
@@ -2811,7 +2901,7 @@
                 );
                 if (carryLen > 0.001) {
                     var carryForce = CONFIG.game.ironCoreCursorCarryForce * Math.pow(carry01, CONFIG.game.ironCoreCursorCarryPower);
-                    var carryMassScale = Math.pow(Math.max(1, n.mass), 0.16);
+                    var carryMassScale = getIronCoreCursorMassResistance(n, 0.16);
                     n.vx += (n.ironCoreCursorCarryX / carryLen) * carryForce * dt / carryMassScale;
                     n.vy += (n.ironCoreCursorCarryY / carryLen) * carryForce * dt / carryMassScale;
                 }
@@ -2857,7 +2947,7 @@
 
             var touch01 = 1 - d / radius;
             var falloff = Math.pow(touch01, CONFIG.game.ironCoreCursorCenterPower);
-            var massScale = Math.pow(Math.max(1, n.mass), 0.20);
+            var massScale = getIronCoreCursorMassResistance(n, 0.20);
             var repelX = dx / d;
             var repelY = dy / d;
             var coreOutX = repelX;
@@ -2903,7 +2993,7 @@
                 CONFIG.game.ironCoreCursorShieldTime * (0.45 + falloff * 0.55)
             );
 
-            var maxSpeed = CONFIG.game.ironCoreCursorMaxSpeed / Math.pow(Math.max(1, n.mass), 0.06);
+            var maxSpeed = CONFIG.game.ironCoreCursorMaxSpeed / getIronCoreCursorMassResistance(n, 0.06);
             var speed = Math.sqrt(n.vx * n.vx + n.vy * n.vy);
             if (speed > maxSpeed) {
                 n.vx = n.vx / speed * maxSpeed;
@@ -2998,7 +3088,7 @@
         var core = getCore();
         if (!core) return;
 
-        var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+        var t = getSupernovaProgress01();
         var blackHole = state.endingType === "BLACK HOLE";
 
         for (var i = 0; i < state.nodes.length; i += 1) {
@@ -3170,17 +3260,15 @@
             glow = getIronCoreGlow(time || 0);
         } else if (isSupernovaPhase()) {
             if (state.endingType === "BLACK HOLE") {
-                coreColor = "8, 12, 20";
+                coreColor = getFinalStarColor();
                 glow = 0.34;
-            } else if (state.endingType === "MAGNETAR") {
-                coreColor = "190, 143, 255";
-                glow = 0.88;
             } else {
-                coreColor = "255, 245, 190";
-                glow = 0.92;
+                var blastT = getSupernovaProgress01();
+                coreColor = getFinalStarColor();
+                glow = 0.72 + blastT * 0.20;
             }
         } else if (isEndingPhase()) {
-            coreColor = state.endingType === "BLACK HOLE" ? "8, 12, 20" : "143, 214, 255";
+            coreColor = getFinalStarColor();
             glow = state.endingType === "BLACK HOLE" ? 0.42 : 0.72;
         }
 
@@ -3196,22 +3284,15 @@
         ctx.fill();
 
         if (isCollapsePhase()) {
-            var pulse = 0.5 + Math.sin((time || 0) * 0.0075 + state.collapseMass * 0.04) * 0.5;
-            var pulse2 = 0.5 + Math.sin((time || 0) * 0.014) * 0.5;
+            var glowPulse = getIronCoreGlowPulse(time || 0);
+            var lineAlpha = 0.10 + getIronCoreRisk01() * 0.10;
 
             ctx.beginPath();
-            ctx.arc(core.x, core.y, cr * (1.24 + pulse * 0.11), 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(" + coreColor + ", " + (0.22 + pulse * 0.24).toFixed(4) + ")";
-            ctx.lineWidth = 2.0 + pulse * 2.2;
-            ctx.shadowColor = "rgba(" + coreColor + ", 0.52)";
-            ctx.shadowBlur = 22 + pulse * 22;
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.arc(core.x, core.y, fr * (0.52 + pulse2 * 0.10), 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(255, 245, 190, " + (0.05 + pulse2 * 0.12).toFixed(4) + ")";
-            ctx.lineWidth = 1.0 + pulse2 * 1.4;
-            ctx.shadowBlur = 0;
+            ctx.arc(core.x, core.y, cr * 1.30, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(" + coreColor + ", " + lineAlpha.toFixed(4) + ")";
+            ctx.lineWidth = 1.25;
+            ctx.shadowColor = "rgba(" + coreColor + ", " + (0.12 + glowPulse * 0.16).toFixed(4) + ")";
+            ctx.shadowBlur = 10 + glowPulse * 18;
             ctx.stroke();
         }
 
@@ -3237,9 +3318,10 @@
             ctx.shadowColor = "rgba(255, 107, 139, 0.72)";
             ctx.shadowBlur = 44;
         } else {
+            var collapseGlowPulse = isCollapsePhase() ? getIronCoreGlowPulse(time || 0) : 0;
             ctx.fillStyle = "rgba(" + coreColor + ", " + (isCollapsePhase() ? "0.76" : "0.68") + ")";
-            ctx.shadowColor = "rgba(" + coreColor + ", " + (isCollapsePhase() ? "0.76" : "0.58") + ")";
-            ctx.shadowBlur = isEndingPhase() ? 58 : (isCollapsePhase() ? 42 + getIronCoreRisk01() * 24 : 26 + level * 4);
+            ctx.shadowColor = "rgba(" + coreColor + ", " + (isCollapsePhase() ? (0.58 + collapseGlowPulse * 0.26).toFixed(4) : "0.58") + ")";
+            ctx.shadowBlur = isEndingPhase() ? 58 : (isCollapsePhase() ? 34 + getIronCoreRisk01() * 18 + collapseGlowPulse * 34 : 26 + level * 4);
         }
 
         ctx.fill();
@@ -3434,6 +3516,259 @@
         ctx.restore();
     }
 
+
+    function drawRoundRectPath(x, y, w, h, r) {
+        var rr = Math.min(r, w * 0.5, h * 0.5);
+        ctx.beginPath();
+        ctx.moveTo(x + rr, y);
+        ctx.lineTo(x + w - rr, y);
+        ctx.arcTo(x + w, y, x + w, y + rr, rr);
+        ctx.lineTo(x + w, y + h - rr);
+        ctx.arcTo(x + w, y + h, x + w - rr, y + h, rr);
+        ctx.lineTo(x + rr, y + h);
+        ctx.arcTo(x, y + h, x, y + h - rr, rr);
+        ctx.lineTo(x, y + rr);
+        ctx.arcTo(x, y, x + rr, y, rr);
+        ctx.closePath();
+    }
+
+    function wrapTutorialText(text, maxWidth) {
+        var words = String(text || "").split(" ");
+        var lines = [];
+        var line = "";
+
+        for (var i = 0; i < words.length; i += 1) {
+            var test = line ? line + " " + words[i] : words[i];
+            if (ctx.measureText(test).width > maxWidth && line) {
+                lines.push(line);
+                line = words[i];
+            } else {
+                line = test;
+            }
+        }
+
+        if (line) lines.push(line);
+        return lines;
+    }
+
+    function drawTutorialBox(x, y, w, title, bodyLines, color, alpha) {
+        var boxAlpha = alpha == null ? 1 : alpha;
+        var lines = [];
+        ctx.save();
+        ctx.font = "800 12px SFMono-Regular, Consolas, monospace";
+
+        for (var i = 0; i < bodyLines.length; i += 1) {
+            var wrapped = wrapTutorialText(bodyLines[i], w - 30);
+            for (var j = 0; j < wrapped.length; j += 1) {
+                lines.push(wrapped[j]);
+            }
+        }
+
+        var h = 42 + lines.length * 17 + 12;
+        drawRoundRectPath(x, y, w, h, 16);
+        ctx.fillStyle = "rgba(5, 10, 16, " + (0.72 * boxAlpha).toFixed(4) + ")";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(" + color + ", " + (0.35 * boxAlpha).toFixed(4) + ")";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(" + color + ", " + (0.96 * boxAlpha).toFixed(4) + ")";
+        ctx.font = "900 11px SFMono-Regular, Consolas, monospace";
+        ctx.textAlign = "left";
+        ctx.fillText(title, x + 15, y + 22);
+
+        ctx.fillStyle = "rgba(215, 227, 244, " + (0.88 * boxAlpha).toFixed(4) + ")";
+        ctx.font = "800 12px SFMono-Regular, Consolas, monospace";
+        for (var k = 0; k < lines.length; k += 1) {
+            ctx.fillText(lines[k], x + 15, y + 46 + k * 17);
+        }
+        ctx.restore();
+        return h;
+    }
+
+    function drawTutorialArrow(fromX, fromY, toX, toY, color, time) {
+        var dx = toX - fromX;
+        var dy = toY - fromY;
+        var len = Math.sqrt(dx * dx + dy * dy) + 0.001;
+        var ux = dx / len;
+        var uy = dy / len;
+        var pulse = 0.70 + Math.sin(time * 0.003) * 0.20;
+        var head = 12;
+        var side = 7;
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(" + color + ", " + pulse.toFixed(4) + ")";
+        ctx.fillStyle = "rgba(" + color + ", " + pulse.toFixed(4) + ")";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([8, 7]);
+        ctx.beginPath();
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX - ux * head, toY - uy * head);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.beginPath();
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - ux * head - uy * side, toY - uy * head + ux * side);
+        ctx.lineTo(toX - ux * head + uy * side, toY - uy * head - ux * side);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+    }
+
+    function drawTutorialRing(x, y, r, color, time) {
+        var pulse = 0.55 + Math.sin(time * 0.004) * 0.18;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, r + 4 + pulse * 5, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(" + color + ", " + pulse.toFixed(4) + ")";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function findTutorialParticleTarget(preferAbsorbable) {
+        var core = getCore();
+        var best = null;
+        var bestScore = Infinity;
+        var bounds = getGameBounds();
+
+        for (var i = 0; i < state.nodes.length; i += 1) {
+            var n = state.nodes[i];
+            if (!n || n.core) continue;
+            if (n.x < bounds.left || n.x > bounds.right || n.y < bounds.top || n.y > bounds.bottom) continue;
+            if (preferAbsorbable && !isNodeAbsorbable(n)) continue;
+
+            var score;
+            if (core) {
+                var dx = n.x - core.x;
+                var dy = n.y - core.y;
+                score = dx * dx + dy * dy;
+            } else {
+                score = i;
+            }
+
+            if (score < bestScore) {
+                best = n;
+                bestScore = score;
+            }
+        }
+
+        if (!best && preferAbsorbable) {
+            return findTutorialParticleTarget(false);
+        }
+        return best;
+    }
+
+    function drawStarPathTutorialPanel(time) {
+        var w = Math.min(340, Math.max(260, state.width * 0.25));
+        var x = Math.max(20, state.width - w - 24);
+        var y = Math.max(getGameBounds().top + 184, state.height - 238);
+        var alpha = isCollapsePhase() ? 0.72 : 0.92;
+        var predicted = isCollapsePhase() || isIronCorePreparation() ? getPredictedEndingType() : "NEUTRON / MAGNETAR / BLACK HOLE";
+
+        drawTutorialBox(x, y, w, "STAR PATH", [
+            "D-He4: cool TEMP and raise STAB.",
+            "Be8-Ne20: near-neutral TEMP control.",
+            "Mg24-Fe56: add MASS and heat.",
+            "Endings depend on MASS / TEMP / STAB.",
+            "Current target: " + predicted + "."
+        ], "255,209,102", alpha);
+    }
+
+    function drawFusionControlTutorial(time) {
+        if (!isFusionPhase()) return;
+        if (state.massGateActive || isIronCorePreparation()) return;
+
+        var known = getKnownRecipeList();
+        var early = known.length < 3;
+        var target = findTutorialParticleTarget(false);
+        var core = getCore();
+        var bounds = getGameBounds();
+        var leftX = bounds.left + 24;
+        var topY = bounds.top + 30;
+        var w = Math.min(300, Math.max(240, state.width * 0.24));
+
+        if (early && target) {
+            var h1 = drawTutorialBox(leftX, topY, w, "PUSH", [
+                "Your cursor pushes nuclei toward the star core.",
+                "Move behind a particle and push it into the dashed zone."
+            ], "143,214,255", 0.92);
+            drawTutorialArrow(leftX + w - 26, topY + h1 * 0.55, target.x, target.y, "143,214,255", time);
+            drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 9, "143,214,255", time);
+        }
+
+        if (core && early) {
+            var rightW = Math.min(310, Math.max(250, state.width * 0.24));
+            var rightX = Math.max(bounds.left + 24, state.width - rightW - 24);
+            var rightY = bounds.top + 30;
+            var h2 = drawTutorialBox(rightX, rightY, rightW, "CORE ZONE", [
+                "Hold compatible particles inside this dashed star zone.",
+                "Fusion happens when the current recipe pair stays close."
+            ], "96,255,173", 0.92);
+            drawTutorialArrow(rightX + 22, rightY + h2 * 0.62, core.x + fusionRadius() * 0.62, core.y - fusionRadius() * 0.20, "96,255,173", time);
+            drawTutorialRing(core.x, core.y, fusionRadius(), "96,255,173", time);
+        }
+    }
+
+    function drawAbsorbTutorial(time) {
+        if (!isFusionPhase()) return;
+        if (Object.keys(state.discoveredProducts).length <= 0) return;
+        if (state.massGateActive) return;
+
+        var target = findTutorialParticleTarget(true);
+        var bounds = getGameBounds();
+        var w = Math.min(310, Math.max(250, state.width * 0.25));
+        var x = bounds.left + 24;
+        var y = Math.max(bounds.top + 160, state.height - 250);
+        var alpha = target && isNodeAbsorbable(target) ? 0.92 : 0.78;
+        var lines = [
+            "Opened nuclei inside the core zone can be absorbed.",
+            "Absorb changes MASS, TEMP, STAB and the final remnant."
+        ];
+
+        if (state.starProfileTemp > 58) {
+            lines.push("Use D-He4 absorbs to cool an overheated star.");
+        }
+
+        var h = drawTutorialBox(x, y, w, "ABSORB", lines, "255,209,102", alpha);
+        if (target && isNodeAbsorbable(target)) {
+            drawTutorialArrow(x + w - 20, y + h * 0.48, target.x, target.y, "255,209,102", time);
+            drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 13, "255,209,102", time);
+        }
+    }
+
+    function drawMassGateTutorial(time) {
+        if (!isFusionPhase() || !state.massGateActive) return;
+        var bounds = getGameBounds();
+        var w = Math.min(340, Math.max(260, state.width * 0.28));
+        var x = bounds.left + 24;
+        var y = bounds.top + 32;
+        var target = findTutorialParticleTarget(true);
+        var h = drawTutorialBox(x, y, w, "MASS GATE", [
+            "Synthesis is paused until the MASS bar reaches target.",
+            "Create opened nuclei, then absorb them inside the core zone.",
+            "Mass gain is boosted during this gate."
+        ], "255,209,102", 0.94);
+
+        if (target) {
+            drawTutorialArrow(x + w - 20, y + h * 0.52, target.x, target.y, "255,209,102", time);
+            drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 12, "255,209,102", time);
+        }
+    }
+
+    function drawGameTutorialOverlay(time) {
+        if (!state.gameMode) return;
+        if (isSupernovaPhase() || isEndingPhase()) return;
+
+        ctx.save();
+        drawFusionControlTutorial(time);
+        drawAbsorbTutorial(time);
+        drawMassGateTutorial(time);
+        drawStarPathTutorialPanel(time);
+        ctx.restore();
+    }
+
     function drawSupernovaOverlay(time) {
         if (!state.gameMode) return;
         if (!isSupernovaPhase() && !isEndingPhase()) return;
@@ -3444,7 +3779,7 @@
         ctx.save();
 
         if (isSupernovaPhase()) {
-            var t = 1 - clamp(state.supernovaTimer / CONFIG.game.supernovaDuration, 0, 1);
+            var t = getSupernovaProgress01();
 
             if (state.endingType === "BLACK HOLE") {
                 var darkAlpha = clamp(0.18 + t * 0.58, 0, 0.82);
@@ -3487,16 +3822,18 @@
                 var hold = clamp(t / 0.18, 0, 1);
                 var flash = clamp(1 - Math.abs(t - 0.34) / 0.34, 0, 1);
 
-                ctx.fillStyle = "rgba(255, 245, 190, " + (0.10 + flash * 0.36).toFixed(4) + ")";
+                var blastColor = getFinalStarColor();
+
+                ctx.fillStyle = "rgba(" + blastColor + ", " + (0.08 + flash * 0.26).toFixed(4) + ")";
                 ctx.fillRect(0, 0, state.width, state.height);
 
                 for (var j = 0; j < 4; j += 1) {
                     var waveR = (t * 980) + j * 125;
                     ctx.beginPath();
                     ctx.arc(core.x, core.y, waveR, 0, Math.PI * 2);
-                    ctx.strokeStyle = "rgba(255, 209, 102, " + (0.42 * (1 - t) / (j + 1)).toFixed(4) + ")";
+                    ctx.strokeStyle = "rgba(" + blastColor + ", " + (0.42 * (1 - t) / (j + 1)).toFixed(4) + ")";
                     ctx.lineWidth = 2 + j;
-                    ctx.shadowColor = "rgba(255, 245, 190, 0.38)";
+                    ctx.shadowColor = "rgba(" + blastColor + ", 0.38)";
                     ctx.shadowBlur = 12;
                     ctx.stroke();
                 }
@@ -3504,7 +3841,7 @@
 
                 ctx.beginPath();
                 ctx.arc(core.x, core.y, coreRadius() * (1.15 + hold * 0.22), 0, Math.PI * 2);
-                ctx.fillStyle = "rgba(255, 245, 190, " + (0.18 + flash * 0.28).toFixed(4) + ")";
+                ctx.fillStyle = "rgba(" + blastColor + ", " + (0.18 + flash * 0.28).toFixed(4) + ")";
                 ctx.fill();
             }
         }
@@ -3512,8 +3849,9 @@
         if (isEndingPhase() && !state.finalRoot) {
             ctx.textAlign = "center";
             ctx.font = "900 46px Inter, Arial, sans-serif";
-            ctx.fillStyle = state.endingType === "BLACK HOLE" ? "rgba(255, 180, 130, 0.98)" : "rgba(180, 225, 255, 0.98)";
-            ctx.shadowColor = state.endingType === "BLACK HOLE" ? "rgba(255, 107, 139, 0.55)" : "rgba(143, 214, 255, 0.55)";
+            var endingColor = getFinalRemnantUiColor();
+            ctx.fillStyle = "rgba(" + endingColor + ", 0.98)";
+            ctx.shadowColor = "rgba(" + endingColor + ", 0.55)";
             ctx.shadowBlur = 28;
             ctx.fillText(state.endingType, state.width * 0.5, state.height * 0.5 - 92);
 
@@ -3652,6 +3990,7 @@
         drawPulses(dt);
         drawFusionLinks();
         drawNodes(time);
+        drawGameTutorialOverlay(time);
         drawSupernovaOverlay(time);
         updateGameStats();
 
