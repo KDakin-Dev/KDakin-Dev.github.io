@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.02-game-only-cleanup",
+        buildVersion: "0.12.03-game-orbit-hotfix",
 
         game: {
             playAreaLeft: 18,
@@ -486,6 +486,37 @@
             if (dom.metricNodes) dom.metricNodes.textContent = "000";
             if (dom.metricLinks) dom.metricLinks.textContent = "000";
         }
+    }
+
+    function getOrbitCenter() {
+        return {
+            x: state.width * 0.5,
+            y: state.height * 0.48
+        };
+    }
+
+    function getOrbitParams(index, scale) {
+        var group = index % 5;
+        var bounds = getGameBounds();
+        var minDim = Math.min(bounds.right - bounds.left, bounds.bottom - bounds.top);
+        return {
+            group: group,
+            a: minDim * (0.30 + group * 0.075) * (1.54 - group * 0.055) * scale,
+            b: minDim * (0.115 + group * 0.045) * scale,
+            rot: -0.42 + group * 0.29,
+            speed: (group % 2 === 0 ? 1 : -1) * rand(0.10, 0.24) * (1 + group * 0.08)
+        };
+    }
+
+    function orbitPoint(cx, cy, a, b, rot, t) {
+        var x = Math.cos(t) * a;
+        var y = Math.sin(t) * b;
+        var c = Math.cos(rot);
+        var s = Math.sin(rot);
+        return {
+            x: cx + x * c - y * s,
+            y: cy + x * s + y * c
+        };
     }
 
     function createGameNode(id, nucleusName, x, y, core) {
