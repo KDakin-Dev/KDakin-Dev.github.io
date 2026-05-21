@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.17-final-color-snapshot",
+        buildVersion: "0.12.18-tutorial-layout-fix",
 
         game: {
             playAreaLeft: 18,
@@ -3746,6 +3746,8 @@
         var size = 22;
         var bx = x;
         var by = y;
+
+        ctx.save();
         drawRoundRectPath(bx, by, size, size, 8);
         ctx.fillStyle = "rgba(5, 10, 16, 0.72)";
         ctx.fill();
@@ -3757,7 +3759,8 @@
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText("X", bx + size * 0.5, by + size * 0.52);
-        ctx.textBaseline = "alphabetic";
+        ctx.restore();
+
         addTutorialHitRect(bx - 5, by - 5, size + 10, size + 10, "close", closeKey);
     }
 
@@ -3791,6 +3794,8 @@
             drawTutorialCloseButton(x + w - 32, y + 10, color, closeKey);
         }
 
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
         ctx.fillStyle = "rgba(215, 227, 244, " + (0.88 * boxAlpha).toFixed(4) + ")";
         ctx.font = "800 12px SFMono-Regular, Consolas, monospace";
         for (var k = 0; k < lines.length; k += 1) {
@@ -3951,7 +3956,39 @@
     }
 
     function clampTutorialPanelY(y, h) {
-        return clamp(y, 86, Math.max(86, state.height - h - 58));
+        return clamp(y, 86, Math.max(86, state.height - h - 92));
+    }
+
+    function getTutorialPanelNearTarget(target, w, h) {
+        var bounds = getGameBounds();
+        var gap = 54;
+        var x = bounds.left + 24;
+        var y = bounds.bottom - h - 82;
+
+        if (target) {
+            if (target.x < state.width * 0.5) {
+                x = target.x + gap;
+            } else {
+                x = target.x - w - gap;
+            }
+            y = target.y - h * 0.55;
+            if (target.y < bounds.top + h + 80) {
+                y = target.y + gap;
+            }
+        }
+
+        return {
+            x: clampTutorialPanelX(x, w),
+            y: clampTutorialPanelY(y, h)
+        };
+    }
+
+    function getTutorialArrowAnchor(x, y, w, h, target) {
+        var leftSide = target && target.x < x + w * 0.5;
+        return {
+            x: leftSide ? x + 18 : x + w - 18,
+            y: target ? clamp(target.y, y + 28, y + h - 18) : y + h * 0.5
+        };
     }
 
     function drawStarPathTutorialPanel(time) {
@@ -4019,17 +4056,18 @@
         var core = getCore();
         if (!target || !core) return;
 
-        var bounds = getGameBounds();
         var w = Math.min(292, Math.max(245, state.width * 0.22));
         var h = 92;
-        var x = clampTutorialPanelX(bounds.left + 24, w);
-        var y = clampTutorialPanelY(bounds.bottom - h - 54, h);
+        var panel = getTutorialPanelNearTarget(target, w, h);
+        var x = panel.x;
+        var y = panel.y;
         var boxH = drawTutorialBox(x, y, w, "PUSH", [
             "Move the cursor near the marked particle.",
             "Push it into the dashed core zone."
         ], "143,214,255", 0.94, "push");
+        var anchor = getTutorialArrowAnchor(x, y, w, boxH, target);
 
-        drawTutorialArrow(x + w - 22, y + boxH * 0.48, target.x, target.y, "143,214,255", time);
+        drawTutorialArrow(anchor.x, anchor.y, target.x, target.y, "143,214,255", time);
         drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 9, "143,214,255", time);
         drawTutorialArrow(target.x, target.y, core.x, core.y, "96,255,173", time);
         drawTutorialRing(core.x, core.y, fusionRadius(), "96,255,173", time);
@@ -4044,17 +4082,18 @@
         var target = findTutorialParticleTarget(true, false);
         if (!target || !isNodeAbsorbable(target)) return;
 
-        var bounds = getGameBounds();
         var w = Math.min(318, Math.max(260, state.width * 0.24));
         var h = state.massGateActive ? 110 : 94;
-        var x = clampTutorialPanelX(bounds.left + 24, w);
-        var y = clampTutorialPanelY(bounds.bottom - h - 54, h);
+        var panel = getTutorialPanelNearTarget(target, w, h);
+        var x = panel.x;
+        var y = panel.y;
         var lines = state.massGateActive
             ? ["Synthesis is paused by MASS GATE.", "Click an opened nucleus in the core zone."]
             : ["Opened nuclei inside the core zone can be absorbed.", "Click the marked particle once."];
         var title = state.massGateActive ? "ABSORB / MASS GATE" : "ABSORB";
         var hBox = drawTutorialBox(x, y, w, title, lines, "255,209,102", 0.94, state.massGateActive ? "massGate" : "absorb");
-        drawTutorialArrow(x + w - 20, y + hBox * 0.48, target.x, target.y, "255,209,102", time);
+        var anchor = getTutorialArrowAnchor(x, y, w, hBox, target);
+        drawTutorialArrow(anchor.x, anchor.y, target.x, target.y, "255,209,102", time);
         drawTutorialRing(target.x, target.y, target.radius * CONFIG.game.visualScale + 13, "255,209,102", time);
     }
 
@@ -4068,8 +4107,8 @@
         var bounds = getGameBounds();
         var w = Math.min(318, Math.max(260, state.width * 0.24));
         var h = 96;
-        var x = clampTutorialPanelX(bounds.left + 24, w);
-        var y = clampTutorialPanelY(bounds.bottom - h - 54, h);
+        var x = clampTutorialPanelX(bounds.left + 32, w);
+        var y = clampTutorialPanelY(bounds.top + 168, h);
         drawTutorialBox(x, y, w, "MASS GATE", [
             "Synthesis is paused.",
             "Build MASS with opened nuclei."
