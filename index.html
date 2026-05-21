@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDakin-Dev | Systems Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
-    <link rel="stylesheet" href="./site.css?v=8">
+    <link rel="stylesheet" href="./site.css?v=9">
     <link rel="stylesheet" href="./field_game.css?v=8">
 </head>
 <body>
@@ -32,23 +32,9 @@
 
     <main class="site-shell">
         <header class="site-header" id="top">
-            <a class="site-brand" href="#top" aria-label="KDakin-Dev home">
-                <span class="site-brand-icon" aria-hidden="true">
-                    <svg viewBox="0 0 64 64" role="img" aria-label="KD logo">
-                        <rect width="64" height="64" rx="14" fill="#05070b"></rect>
-                        <circle cx="32" cy="32" r="24" fill="#0b1624" stroke="#63a6ff" stroke-width="3"></circle>
-                        <text x="32" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#d7e3f4">KD</text>
-                    </svg>
-                </span>
-                <span class="site-brand-copy">
-                    <span>KDakin-Dev</span>
-                    <small>Systems portfolio</small>
-                </span>
-            </a>
 
             <nav class="site-nav" aria-label="Primary navigation">
                 <a href="#work">Work</a>
-                <a href="#method">Method</a>
                 <a href="#skills">Skills</a>
                 <a href="#contact">Contact</a>
             </nav>
@@ -165,41 +151,6 @@
             </div>
         </section>
 
-        <section class="site-section" id="method" aria-labelledby="method-title">
-            <div class="site-section-head" data-reveal>
-                <div>
-                    <div class="site-kicker">Method</div>
-                    <h2 id="method-title">How I approach bugs and systems.</h2>
-                </div>
-                <p>
-                    I prefer clear contracts, small verification loops, and direct reproduction paths before large rewrites.
-                </p>
-            </div>
-
-            <div class="site-method-grid">
-                <article class="site-method-card" data-reveal>
-                    <span>Trace</span>
-                    <h3>Observe runtime state</h3>
-                    <p>Capture inputs, metrics, visual state, and the exact moment when behavior diverges.</p>
-                </article>
-                <article class="site-method-card" data-reveal>
-                    <span>Isolate</span>
-                    <h3>Separate ownership</h3>
-                    <p>Find which module owns state, rendering, input, or timing before changing behavior.</p>
-                </article>
-                <article class="site-method-card" data-reveal>
-                    <span>Verify</span>
-                    <h3>Test the contract</h3>
-                    <p>Use minimal checks, logs, and focused runs so fixes are measurable instead of cosmetic.</p>
-                </article>
-                <article class="site-method-card" data-reveal>
-                    <span>Clean</span>
-                    <h3>Remove legacy drift</h3>
-                    <p>Prefer one path, one source of truth, and no hidden compatibility branches after migration.</p>
-                </article>
-            </div>
-        </section>
-
         <section class="site-section" id="skills" aria-labelledby="skills-title">
             <div class="site-section-head" data-reveal>
                 <div>
@@ -241,8 +192,7 @@
         </section>
 
         <footer class="site-footer">
-            <span>KDakin-Dev / Interactive systems portfolio</span>
-            <span>Static page / Isolated game layer / GitHub Pages ready</span>
+            <span>KDakin-Dev</span>
         </footer>
     </main>
 
