@@ -3,896 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDakin-Dev | Interactive Systems Portfolio</title>
-    <style>
-        :root {
-            --bg0: #05070b;
-            --bg1: #080d14;
-            --panel: rgba(10, 16, 25, 0.72);
-            --panel-strong: rgba(13, 22, 34, 0.88);
-            --line: rgba(99, 166, 255, 0.28);
-            --line-soft: rgba(99, 166, 255, 0.13);
-            --text: #d7e3f4;
-            --muted: #8b9bb0;
-            --muted2: #5f7186;
-            --accent: #63a6ff;
-            --accent2: #8fd6ff;
-            --warn: #ffd166;
-            --ok: #7ef2b0;
-            --shadow: rgba(0, 0, 0, 0.5);
-        }
-
-        * {
-            box-sizing: border-box;
-        }
-
-        html,
-        body {
-            width: 100%;
-            min-height: 100%;
-            margin: 0;
-            padding: 0;
-            background: radial-gradient(circle at 50% 20%, #101827 0%, var(--bg1) 38%, var(--bg0) 100%);
-            color: var(--text);
-            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
-            overflow-x: hidden;
-            scroll-behavior: smooth;
-        }
-
-        body {
-            min-height: 100vh;
-        }
-
-        body.game-mode {
-            overflow: hidden;
-        }
-
-        a {
-            color: inherit;
-            text-decoration: none;
-        }
-
-        button {
-            font: inherit;
-        }
-
-        #field-canvas {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            width: 100vw;
-            height: 100vh;
-            display: block;
-            background: transparent;
-            cursor: crosshair;
-        }
-
-        .scanlines {
-            position: fixed;
-            inset: 0;
-            z-index: 1;
-            pointer-events: none;
-            opacity: 0.22;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-            background-size: 100% 4px;
-            mix-blend-mode: screen;
-        }
-
-        .vignette {
-            position: fixed;
-            inset: 0;
-            z-index: 2;
-            pointer-events: none;
-            background: radial-gradient(circle at 50% 45%, transparent 0%, transparent 54%, rgba(0, 0, 0, 0.48) 100%);
-        }
-
-        .shell {
-            position: relative;
-            z-index: 3;
-            width: min(1180px, calc(100vw - 48px));
-            margin: 0 auto;
-            padding: 32px 0 72px;
-            transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
-        }
-
-        body.game-mode .shell {
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(18px);
-            pointer-events: none;
-        }
-
-        .topbar {
-            position: sticky;
-            top: 0;
-            z-index: 20;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            min-height: 64px;
-            margin-bottom: 52px;
-            padding: 12px 0;
-            pointer-events: none;
-        }
-
-        .brand,
-        .nav {
-            pointer-events: auto;
-        }
-
-        .brand {
-            display: inline-flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            border: 1px solid var(--line-soft);
-            border-radius: 999px;
-            background: rgba(4, 8, 14, 0.55);
-            backdrop-filter: blur(14px);
-            box-shadow: 0 20px 60px var(--shadow);
-        }
-
-        .brand-mark {
-            width: 12px;
-            height: 12px;
-            border-radius: 999px;
-            background: var(--accent);
-            box-shadow: 0 0 20px rgba(99, 166, 255, 0.9), 0 0 50px rgba(99, 166, 255, 0.4);
-        }
-
-        .brand-text {
-            color: var(--text);
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-        }
-
-        .nav {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px;
-            border: 1px solid var(--line-soft);
-            border-radius: 999px;
-            background: rgba(4, 8, 14, 0.55);
-            backdrop-filter: blur(14px);
-            box-shadow: 0 20px 60px var(--shadow);
-        }
-
-        .nav a {
-            padding: 8px 12px;
-            border-radius: 999px;
-            color: var(--muted);
-            font-size: 12px;
-            font-weight: 700;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            transition: color 160ms ease, background 160ms ease;
-        }
-
-        .nav a:hover {
-            color: var(--text);
-            background: rgba(99, 166, 255, 0.12);
-        }
-
-        .hero {
-            min-height: calc(100vh - 160px);
-            display: grid;
-            grid-template-columns: minmax(0, 1.18fr) minmax(320px, 0.82fr);
-            gap: 28px;
-            align-items: center;
-            padding-bottom: 80px;
-        }
-
-        .panel {
-            position: relative;
-            border: 1px solid var(--line-soft);
-            border-radius: 28px;
-            background: linear-gradient(180deg, var(--panel-strong), rgba(7, 12, 20, 0.68));
-            backdrop-filter: blur(18px);
-            box-shadow: 0 24px 90px var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.035);
-            overflow: hidden;
-        }
-
-        .panel:before {
-            content: "";
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            background:
-                linear-gradient(90deg, transparent, rgba(99, 166, 255, 0.11), transparent) 0 0 / 100% 1px no-repeat,
-                linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 18%);
-        }
-
-        .hero-main {
-            padding: clamp(30px, 5vw, 64px);
-        }
-
-        .eyebrow {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 18px;
-            color: var(--accent2);
-            font-size: 12px;
-            font-weight: 800;
-            letter-spacing: 0.16em;
-            text-transform: uppercase;
-        }
-
-        .eyebrow:before {
-            content: "";
-            width: 38px;
-            height: 1px;
-            background: linear-gradient(90deg, var(--accent), transparent);
-        }
-
-        h1,
-        h2,
-        h3,
-        p {
-            margin: 0;
-        }
-
-        h1 {
-            max-width: 780px;
-            font-size: clamp(48px, 8vw, 104px);
-            line-height: 0.92;
-            letter-spacing: -0.075em;
-            color: #f2f7ff;
-        }
-
-        .title-accent {
-            display: block;
-            color: var(--accent);
-            text-shadow: 0 0 34px rgba(99, 166, 255, 0.32);
-        }
-
-        .lead {
-            max-width: 720px;
-            margin-top: 26px;
-            color: var(--muted);
-            font-size: clamp(18px, 2.1vw, 25px);
-            line-height: 1.45;
-        }
-
-        .hero-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-top: 34px;
-        }
-
-        .button {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 46px;
-            padding: 0 18px;
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            background: rgba(99, 166, 255, 0.13);
-            color: var(--text);
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-            cursor: pointer;
-        }
-
-        .button:hover {
-            transform: translateY(-2px);
-            border-color: rgba(143, 214, 255, 0.75);
-            background: rgba(99, 166, 255, 0.2);
-        }
-
-        .button.secondary {
-            background: rgba(255, 255, 255, 0.035);
-            color: var(--muted);
-        }
-
-        .button.secondary:hover {
-            color: var(--text);
-        }
-
-        .hero-side {
-            padding: 24px;
-        }
-
-        .telemetry-title {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-            padding-bottom: 18px;
-            border-bottom: 1px solid var(--line-soft);
-        }
-
-        .telemetry-title h2 {
-            color: var(--text);
-            font-size: 15px;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-        }
-
-        .status-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--ok);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .status-pill:before {
-            content: "";
-            width: 8px;
-            height: 8px;
-            border-radius: 999px;
-            background: var(--ok);
-            box-shadow: 0 0 16px rgba(126, 242, 176, 0.8);
-        }
-
-        .metric-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-top: 18px;
-        }
-
-        .metric {
-            min-height: 92px;
-            padding: 14px;
-            border: 1px solid rgba(99, 166, 255, 0.13);
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.026);
-        }
-
-        .metric span {
-            display: block;
-            color: var(--muted2);
-            font-size: 10px;
-            font-weight: 800;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-        }
-
-        .metric strong {
-            display: block;
-            margin-top: 12px;
-            color: var(--text);
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 22px;
-            font-weight: 800;
-        }
-
-        .mini-orbit {
-            position: relative;
-            height: 230px;
-            margin-top: 18px;
-            border: 1px solid rgba(99, 166, 255, 0.13);
-            border-radius: 22px;
-            background:
-                radial-gradient(circle at 50% 50%, rgba(99, 166, 255, 0.11), transparent 19%),
-                linear-gradient(rgba(99, 166, 255, 0.045) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(99, 166, 255, 0.045) 1px, transparent 1px);
-            background-size: auto, 28px 28px, 28px 28px;
-            overflow: hidden;
-        }
-
-        .orbit-ring {
-            position: absolute;
-            left: 7%;
-            top: 21%;
-            width: 86%;
-            height: 58%;
-            border: 1px solid rgba(143, 214, 255, 0.34);
-            border-radius: 50%;
-            transform: rotate(-18deg);
-            transform-origin: 50% 50%;
-        }
-
-        .orbit-ring.r2 {
-            left: 13%;
-            top: 26%;
-            width: 74%;
-            height: 48%;
-            opacity: 0.6;
-            transform: rotate(22deg);
-        }
-
-        .core-dot {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 10px;
-            height: 10px;
-            margin: 0;
-            border-radius: 999px;
-            background: var(--accent);
-            box-shadow: 0 0 30px rgba(99, 166, 255, 0.9);
-            transform: translate(-50%, -50%);
-            will-change: transform;
-        }
-
-        .probe-dot {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 8px;
-            height: 8px;
-            margin: 0;
-            border-radius: 999px;
-            background: var(--warn);
-            box-shadow: 0 0 22px rgba(255, 209, 102, 0.82);
-            transform: translate(-50%, -50%);
-            will-change: transform;
-        }
-
-        .game-help {
-            margin-top: 14px;
-            color: var(--muted2);
-            font-size: 12px;
-            line-height: 1.45;
-        }
-
-        section {
-            scroll-margin-top: 90px;
-        }
-
-        .section-head {
-            display: grid;
-            grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
-            gap: 28px;
-            align-items: end;
-            margin: 56px 0 22px;
-        }
-
-        .section-kicker {
-            color: var(--accent2);
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: 0.18em;
-            text-transform: uppercase;
-        }
-
-        .section-head h2 {
-            margin-top: 12px;
-            color: var(--text);
-            font-size: clamp(34px, 5vw, 58px);
-            line-height: 0.98;
-            letter-spacing: -0.055em;
-        }
-
-        .section-head p {
-            color: var(--muted);
-            font-size: 17px;
-            line-height: 1.55;
-        }
-
-        .project-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 18px;
-        }
-
-        .project-card {
-            min-height: 320px;
-            padding: 26px;
-        }
-
-        .project-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 24px;
-        }
-
-        .tag {
-            display: inline-flex;
-            align-items: center;
-            min-height: 28px;
-            padding: 0 10px;
-            border: 1px solid rgba(99, 166, 255, 0.18);
-            border-radius: 999px;
-            color: var(--muted);
-            background: rgba(99, 166, 255, 0.06);
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .project-card h3 {
-            color: var(--text);
-            font-size: 28px;
-            letter-spacing: -0.035em;
-        }
-
-        .project-card p {
-            margin-top: 16px;
-            color: var(--muted);
-            font-size: 16px;
-            line-height: 1.6;
-        }
-
-        .project-lines {
-            display: grid;
-            gap: 10px;
-            margin-top: 24px;
-            padding-top: 22px;
-            border-top: 1px solid var(--line-soft);
-        }
-
-        .project-lines div {
-            display: grid;
-            grid-template-columns: 118px minmax(0, 1fr);
-            gap: 14px;
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.45;
-        }
-
-        .project-lines b {
-            color: var(--accent2);
-            font-size: 11px;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .systems-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 18px;
-        }
-
-        .system-card {
-            padding: 24px;
-        }
-
-        .system-index {
-            color: var(--accent);
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 13px;
-            font-weight: 900;
-        }
-
-        .system-card h3 {
-            margin-top: 20px;
-            color: var(--text);
-            font-size: 22px;
-            letter-spacing: -0.03em;
-        }
-
-        .system-card p {
-            margin-top: 12px;
-            color: var(--muted);
-            font-size: 15px;
-            line-height: 1.58;
-        }
-
-        .stack-panel {
-            padding: 28px;
-        }
-
-        .stack-map {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 14px;
-        }
-
-        .stack-item {
-            min-height: 112px;
-            padding: 16px;
-            border: 1px solid rgba(99, 166, 255, 0.14);
-            border-radius: 18px;
-            background: rgba(255, 255, 255, 0.03);
-        }
-
-        .stack-item b {
-            display: block;
-            color: var(--text);
-            font-size: 15px;
-        }
-
-        .stack-item span {
-            display: block;
-            margin-top: 10px;
-            color: var(--muted2);
-            font-size: 13px;
-            line-height: 1.45;
-        }
-
-        .contact-panel {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(260px, 0.55fr);
-            gap: 24px;
-            padding: 34px;
-            margin-top: 18px;
-        }
-
-        .contact-panel h2 {
-            color: var(--text);
-            font-size: clamp(34px, 5vw, 56px);
-            line-height: 1;
-            letter-spacing: -0.055em;
-        }
-
-        .contact-panel p {
-            max-width: 680px;
-            margin-top: 18px;
-            color: var(--muted);
-            font-size: 17px;
-            line-height: 1.55;
-        }
-
-        .contact-list {
-            display: grid;
-            gap: 10px;
-            align-content: start;
-        }
-
-        .contact-link {
-            display: flex;
-            justify-content: space-between;
-            gap: 14px;
-            padding: 14px 16px;
-            border: 1px solid rgba(99, 166, 255, 0.15);
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.03);
-            color: var(--muted);
-            font-size: 13px;
-            font-weight: 800;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-        }
-
-        .contact-link:hover {
-            color: var(--text);
-            border-color: rgba(143, 214, 255, 0.45);
-            background: rgba(99, 166, 255, 0.08);
-        }
-
-        .footer {
-            display: flex;
-            justify-content: space-between;
-            gap: 18px;
-            margin-top: 34px;
-            color: var(--muted2);
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 12px;
-        }
-
-        .game-overlay {
-            position: fixed;
-            inset: 0;
-            z-index: 8;
-            display: none;
-            pointer-events: none;
-        }
-
-        body.game-mode .game-overlay {
-            display: block;
-        }
-
-        .game-topbar {
-            position: absolute;
-            left: 18px;
-            right: 18px;
-            top: 18px;
-            display: grid;
-            grid-template-columns: repeat(7, minmax(96px, 1fr)) auto;
-            gap: 10px;
-            pointer-events: none;
-        }
-
-        .game-stat,
-        .game-exit {
-            border: 1px solid rgba(99, 166, 255, 0.2);
-            border-radius: 16px;
-            background: rgba(5, 10, 16, 0.78);
-            backdrop-filter: blur(14px);
-            box-shadow: 0 16px 60px rgba(0, 0, 0, 0.34);
-        }
-
-        .game-stat {
-            min-height: 66px;
-            padding: 12px 14px;
-        }
-
-        .game-stat span {
-            display: block;
-            color: var(--muted2);
-            font-size: 10px;
-            font-weight: 900;
-            letter-spacing: 0.14em;
-            text-transform: uppercase;
-        }
-
-        .game-stat strong {
-            display: block;
-            margin-top: 8px;
-            color: var(--text);
-            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 20px;
-            font-weight: 900;
-        }
-
-        .game-exit {
-            min-width: 96px;
-            min-height: 66px;
-            padding: 0 18px;
-            color: var(--text);
-            background: rgba(255, 255, 255, 0.035);
-            cursor: pointer;
-            pointer-events: auto;
-            font-size: 12px;
-            font-weight: 900;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-        }
-
-        .game-exit:hover {
-            border-color: rgba(143, 214, 255, 0.65);
-            background: rgba(99, 166, 255, 0.12);
-        }
-
-        .game-progress {
-            position: absolute;
-            left: 18px;
-            top: 96px;
-            width: min(420px, calc(100vw - 36px));
-            height: 10px;
-            border: 1px solid rgba(99, 166, 255, 0.2);
-            border-radius: 999px;
-            background: rgba(5, 10, 16, 0.62);
-            overflow: hidden;
-        }
-
-        .game-progress-fill {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, rgba(126, 242, 176, 0.8), rgba(143, 214, 255, 0.9), rgba(255, 209, 102, 0.9));
-            box-shadow: 0 0 18px rgba(143, 214, 255, 0.55);
-            transition: width 160ms ease;
-        }
-
-        .game-message {
-            position: absolute;
-            left: 18px;
-            bottom: 18px;
-            max-width: min(720px, calc(100vw - 36px));
-            padding: 14px 16px;
-            border: 1px solid rgba(99, 166, 255, 0.18);
-            border-radius: 18px;
-            background: rgba(5, 10, 16, 0.68);
-            backdrop-filter: blur(14px);
-            color: var(--muted);
-            font-size: 13px;
-            line-height: 1.45;
-        }
-
-        .reveal {
-            opacity: 0;
-            transform: translateY(18px);
-            transition: opacity 600ms ease, transform 600ms ease;
-        }
-
-        .reveal.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        @media (max-width: 1120px) {
-            .game-topbar {
-                grid-template-columns: repeat(4, minmax(96px, 1fr));
-            }
-        }
-
-        @media (max-width: 980px) {
-            .shell {
-                width: min(100% - 28px, 760px);
-                padding-top: 18px;
-            }
-
-            .topbar {
-                position: relative;
-                flex-direction: column;
-                align-items: stretch;
-                margin-bottom: 28px;
-            }
-
-            .brand,
-            .nav {
-                justify-content: center;
-            }
-
-            .hero,
-            .section-head,
-            .contact-panel {
-                grid-template-columns: 1fr;
-            }
-
-            .hero {
-                min-height: auto;
-                padding-bottom: 30px;
-            }
-
-            .project-grid,
-            .systems-grid,
-            .stack-map {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 680px) {
-            .game-topbar {
-                grid-template-columns: repeat(2, minmax(96px, 1fr));
-            }
-
-            .game-message {
-                display: none;
-            }
-        }
-
-        @media (max-width: 560px) {
-            .shell {
-                width: min(100% - 18px, 560px);
-            }
-
-            .nav {
-                flex-wrap: wrap;
-                border-radius: 22px;
-            }
-
-            .hero-main,
-            .hero-side,
-            .project-card,
-            .system-card,
-            .stack-panel,
-            .contact-panel {
-                padding: 20px;
-                border-radius: 22px;
-            }
-
-            .metric-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .project-lines div {
-                grid-template-columns: 1fr;
-                gap: 4px;
-            }
-
-            .footer {
-                flex-direction: column;
-            }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            html {
-                scroll-behavior: auto;
-            }
-
-            .reveal {
-                opacity: 1;
-                transform: none;
-                transition: none;
-            }
-        }
-    </style>
+    <title>KDakin-Dev | Systems Portfolio</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=3">
+    <link rel="stylesheet" href="./site.css">
+    <link rel="stylesheet" href="./field_game.css">
 </head>
 <body>
     <canvas id="field-canvas" aria-hidden="true"></canvas>
-    <div class="scanlines" aria-hidden="true"></div>
-    <div class="vignette" aria-hidden="true"></div>
+    <div class="field-scanlines" aria-hidden="true"></div>
+    <div class="field-vignette" aria-hidden="true"></div>
 
-    <div class="game-overlay" aria-hidden="true">
+    <div class="game-overlay" data-field-game-overlay aria-hidden="true">
         <div class="game-topbar">
             <div class="game-stat"><span>Level</span><strong id="game-level">01</strong></div>
             <div class="game-stat"><span>Collected</span><strong id="game-collected">000</strong></div>
@@ -904,195 +25,224 @@
             <button id="exit-game" class="game-exit" type="button">Exit</button>
         </div>
         <div class="game-progress"><div id="game-progress-fill" class="game-progress-fill"></div></div>
-        <div class="game-message">
-            Move through links to collect them. Click to pulse the field. Collected links change color.
-            Reach the target to increase level, unlock heavier atoms, and add more moving nodes.
+        <div class="game-message" data-game-message>
+            Move particles through the field. Click to pulse. Build heavier atoms and keep the core stable.
         </div>
     </div>
 
-    <main class="shell">
-        <header class="topbar">
-            <a class="brand" href="#top" aria-label="KDakin-Dev home">
-                <span class="brand-mark" aria-hidden="true"></span>
-                <span class="brand-text">KDakin-Dev</span>
+    <main class="site-shell">
+        <header class="site-header" id="top">
+            <a class="site-brand" href="#top" aria-label="KDakin-Dev home">
+                <span class="site-brand-icon" aria-hidden="true">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="KD logo">
+                        <rect width="64" height="64" rx="14" fill="#05070b"></rect>
+                        <circle cx="32" cy="32" r="24" fill="#0b1624" stroke="#63a6ff" stroke-width="3"></circle>
+                        <text x="32" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="21" font-weight="700" fill="#d7e3f4">KD</text>
+                    </svg>
+                </span>
+                <span class="site-brand-copy">
+                    <span>KDakin-Dev</span>
+                    <small>Systems portfolio</small>
+                </span>
             </a>
-            <nav class="nav" aria-label="Primary navigation">
-                <a href="#projects">Projects</a>
+
+            <nav class="site-nav" aria-label="Primary navigation">
+                <a href="#work">Work</a>
+                <a href="#method">Method</a>
                 <a href="#skills">Skills</a>
                 <a href="#contact">Contact</a>
             </nav>
         </header>
 
-        <section id="top" class="hero">
-            <div class="panel hero-main reveal">
-                <div class="eyebrow">Interactive systems portfolio</div>
-                <h1>
-                    Simulation,
-                    <span class="title-accent">architecture,</span>
-                    procedural UX.
-                </h1>
-                <p class="lead">
-                    Game systems, simulation prototypes, tooling, architecture cleanup,
-                    rendering logic, and QA-oriented analysis.
+        <section class="site-hero" aria-labelledby="hero-title">
+            <div class="site-hero-copy" data-reveal>
+                <div class="site-kicker">Interactive systems / game tech / QA</div>
+                <h1 id="hero-title">I build and analyze playable systems.</h1>
+                <p class="site-lead">
+                    Portfolio focused on simulation prototypes, game architecture, debug tooling,
+                    rendering logic, and gameplay QA analysis.
                 </p>
-                <div class="hero-actions">
-                    <a class="button" href="#projects">View projects</a>
-                    <a class="button secondary" href="#skills">Skills</a>
+                <div class="site-actions">
+                    <a class="site-button" href="#work">View work</a>
+                    <button id="enter-game" class="site-button site-button-ghost" type="button">Open field game</button>
                 </div>
             </div>
 
-            <aside class="panel hero-side reveal" aria-label="Live background telemetry">
-                <div class="telemetry-title">
-                    <h2>Field telemetry</h2>
-                    <span class="status-pill">Live</span>
+            <aside class="site-command-card" aria-label="Live field telemetry" data-reveal>
+                <div class="site-command-head">
+                    <span>Live field</span>
+                    <strong>Canvas simulation</strong>
                 </div>
-                <div class="metric-grid">
-                    <div class="metric">
+                <div class="site-telemetry-grid">
+                    <div class="site-telemetry-item">
                         <span>Nodes</span>
                         <strong id="metric-nodes">000</strong>
                     </div>
-                    <div class="metric">
+                    <div class="site-telemetry-item">
                         <span>Links</span>
                         <strong id="metric-links">000</strong>
                     </div>
-                    <div class="metric">
+                    <div class="site-telemetry-item">
                         <span>Input</span>
                         <strong id="metric-input">IDLE</strong>
                     </div>
-                    <div class="metric">
+                    <div class="site-telemetry-item">
                         <span>Scroll</span>
                         <strong id="metric-scroll">0.00</strong>
                     </div>
                 </div>
-                <div class="mini-orbit" aria-hidden="true">
-                    <span class="orbit-ring"></span>
-                    <span class="orbit-ring r2"></span>
-                    <span class="core-dot"></span>
-                    <span class="probe-dot"></span>
+                <div class="site-orbit-preview" data-mini-orbit aria-hidden="true">
+                    <span class="site-orbit-line site-orbit-line-a"></span>
+                    <span class="site-orbit-line site-orbit-line-b"></span>
+                    <span class="site-orbit-core"></span>
+                    <span class="site-orbit-probe" data-mini-probe></span>
                 </div>
-                <button id="enter-game" class="button" type="button">Fullscreen field</button>
-                <p class="game-help">Opens the procedural background as a small link-collection system.</p>
+                <p class="site-command-note">
+                    The background is separate from the page layout. The fullscreen game keeps its own overlay and CSS.
+                </p>
             </aside>
         </section>
 
-        <section id="projects">
-            <div class="section-head reveal">
+        <section class="site-section" id="work" aria-labelledby="work-title">
+            <div class="site-section-head" data-reveal>
                 <div>
-                    <div class="section-kicker">Projects</div>
-                    <h2>Main prototypes.</h2>
+                    <div class="site-kicker">Selected work</div>
+                    <h2 id="work-title">Systems with visible behavior.</h2>
                 </div>
                 <p>
-                    Practical work around simulation, ship control, modular object data,
-                    rendering layers, debug tooling, and gameplay-facing systems.
+                    Each project is presented as a technical system: state ownership, feedback loops,
+                    runtime behavior, validation, and failure cases.
                 </p>
             </div>
 
-            <div class="project-grid">
-                <article class="panel project-card reveal">
-                    <div class="project-meta">
-                        <span class="tag">Python</span>
-                        <span class="tag">Pygame</span>
-                        <span class="tag">ModernGL</span>
-                        <span class="tag">Orbital sim</span>
+            <div class="site-work-grid">
+                <article class="site-work-card site-work-card-large" data-reveal>
+                    <div class="site-card-number">01</div>
+                    <div class="site-tag-row">
+                        <span>Python</span>
+                        <span>Pygame</span>
+                        <span>ModernGL</span>
+                        <span>Orbital sim</span>
                     </div>
                     <h3>SpaceSim2D</h3>
                     <p>
-                        2D orbital prototype with maneuver planning, prediction rendering,
-                        map/live transitions, warp safety, and flight feedback.
+                        Maneuver planning, prediction rendering, map/live transitions, warp safety,
+                        orbit markers, and flight feedback for a KSP-like 2D prototype.
                     </p>
-                    <div class="project-lines">
-                        <div><b>Work</b><span>Trajectory logic, planner state, debug metrics, render contracts.</span></div>
-                        <div><b>Focus</b><span>Stable simulation behavior and readable player feedback.</span></div>
-                    </div>
+                    <dl class="site-card-facts">
+                        <div><dt>Focus</dt><dd>Planner contracts and prediction stability</dd></div>
+                        <div><dt>Tools</dt><dd>Debug metrics, profiling, render layer cleanup</dd></div>
+                    </dl>
                 </article>
 
-                <article class="panel project-card reveal">
-                    <div class="project-meta">
-                        <span class="tag">Python</span>
-                        <span class="tag">ModernGL</span>
-                        <span class="tag">6DoF</span>
-                        <span class="tag">Data driven</span>
+                <article class="site-work-card" data-reveal>
+                    <div class="site-card-number">02</div>
+                    <div class="site-tag-row">
+                        <span>6DoF</span>
+                        <span>JSON data</span>
+                        <span>Docking</span>
                     </div>
                     <h3>3D Space Adventure</h3>
                     <p>
-                        3D space prototype with modular ships, docking, assemblies,
-                        zone transitions, object definitions, save validation, and RCS control.
+                        Modular ships, RCS control, docking assemblies, zone transitions,
+                        object definitions, save validation, and clean architecture passes.
                     </p>
-                    <div class="project-lines">
-                        <div><b>Work</b><span>Camera/control logic, object architecture, JSON contracts, cleanup passes.</span></div>
-                        <div><b>Focus</b><span>Deterministic ownership, clean state, and controlled technical debt.</span></div>
+                </article>
+
+                <article class="site-work-card" data-reveal>
+                    <div class="site-card-number">03</div>
+                    <div class="site-tag-row">
+                        <span>HTML</span>
+                        <span>Canvas</span>
+                        <span>Physics toy</span>
                     </div>
+                    <h3>Field Game</h3>
+                    <p>
+                        Interactive background plus fullscreen particle game. Site styling and game overlay
+                        are split into separate CSS layers to reduce accidental coupling.
+                    </p>
                 </article>
             </div>
         </section>
 
-        <section id="skills">
-            <div class="section-head reveal">
+        <section class="site-section" id="method" aria-labelledby="method-title">
+            <div class="site-section-head" data-reveal>
                 <div>
-                    <div class="section-kicker">Skills</div>
-                    <h2>What I do.</h2>
+                    <div class="site-kicker">Method</div>
+                    <h2 id="method-title">How I approach bugs and systems.</h2>
                 </div>
                 <p>
-                    Short version: I work with game systems, simulation rules, tools,
-                    architecture, QA analysis, and technical presentation.
+                    I prefer clear contracts, small verification loops, and direct reproduction paths before large rewrites.
                 </p>
             </div>
 
-            <div class="systems-grid">
-                <article class="panel system-card reveal">
-                    <div class="system-index">01 / SYSTEMS</div>
-                    <h3>Game systems</h3>
-                    <p>Designing rules, state flows, progression logic, player feedback, and edge-case behavior.</p>
+            <div class="site-method-grid">
+                <article class="site-method-card" data-reveal>
+                    <span>Trace</span>
+                    <h3>Observe runtime state</h3>
+                    <p>Capture inputs, metrics, visual state, and the exact moment when behavior diverges.</p>
                 </article>
-                <article class="panel system-card reveal">
-                    <div class="system-index">02 / SIM</div>
-                    <h3>Simulation prototypes</h3>
-                    <p>Orbital prediction, ship movement, RCS control, docking, local zones, and dynamic objects.</p>
+                <article class="site-method-card" data-reveal>
+                    <span>Isolate</span>
+                    <h3>Separate ownership</h3>
+                    <p>Find which module owns state, rendering, input, or timing before changing behavior.</p>
                 </article>
-                <article class="panel system-card reveal">
-                    <div class="system-index">03 / CODE</div>
-                    <h3>Python tooling</h3>
-                    <p>Debug scripts, validation checks, file audits, automation helpers, and project cleanup tools.</p>
+                <article class="site-method-card" data-reveal>
+                    <span>Verify</span>
+                    <h3>Test the contract</h3>
+                    <p>Use minimal checks, logs, and focused runs so fixes are measurable instead of cosmetic.</p>
                 </article>
-                <article class="panel system-card reveal">
-                    <div class="system-index">04 / RENDER</div>
-                    <h3>Rendering logic</h3>
-                    <p>Canvas, Pygame, ModernGL, HUD layers, VFX states, line rendering, and performance budgets.</p>
-                </article>
-                <article class="panel system-card reveal">
-                    <div class="system-index">05 / ARCH</div>
-                    <h3>Architecture cleanup</h3>
-                    <p>Single source of truth, data contracts, module separation, state ownership, and no legacy drift.</p>
-                </article>
-                <article class="panel system-card reveal">
-                    <div class="system-index">06 / QA</div>
-                    <h3>Gameplay QA analysis</h3>
-                    <p>Finding systemic bugs, reproduction paths, balance issues, unclear feedback, and long-run failures.</p>
+                <article class="site-method-card" data-reveal>
+                    <span>Clean</span>
+                    <h3>Remove legacy drift</h3>
+                    <p>Prefer one path, one source of truth, and no hidden compatibility branches after migration.</p>
                 </article>
             </div>
         </section>
 
-        <section id="contact">
-            <div class="panel contact-panel reveal">
+        <section class="site-section" id="skills" aria-labelledby="skills-title">
+            <div class="site-section-head" data-reveal>
                 <div>
-                    <div class="section-kicker">Contact</div>
-                    <h2>Available for systems, tools, gameplay QA, and prototype work.</h2>
+                    <div class="site-kicker">Skills</div>
+                    <h2 id="skills-title">Practical stack.</h2>
+                </div>
+                <p>
+                    Game logic, simulation behavior, technical QA, debugging, tooling, rendering pipelines,
+                    and project architecture cleanup.
+                </p>
+            </div>
+
+            <div class="site-skill-grid">
+                <div class="site-skill-chip" data-reveal><b>Simulation</b><span>Orbit prediction, movement, collision, RCS, docking.</span></div>
+                <div class="site-skill-chip" data-reveal><b>Architecture</b><span>Contracts, state ownership, data validation, cleanup.</span></div>
+                <div class="site-skill-chip" data-reveal><b>Rendering</b><span>Canvas, Pygame, ModernGL, HUD layers, VFX states.</span></div>
+                <div class="site-skill-chip" data-reveal><b>QA analysis</b><span>Reproduction paths, systemic bugs, unclear feedback.</span></div>
+                <div class="site-skill-chip" data-reveal><b>Tooling</b><span>Debug launchers, file audits, logs, automated checks.</span></div>
+                <div class="site-skill-chip" data-reveal><b>Documentation</b><span>Readable task specs, contracts, and implementation notes.</span></div>
+            </div>
+        </section>
+
+        <section class="site-section" id="contact" aria-labelledby="contact-title">
+            <div class="site-contact-card" data-reveal>
+                <div>
+                    <div class="site-kicker">Contact</div>
+                    <h2 id="contact-title">Available for systems, tools, gameplay QA, and prototype work.</h2>
                     <p>
-                        I am interested in systems-heavy game work: simulation, tools,
-                        architecture, gameplay QA, debugging, and technical prototypes.
+                        I am interested in systems-heavy game work where debugging, iteration,
+                        and clear technical communication matter.
                     </p>
                 </div>
-                <div class="contact-list">
-                    <a class="contact-link" href="mailto:111092roman@gmail.com"><span>Email</span><span>Open</span></a>
-                    <a class="contact-link" href="https://github.com/" target="_blank" rel="noreferrer"><span>GitHub</span><span>Profile</span></a>
-                    <a class="contact-link" href="#top"><span>Top</span><span>Return</span></a>
+                <div class="site-contact-links">
+                    <a href="mailto:111092roman@gmail.com"><span>Email</span><b>Open</b></a>
+                    <a href="https://github.com/" target="_blank" rel="noreferrer"><span>GitHub</span><b>Profile</b></a>
+                    <a href="#top"><span>Page</span><b>Top</b></a>
                 </div>
             </div>
         </section>
 
-        <footer class="footer">
-            <span>KDakin-Dev / Interactive Portfolio</span>
-            <span>Static page / Canvas simulation / GitHub Pages ready</span>
+        <footer class="site-footer">
+            <span>KDakin-Dev / Interactive systems portfolio</span>
+            <span>Static page / Isolated game layer / GitHub Pages ready</span>
         </footer>
     </main>
 
