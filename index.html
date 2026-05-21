@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDakin-Dev | Systems Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
-    <link rel="stylesheet" href="./site.css?v=9">
+    <link rel="stylesheet" href="./site.css?v=10">
     <link rel="stylesheet" href="./field_game.css?v=8">
 </head>
 <body>
@@ -30,153 +30,171 @@
         </div>
     </div>
 
-    <main class="site-shell">
-        <header class="site-header" id="top">
-
-            <nav class="site-nav" aria-label="Primary navigation">
-                <a href="#work">Work</a>
-                <a href="#skills">Skills</a>
-                <a href="#contact">Contact</a>
-            </nav>
+    <main class="site-page">
+        <header class="site-topbar" id="top">
+            <div class="site-inner site-topbar-inner">
+                <a class="site-home" href="#top">KDakin-Dev</a>
+                <nav class="site-nav" aria-label="Primary navigation">
+                    <a href="#top">Home</a>
+                    <span aria-hidden="true">/</span>
+                    <a href="#work">Projects</a>
+                    <span aria-hidden="true">/</span>
+                    <a href="#skills">Skills</a>
+                    <span aria-hidden="true">/</span>
+                    <a href="#contact">Contact</a>
+                </nav>
+            </div>
         </header>
 
-        <section class="site-hero" aria-labelledby="hero-title">
-            <div class="site-hero-copy" data-reveal>
-                <div class="site-kicker">Interactive systems / game tech / QA</div>
-                <h1 id="hero-title">I build and analyze playable systems.</h1>
-                <p class="site-lead">
-                    Portfolio focused on simulation prototypes, game architecture, debug tooling,
-                    rendering logic, and gameplay QA analysis.
-                </p>
-                <div class="site-actions">
-                    <a class="site-button" href="#work">View work</a>
-                    <button id="enter-game" class="site-button site-button-ghost" type="button">Open field game</button>
-                </div>
-            </div>
-
-            <aside class="site-command-card" aria-label="Field game module" data-reveal>
-                <div class="site-command-head">
-                    <span>Game module</span>
-                    <strong>Fullscreen only</strong>
-                </div>
-                <div class="site-telemetry-grid">
-                    <div class="site-telemetry-item">
-                        <span>Nodes</span>
-                        <strong id="metric-nodes">000</strong>
-                    </div>
-                    <div class="site-telemetry-item">
-                        <span>Links</span>
-                        <strong id="metric-links">000</strong>
-                    </div>
-                    <div class="site-telemetry-item">
-                        <span>Input</span>
-                        <strong id="metric-input">IDLE</strong>
-                    </div>
-                    <div class="site-telemetry-item">
-                        <span>Scroll</span>
-                        <strong id="metric-scroll">0.00</strong>
-                    </div>
-                </div>
-                <div class="site-orbit-preview" data-mini-orbit aria-hidden="true">
-                    <span class="site-orbit-line site-orbit-line-a"></span>
-                    <span class="site-orbit-line site-orbit-line-b"></span>
-                    <span class="site-orbit-core"></span>
-                    <span class="site-orbit-probe" data-mini-probe></span>
-                </div>
-                <p class="site-command-note">
-                    The page background is static black. The field game runs only when opened fullscreen.
-                </p>
-            </aside>
-        </section>
-
-        <section class="site-section" id="work" aria-labelledby="work-title">
-            <div class="site-section-head" data-reveal>
-                <div>
-                    <div class="site-kicker">Selected work</div>
-                    <h2 id="work-title">Systems with visible behavior.</h2>
-                </div>
-                <p>
-                    Each project is presented as a technical system: state ownership, feedback loops,
-                    runtime behavior, validation, and failure cases.
-                </p>
-            </div>
-
-            <div class="site-work-grid">
-                <article class="site-work-card site-work-card-large" data-reveal>
-                    <div class="site-card-number">01</div>
-                    <div class="site-tag-row">
-                        <span>Python</span>
-                        <span>Pygame</span>
-                        <span>ModernGL</span>
-                        <span>Orbital sim</span>
-                    </div>
-                    <h3>SpaceSim2D</h3>
-                    <p>
-                        Maneuver planning, prediction rendering, map/live transitions, warp safety,
-                        orbit markers, and flight feedback for a KSP-like 2D prototype.
+        <section class="site-block site-block-hero" aria-labelledby="hero-title">
+            <div class="site-inner site-hero-layout">
+                <div class="site-hero-copy" data-reveal>
+                    <p class="site-section-label">Interactive systems / game tech / QA</p>
+                    <h1 id="hero-title">I build and analyze playable systems.</h1>
+                    <p class="site-lead">
+                        Portfolio focused on simulation prototypes, game architecture, debug tooling,
+                        rendering logic, and gameplay QA analysis.
                     </p>
-                    <dl class="site-card-facts">
-                        <div><dt>Focus</dt><dd>Planner contracts and prediction stability</dd></div>
-                        <div><dt>Tools</dt><dd>Debug metrics, profiling, render layer cleanup</dd></div>
-                    </dl>
-                </article>
-
-                <article class="site-work-card" data-reveal>
-                    <div class="site-card-number">02</div>
-                    <div class="site-tag-row">
-                        <span>6DoF</span>
-                        <span>JSON data</span>
-                        <span>Docking</span>
+                    <div class="site-actions">
+                        <a class="site-button" href="#work">View work</a>
+                        <button id="enter-game" class="site-button site-button-secondary" type="button">Open field game</button>
                     </div>
-                    <h3>3D Space Adventure</h3>
-                    <p>
-                        Modular ships, RCS control, docking assemblies, zone transitions,
-                        object definitions, save validation, and clean architecture passes.
-                    </p>
-                </article>
+                </div>
 
-                <article class="site-work-card" data-reveal>
-                    <div class="site-card-number">03</div>
-                    <div class="site-tag-row">
-                        <span>HTML</span>
-                        <span>Canvas</span>
-                        <span>Physics toy</span>
+                <aside class="site-game-panel" aria-label="Field game module" data-reveal>
+                    <div class="site-game-head">
+                        <span>Game module</span>
+                        <strong>Fullscreen only</strong>
                     </div>
-                    <h3>Field Game</h3>
-                    <p>
-                        Standalone fullscreen particle game. Site styling and game overlay
-                        are split into separate CSS layers to reduce accidental coupling.
+                    <div class="site-telemetry-grid">
+                        <div class="site-telemetry-item">
+                            <span>Nodes</span>
+                            <strong id="metric-nodes">000</strong>
+                        </div>
+                        <div class="site-telemetry-item">
+                            <span>Links</span>
+                            <strong id="metric-links">000</strong>
+                        </div>
+                        <div class="site-telemetry-item">
+                            <span>Input</span>
+                            <strong id="metric-input">IDLE</strong>
+                        </div>
+                        <div class="site-telemetry-item">
+                            <span>Scroll</span>
+                            <strong id="metric-scroll">0.00</strong>
+                        </div>
+                    </div>
+                    <div class="site-orbit-preview" data-mini-orbit aria-hidden="true">
+                        <span class="site-orbit-line site-orbit-line-a"></span>
+                        <span class="site-orbit-line site-orbit-line-b"></span>
+                        <span class="site-orbit-core"></span>
+                        <span class="site-orbit-probe" data-mini-probe></span>
+                    </div>
+                    <p class="site-note">
+                        The page background is static black. The field game runs only when opened fullscreen.
                     </p>
-                </article>
+                </aside>
             </div>
         </section>
 
-        <section class="site-section" id="skills" aria-labelledby="skills-title">
-            <div class="site-section-head" data-reveal>
-                <div>
-                    <div class="site-kicker">Skills</div>
-                    <h2 id="skills-title">Practical stack.</h2>
+        <section class="site-block site-block-work" id="work" aria-labelledby="work-title">
+            <div class="site-inner">
+                <div class="site-section-head" data-reveal>
+                    <p class="site-section-label">Selected work</p>
+                    <div class="site-section-title-row">
+                        <h2 id="work-title">Systems with visible behavior.</h2>
+                        <p>
+                            Each project is presented as a technical system: state ownership, feedback loops,
+                            runtime behavior, validation, and failure cases.
+                        </p>
+                    </div>
                 </div>
-                <p>
-                    Game logic, simulation behavior, technical QA, debugging, tooling, rendering pipelines,
-                    and project architecture cleanup.
-                </p>
-            </div>
 
-            <div class="site-skill-grid">
-                <div class="site-skill-chip" data-reveal><b>Simulation</b><span>Orbit prediction, movement, collision, RCS, docking.</span></div>
-                <div class="site-skill-chip" data-reveal><b>Architecture</b><span>Contracts, state ownership, data validation, cleanup.</span></div>
-                <div class="site-skill-chip" data-reveal><b>Rendering</b><span>Canvas, Pygame, ModernGL, HUD layers, VFX states.</span></div>
-                <div class="site-skill-chip" data-reveal><b>QA analysis</b><span>Reproduction paths, systemic bugs, unclear feedback.</span></div>
-                <div class="site-skill-chip" data-reveal><b>Tooling</b><span>Debug launchers, file audits, logs, automated checks.</span></div>
-                <div class="site-skill-chip" data-reveal><b>Documentation</b><span>Readable task specs, contracts, and implementation notes.</span></div>
+                <div class="site-project-list">
+                    <article class="site-project-item" data-reveal>
+                        <div class="site-project-number">01</div>
+                        <div class="site-project-body">
+                            <h3>SpaceSim2D</h3>
+                            <p>
+                                Maneuver planning, prediction rendering, map/live transitions, warp safety,
+                                orbit markers, and flight feedback for a KSP-like 2D prototype.
+                            </p>
+                            <div class="site-tag-row">
+                                <span>Python</span>
+                                <span>Pygame</span>
+                                <span>ModernGL</span>
+                                <span>Orbital sim</span>
+                            </div>
+                        </div>
+                        <dl class="site-project-facts">
+                            <div><dt>Focus</dt><dd>Planner contracts and prediction stability</dd></div>
+                            <div><dt>Tools</dt><dd>Debug metrics, profiling, render layer cleanup</dd></div>
+                        </dl>
+                    </article>
+
+                    <article class="site-project-item" data-reveal>
+                        <div class="site-project-number">02</div>
+                        <div class="site-project-body">
+                            <h3>3D Space Adventure</h3>
+                            <p>
+                                Modular ships, RCS control, docking assemblies, zone transitions,
+                                object definitions, save validation, and clean architecture passes.
+                            </p>
+                            <div class="site-tag-row">
+                                <span>6DoF</span>
+                                <span>JSON data</span>
+                                <span>Docking</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="site-project-item" data-reveal>
+                        <div class="site-project-number">03</div>
+                        <div class="site-project-body">
+                            <h3>Field Game</h3>
+                            <p>
+                                Standalone fullscreen particle game. Site styling and game overlay
+                                are split into separate CSS layers to reduce accidental coupling.
+                            </p>
+                            <div class="site-tag-row">
+                                <span>HTML</span>
+                                <span>Canvas</span>
+                                <span>Physics toy</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
             </div>
         </section>
 
-        <section class="site-section" id="contact" aria-labelledby="contact-title">
-            <div class="site-contact-card" data-reveal>
+        <section class="site-block site-block-skills" id="skills" aria-labelledby="skills-title">
+            <div class="site-inner">
+                <div class="site-section-head" data-reveal>
+                    <p class="site-section-label">Skills</p>
+                    <div class="site-section-title-row">
+                        <h2 id="skills-title">Practical stack.</h2>
+                        <p>
+                            Game logic, simulation behavior, technical QA, debugging, tooling, rendering pipelines,
+                            and project architecture cleanup.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="site-skill-list">
+                    <div class="site-skill-item" data-reveal><b>Simulation</b><span>Orbit prediction, movement, collision, RCS, docking.</span></div>
+                    <div class="site-skill-item" data-reveal><b>Architecture</b><span>Contracts, state ownership, data validation, cleanup.</span></div>
+                    <div class="site-skill-item" data-reveal><b>Rendering</b><span>Canvas, Pygame, ModernGL, HUD layers, VFX states.</span></div>
+                    <div class="site-skill-item" data-reveal><b>QA analysis</b><span>Reproduction paths, systemic bugs, unclear feedback.</span></div>
+                    <div class="site-skill-item" data-reveal><b>Tooling</b><span>Debug launchers, file audits, logs, automated checks.</span></div>
+                    <div class="site-skill-item" data-reveal><b>Documentation</b><span>Readable task specs, contracts, and implementation notes.</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="site-block site-block-contact" id="contact" aria-labelledby="contact-title">
+            <div class="site-inner site-contact-layout" data-reveal>
                 <div>
-                    <div class="site-kicker">Contact</div>
+                    <p class="site-section-label">Contact</p>
                     <h2 id="contact-title">Available for systems, tools, gameplay QA, and prototype work.</h2>
                     <p>
                         I am interested in systems-heavy game work where debugging, iteration,
@@ -192,7 +210,7 @@
         </section>
 
         <footer class="site-footer">
-            <span>KDakin-Dev</span>
+            <div class="site-inner">KDakin-Dev</div>
         </footer>
     </main>
 
