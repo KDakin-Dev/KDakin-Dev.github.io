@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.05-balanced-mass-stability-h-label",
+        buildVersion: "0.12.08-player-count-mass-gates",
 
         game: {
             playAreaLeft: 18,
@@ -76,10 +76,15 @@
             absorbClickRadiusBonus: 22,
             levelAdvancePulseMass: 0.0,
             starReadinessTarget: 400,
-            ironCoreMassThreshold: 960,
-            massGateFirstRecipeCount: 3,
-            massGateRecipeStride: 2,
+            ironCoreMassThreshold: 1442,
             massGateGlobalMassMultiplier: 1.5,
+            massGateTargets: [
+                { afterRecipeCount: 3, mass: 24.5 },
+                { afterRecipeCount: 5, mass: 78.5 },
+                { afterRecipeCount: 9, mass: 282.5 },
+                { afterRecipeCount: 13, mass: 714.5 },
+                { afterRecipeCount: 15, mass: 1442 }
+            ],
 
             collapseCriticalMass: 320,
             collapseBlackHoleMass: 380,
@@ -143,14 +148,21 @@
         growthStages: [
             { level: 1, mass: 0, title: "Proton seed", hint: "Need: H + H -> D" },
             { level: 2, mass: 8, title: "Deuterium burn", hint: "Need: D + H -> He3" },
-            { level: 3, mass: 22, title: "Helium-3 branch", hint: "Need: He3 + He3 -> He4" },
-            { level: 4, mass: 52, title: "Alpha seed", hint: "Need: He4 + He4 -> Be8" },
-            { level: 5, mass: 105, title: "Triple-alpha", hint: "Need: Be8 + He4 -> C12" },
-            { level: 6, mass: 185, title: "Carbon capture", hint: "Need: C12 + He4 -> O16" },
-            { level: 7, mass: 300, title: "Oxygen capture", hint: "Need: O16 + He4 -> Ne20" },
-            { level: 8, mass: 460, title: "Neon capture", hint: "Need: Ne20 + He4 -> Mg24" },
-            { level: 9, mass: 680, title: "Magnesium capture", hint: "Need: Mg24 + He4 -> Si28" },
-            { level: 10, mass: 960, title: "Silicon chain", hint: "Need: alpha chain to Fe56" }
+            { level: 3, mass: 18, title: "Helium-3 branch", hint: "Need: He3 + He3 -> He4" },
+            { level: 4, mass: 24.5, title: "Alpha seed", hint: "Need: He4 + He4 -> Be8" },
+            { level: 5, mass: 52, title: "Beryllium bridge", hint: "Need: Be8 + He4 -> C12" },
+            { level: 6, mass: 78.5, title: "Triple-alpha", hint: "Need: C12 + He4 -> O16" },
+            { level: 7, mass: 130, title: "Carbon capture", hint: "Need: O16 + He4 -> Ne20" },
+            { level: 8, mass: 190, title: "Oxygen capture", hint: "Need: Ne20 + He4 -> Mg24" },
+            { level: 9, mass: 282.5, title: "Neon capture", hint: "Need: Mg24 + He4 -> Si28" },
+            { level: 10, mass: 390, title: "Magnesium capture", hint: "Need: Si28 + He4 -> S32" },
+            { level: 11, mass: 520, title: "Silicon alpha chain", hint: "Need: S32 + He4 -> Ar36" },
+            { level: 12, mass: 615, title: "Sulfur capture", hint: "Need: Ar36 + He4 -> Ca40" },
+            { level: 13, mass: 714.5, title: "Argon capture", hint: "Need: Ca40 + He4 -> Ti44" },
+            { level: 14, mass: 930, title: "Calcium capture", hint: "Need: Ti44 + He4 -> Cr48" },
+            { level: 15, mass: 1160, title: "Titanium capture", hint: "Need: Cr48 + He4 -> Fe52" },
+            { level: 16, mass: 1442, title: "Iron assembly", hint: "Need: Fe52 + He4 -> Fe56" },
+            { level: 17, mass: 1442, title: "Iron core", hint: "Need: stabilize Fe56 and build readiness" }
         ],
 
         reactions: [
@@ -268,7 +280,7 @@
     }
 
     function pad3(value) {
-        return String(Math.floor(value)).padStart(3, "0").slice(-3);
+        return String(Math.round(value)).padStart(3, "0");
     }
 
     function pad2(value) {
@@ -338,22 +350,26 @@
         return count;
     }
 
+    function getMassGateDefinitionByIndex(index) {
+        var targets = CONFIG.game.massGateTargets || [];
+        if (index < 0 || index >= targets.length) return null;
+        return targets[index];
+    }
+
     function getMassGateIndexForDiscoveryCount(discoveredCount) {
-        var first = CONFIG.game.massGateFirstRecipeCount;
-        var stride = CONFIG.game.massGateRecipeStride;
-        if (discoveredCount < first) return -1;
-        if ((discoveredCount - first) % stride !== 0) return -1;
-        return Math.floor((discoveredCount - first) / stride);
+        var targets = CONFIG.game.massGateTargets || [];
+        for (var i = 0; i < targets.length; i += 1) {
+            if (targets[i].afterRecipeCount === discoveredCount) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     function getMassGateThresholdByIndex(index) {
-        var level = CONFIG.game.massGateFirstRecipeCount + index * CONFIG.game.massGateRecipeStride + 1;
-        for (var i = 0; i < CONFIG.growthStages.length; i += 1) {
-            if (CONFIG.growthStages[i].level === level) {
-                return Math.min(CONFIG.growthStages[i].mass, CONFIG.game.ironCoreMassThreshold);
-            }
-        }
-        return CONFIG.game.ironCoreMassThreshold;
+        var gate = getMassGateDefinitionByIndex(index);
+        if (!gate) return CONFIG.game.ironCoreMassThreshold;
+        return Math.min(gate.mass, CONFIG.game.ironCoreMassThreshold);
     }
 
     function getActiveMassGate() {
@@ -401,23 +417,15 @@
         }
 
         var discoveredCount = getDiscoveredRecipeCount();
-        var first = CONFIG.game.massGateFirstRecipeCount;
-        var stride = CONFIG.game.massGateRecipeStride;
-        var nextGateCount;
+        var targets = CONFIG.game.massGateTargets || [];
 
-        if (discoveredCount < first) {
-            nextGateCount = first;
-        } else {
-            var offset = discoveredCount - first;
-            var steps = Math.floor(offset / stride) + 1;
-            if (offset % stride === 0 && state.coreMass < getMassGateThresholdByIndex(Math.floor(offset / stride))) {
-                steps = Math.floor(offset / stride);
+        for (var i = 0; i < targets.length; i += 1) {
+            if (discoveredCount <= targets[i].afterRecipeCount) {
+                return Math.min(targets[i].mass, CONFIG.game.ironCoreMassThreshold);
             }
-            nextGateCount = first + steps * stride;
         }
 
-        var nextIndex = Math.max(0, Math.floor((nextGateCount - first) / stride));
-        return Math.min(getMassGateThresholdByIndex(nextIndex), CONFIG.game.ironCoreMassThreshold);
+        return CONFIG.game.ironCoreMassThreshold;
     }
 
     function getMassGoalThreshold() {
@@ -833,7 +841,7 @@
     }
 
     function getCurrentRecipeIndex() {
-        var recipe = getCurrentRecipe();
+        var recipe = getCurrentRecipe() || getPrimaryRecipe();
         if (!recipe) return 0;
 
         for (var i = 0; i < CONFIG.reactions.length; i += 1) {
@@ -842,7 +850,7 @@
             }
         }
 
-        return 0;
+        return Math.max(0, getDiscoveredRecipeCount() - 1);
     }
 
     function pushLaggedHeavySupport(list, currentIndex) {
@@ -1953,30 +1961,87 @@
             + "</span>";
     }
 
-    function unlockedRecipeStripHtml(primary) {
-        var unlocked = getUnlockedRecipeList();
-        var items = [];
-        var start = Math.max(0, unlocked.length - 8);
+    function getKnownRecipeList() {
+        var list = [];
+        for (var i = 0; i < CONFIG.reactions.length; i += 1) {
+            var reaction = CONFIG.reactions[i];
+            if (state.discoveredProducts[reaction.product]) {
+                list.push(reaction);
+            }
+        }
+        return list;
+    }
 
-        for (var i = start; i < unlocked.length; i += 1) {
-            var reaction = unlocked[i];
-            if (primary && reaction.product === primary.product) continue;
-            items.push(reactionHtml(reaction, false));
+    function recipeTextLineHtml(reaction, color, muted) {
+        var alpha = muted ? "0.62" : "0.96";
+        var lineColor = color || "215,227,244";
+        return ""
+            + "<div style='display:grid;grid-template-columns:1fr auto 1fr auto 1fr;align-items:center;gap:6px;margin:5px 0;color:rgba(" + lineColor + "," + alpha + ");font:900 11px SFMono-Regular,Consolas,monospace;letter-spacing:0.06em;'>"
+            + "<span style='text-align:right;'>" + reaction.a + "</span>"
+            + "<span style='color:rgba(139,155,176,0.74);'>+</span>"
+            + "<span style='text-align:center;'>" + reaction.b + "</span>"
+            + "<span style='color:rgba(255,209,102,0.86);'>=</span>"
+            + "<span style='text-align:left;color:rgba(235,245,255," + alpha + ");'>" + reaction.product + "</span>"
+            + "</div>";
+    }
+
+    function recipeGuidePanelHtml(side, title, subtitle, bodyHtml, color) {
+        var anchor = side === "left" ? "right:calc(100% + 18px);" : "left:calc(100% + 18px);";
+        var align = side === "left" ? "right" : "left";
+        return ""
+            + "<div style='position:absolute;" + anchor + "top:0;width:clamp(0px,calc((100vw - 880px)/2),360px);max-height:210px;overflow:hidden;pointer-events:none;text-align:" + align + ";'>"
+            + "<div style='min-width:230px;border:1px solid rgba(" + color + ",0.26);border-radius:16px;background:rgba(5,10,16,0.74);backdrop-filter:blur(14px);box-shadow:0 14px 44px rgba(0,0,0,0.34);padding:11px 12px;'>"
+            + "<div style='color:rgba(" + color + ",0.96);font:900 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.18em;text-transform:uppercase;'>" + title + "</div>"
+            + "<div style='margin-top:4px;color:rgba(139,155,176,0.88);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.08em;'>" + subtitle + "</div>"
+            + "<div style='margin-top:8px;'>" + bodyHtml + "</div>"
+            + "</div>"
+            + "</div>";
+    }
+
+    function knownRecipeLinesHtml(limit) {
+        var known = getKnownRecipeList();
+        if (known.length <= 0) {
+            return "<div style='color:rgba(215,227,244,0.84);font:900 11px SFMono-Regular,Consolas,monospace;letter-spacing:0.06em;'>Start with H + H = D</div>";
         }
 
-        if (items.length <= 0) return "";
+        var max = limit || 6;
+        var start = Math.max(0, known.length - max);
+        var html = "";
+        for (var i = start; i < known.length; i += 1) {
+            html += recipeTextLineHtml(known[i], "215,227,244", false);
+        }
+        if (start > 0) {
+            html = "<div style='margin-bottom:5px;color:rgba(139,155,176,0.72);font:800 10px SFMono-Regular,Consolas,monospace;'>+ " + start + " older recipes</div>" + html;
+        }
+        return html;
+    }
 
-        var mid = Math.ceil(items.length / 2);
-        var leftItems = items.slice(0, mid).join("");
-        var rightItems = items.slice(mid).join("");
+    function fusionGuidePanelsHtml(primary, mode) {
+        var leftBody = knownRecipeLinesHtml(7);
+        var rightBody;
+        var rightTitle;
+        var rightSubtitle;
+        var rightColor;
+
+        if (mode === "mass") {
+            rightTitle = "Mass gate";
+            rightSubtitle = "Recipe hidden until mass target";
+            rightColor = "255,209,102";
+            rightBody = ""
+                + "<div style='color:rgba(235,245,255,0.92);font:900 11px SFMono-Regular,Consolas,monospace;letter-spacing:0.06em;line-height:1.45;'>Use opened pairs from the left panel.</div>"
+                + "<div style='margin-top:6px;color:rgba(139,155,176,0.92);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.06em;line-height:1.45;'>Create known nuclei, then absorb opened nuclei inside the core zone to fill MASS.</div>";
+        } else {
+            rightTitle = "Current fusion";
+            rightSubtitle = "Hold this pair inside core zone";
+            rightColor = "143,214,255";
+            rightBody = primary
+                ? recipeTextLineHtml(primary, "235,245,255", false)
+                : "<div style='color:rgba(139,155,176,0.86);font:800 10px SFMono-Regular,Consolas,monospace;'>No active recipe</div>";
+        }
 
         return ""
-            + "<div style='position:absolute;right:calc(100% + 16px);top:50%;transform:translateY(-50%);width:clamp(0px,calc((100vw - 850px)/2),330px);display:flex;gap:10px;justify-content:flex-end;overflow:hidden;pointer-events:none;'>"
-            + leftItems
-            + "</div>"
-            + "<div style='position:absolute;left:calc(100% + 16px);top:50%;transform:translateY(-50%);width:clamp(0px,calc((100vw - 850px)/2),330px);display:flex;gap:10px;justify-content:flex-start;overflow:hidden;pointer-events:none;'>"
-            + rightItems
-            + "</div>";
+            + recipeGuidePanelHtml("left", "Opened recipes", "Known connections", leftBody, "96,255,173")
+            + recipeGuidePanelHtml("right", rightTitle, rightSubtitle, rightBody, rightColor);
     }
 
     function profileMetricBarHtml(label, pct, valueText, gradient, pulse) {
@@ -2070,13 +2135,14 @@
 
         if (state.massGateActive) {
             state.recipeRoot.innerHTML = ""
+                + fusionGuidePanelsHtml(null, "mass")
                 + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:10px;'>"
                 + "<span style='color:rgba(255,209,102,0.94);font-size:11px;letter-spacing:0.18em;'>ACCUMULATE MASS / " + CONFIG.buildVersion + "</span>"
                 + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>SYNTHESIS LOCKED</span>"
                 + "</div>"
                 + "<div style='text-align:center;color:rgba(235,245,255,0.96);font:900 18px Inter,Arial,sans-serif;letter-spacing:0.06em;margin-bottom:8px;'>Reach required mass to continue synthesis</div>"
                 + profileBarsHtml(false, true)
-                + "<div style='margin-top:8px;text-align:center;color:rgba(139,155,176,0.92);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.10em;'>Absorb opened light nuclei for boosted mass gain</div>";
+                + "<div style='margin-top:8px;text-align:center;color:rgba(139,155,176,0.92);font:800 10px SFMono-Regular,Consolas,monospace;letter-spacing:0.10em;'>Absorb opened nuclei for boosted mass gain</div>";
             state.recipeRoot.style.display = "block";
             return;
         }
@@ -2085,10 +2151,9 @@
         var unlocked = isReactionUnlocked(recipe);
         var stage = getGrowthStage();
         var lockText = unlocked ? "" : "<span style='margin-left:10px;color:rgba(255,107,139,0.84);font:900 10px SFMono-Regular,Consolas,monospace;'>ABSORB " + recipe.requiresAbsorbed + "</span>";
-        var strip = unlockedRecipeStripHtml(recipe);
 
         state.recipeRoot.innerHTML = ""
-            + strip
+            + fusionGuidePanelsHtml(recipe, "synthesis")
             + "<div style='display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:9px;'>"
             + "<span style='color:rgba(143,214,255,0.86);font-size:11px;letter-spacing:0.18em;'>LV " + pad2(getCoreLevel()) + " / " + CONFIG.buildVersion + "</span>"
             + "<span style='color:rgba(215,227,244,0.72);font-size:11px;letter-spacing:0.10em;'>" + stage.title + "</span>"
@@ -2631,7 +2696,7 @@
     }
 
     function isIronCorePreparation() {
-        return isFusionPhase() && state.coreMass >= CONFIG.game.ironCoreMassThreshold;
+        return isFusionPhase() && hasDiscovered("Fe56") && state.coreMass >= CONFIG.game.ironCoreMassThreshold;
     }
 
     function starReadinessPct() {
@@ -2646,6 +2711,7 @@
 
     function triggerIronCoreCollapse() {
         if (!isFusionPhase()) return;
+        if (!hasDiscovered("Fe56")) return;
         if (state.coreMass < CONFIG.game.ironCoreMassThreshold) return;
 
         state.ironCoreEntryCoreRadius = Math.max(coreRadius(), targetCoreRadius());
@@ -3517,9 +3583,9 @@
                 }
 
                 if (isIronCorePreparation()) {
-                    dom.gameMessage.textContent = "Iron mass reached. Absorb nuclei inside the core zone to fill Star Readiness and enter Iron Core.";
+                    dom.gameMessage.textContent = "Fe56 reached. Absorb nuclei inside the core zone to fill Star Readiness and enter Iron Core.";
                 } else if (state.massGateActive) {
-                    dom.gameMessage.textContent = "Accumulate mass to continue synthesis. Light nuclei add extra core mass in this mode.";
+                    dom.gameMessage.textContent = "Accumulate mass to continue synthesis. Use opened recipes, then absorb opened nuclei for boosted core mass.";
                 } else if (hasTarget && recipe) {
                     dom.gameMessage.textContent = "Optional: click opened nuclei inside the core zone to shape Mass, Temp, Stability, and Readiness.";
                 } else if (hasAnyAbsorb && recipe) {
