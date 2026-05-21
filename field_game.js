@@ -3,19 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.00-site-game-isolation",
-
-        portfolio: {
-            minNodes: 42,
-            maxNodes: 112,
-            areaPerNode: 20500,
-            linkDistanceDesktop: 172,
-            linkDistanceMobile: 132,
-            pointerRadius: 205,
-            pointerPushRadius: 282,
-            pointerForce: 145,
-            pointerPushForce: 310
-        },
+        buildVersion: "0.12.02-game-only-cleanup",
 
         game: {
             playAreaLeft: 18,
@@ -213,7 +201,6 @@
         dpr: 1,
         lastTime: 0,
         nodes: [],
-        portfolioNodes: [],
         pulses: [],
         fusionHeat: Object.create(null),
         hotPairs: [],
@@ -494,90 +481,11 @@
         if (state.gameMode) {
             keepGameInsideBounds();
         } else {
-            rebuildPortfolioNodes();
+            state.nodes = [];
+            state.linkCount = 0;
+            if (dom.metricNodes) dom.metricNodes.textContent = "000";
+            if (dom.metricLinks) dom.metricLinks.textContent = "000";
         }
-    }
-
-    function wantedPortfolioNodeCount() {
-        var area = state.width * state.height;
-        return clamp(
-            Math.floor(area / CONFIG.portfolio.areaPerNode),
-            CONFIG.portfolio.minNodes,
-            CONFIG.portfolio.maxNodes
-        );
-    }
-
-    function getOrbitCenter() {
-        if (state.gameMode) {
-            return {
-                x: state.width * 0.5,
-                y: state.height * 0.48
-            };
-        }
-
-        return {
-            x: state.width * 0.61,
-            y: state.height * 0.39
-        };
-    }
-
-    function getOrbitParams(index, scale) {
-        var group = index % 5;
-        var minDim = Math.min(state.width, state.height);
-        return {
-            group: group,
-            a: minDim * (0.30 + group * 0.075) * (1.54 - group * 0.055) * scale,
-            b: minDim * (0.115 + group * 0.045) * scale,
-            rot: -0.42 + group * 0.29,
-            speed: (group % 2 === 0 ? 1 : -1) * rand(0.10, 0.24) * (1 + group * 0.08)
-        };
-    }
-
-    function orbitPoint(cx, cy, a, b, rot, t) {
-        var x = Math.cos(t) * a;
-        var y = Math.sin(t) * b;
-        var c = Math.cos(rot);
-        var s = Math.sin(rot);
-        return {
-            x: cx + x * c - y * s,
-            y: cy + x * s + y * c
-        };
-    }
-
-    function createPortfolioNode(index) {
-        var center = getOrbitCenter();
-        var params = getOrbitParams(index, 1.0);
-        var phase = rand(0, Math.PI * 2);
-        var point = orbitPoint(center.x, center.y, params.a, params.b, params.rot, phase);
-        return {
-            id: index,
-            x: point.x,
-            y: point.y,
-            a: params.a,
-            b: params.b,
-            rot: params.rot,
-            speed: params.speed,
-            orbitGroup: params.group,
-            phase: phase,
-            ox: rand(-5, 5),
-            oy: rand(-5, 5),
-            ovx: 0,
-            ovy: 0,
-            size: rand(1.15, 3.05),
-            nucleus: CONFIG.nuclei.H
-        };
-    }
-
-    function rebuildPortfolioNodes() {
-        var count = wantedPortfolioNodeCount();
-        if (state.portfolioNodes.length > count) {
-            state.portfolioNodes.length = count;
-        }
-        while (state.portfolioNodes.length < count) {
-            state.portfolioNodes.push(createPortfolioNode(state.portfolioNodes.length));
-        }
-        state.nodes = state.portfolioNodes;
-        if (dom.metricNodes) dom.metricNodes.textContent = pad3(state.nodes.length);
     }
 
     function createGameNode(id, nucleusName, x, y, core) {
@@ -1112,7 +1020,8 @@
     function exitGameMode() {
         state.gameMode = false;
         document.body.classList.remove("game-mode");
-        state.nodes = state.portfolioNodes;
+        state.nodes = [];
+        state.linkCount = 0;
         state.fusionHeat = Object.create(null);
         state.hotPairs = [];
         state.invalidPairs = [];
@@ -1122,71 +1031,11 @@
         hideUnlockUi();
         hideFinalUi();
         configureLegacyGameHud(false);
-        rebuildPortfolioNodes();
         updateGameStats();
 
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(function () {});
         }
-    }
-
-    function applyPortfolioPointerForce(node, baseX, baseY, applyForce) {
-        if (state.pointer.active) {
-            var px = baseX - state.pointer.x;
-            var py = baseY - state.pointer.y;
-            var pdSq = px * px + py * py + 140;
-            var pd = Math.sqrt(pdSq);
-            var radius = state.pointer.down ? CONFIG.portfolio.pointerPushRadius : CONFIG.portfolio.pointerRadius;
-            if (pd < radius) {
-                var force = (1 - pd / radius) * (state.pointer.down ? CONFIG.portfolio.pointerPushForce : CONFIG.portfolio.pointerForce);
-                applyForce((px / pd) * force, (py / pd) * force);
-            }
-        }
-
-        for (var i = 0; i < state.pulses.length; i += 1) {
-            var pulse = state.pulses[i];
-            var qx = baseX - pulse.x;
-            var qy = baseY - pulse.y;
-            var qd = Math.sqrt(qx * qx + qy * qy) + 0.001;
-            var band = Math.abs(qd - pulse.r);
-            if (band < 90) {
-                var push = (1 - band / 90) * pulse.life * pulse.power;
-                applyForce((qx / qd) * push, (qy / qd) * push);
-            }
-        }
-    }
-
-    function updatePortfolioNode(node, dt, time) {
-        var margin = 26 + node.size;
-        var center = getOrbitCenter();
-        var rot = node.rot + Math.sin(time * 0.00006 + node.orbitGroup) * 0.035;
-        var t = node.phase + time * 0.001 * node.speed;
-        var target = orbitPoint(center.x, center.y, node.a, node.b, rot, t);
-
-        var ax = -node.ox * 1.8;
-        var ay = -node.oy * 1.8;
-
-        applyPortfolioPointerForce(node, target.x, target.y, function (fx, fy) {
-            ax += fx;
-            ay += fy;
-        });
-
-        node.ovx += ax * dt;
-        node.ovy += ay * dt;
-        node.ovx *= Math.pow(0.90, dt * 60);
-        node.ovy *= Math.pow(0.90, dt * 60);
-        node.ox += node.ovx * dt;
-        node.oy += node.ovy * dt;
-
-        var maxOffset = state.pointer.down ? 120 : 72;
-        var offsetLen = Math.sqrt(node.ox * node.ox + node.oy * node.oy);
-        if (offsetLen > maxOffset) {
-            node.ox = node.ox / offsetLen * maxOffset;
-            node.oy = node.oy / offsetLen * maxOffset;
-        }
-
-        node.x = clamp(target.x + node.ox, margin, state.width - margin);
-        node.y = clamp(target.y + node.oy, margin, state.height - margin);
     }
 
     function applyGamePointerForces(dt) {
@@ -3088,72 +2937,6 @@ function getFusionAbsorbProfileValue(typeName) {
         ctx.restore();
     }
 
-    function drawPortfolioSignalRings(time) {
-        if (state.gameMode) return;
-
-        var center = getOrbitCenter();
-        var minDim = Math.min(state.width, state.height);
-        var pulse = 0.5 + Math.sin(time * 0.0011) * 0.5;
-
-        ctx.save();
-        ctx.lineWidth = 1;
-
-        for (var i = 0; i < 4; i += 1) {
-            var r = minDim * (0.18 + i * 0.105) + pulse * 8;
-            ctx.beginPath();
-            ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(143, 214, 255, " + (0.034 - i * 0.004).toFixed(4) + ")";
-            ctx.stroke();
-        }
-
-        ctx.globalAlpha = 0.22;
-        ctx.strokeStyle = "rgba(126, 242, 176, 0.09)";
-        ctx.setLineDash([8, 14]);
-
-        for (var a = -2; a <= 2; a += 1) {
-            ctx.beginPath();
-            ctx.moveTo(center.x - minDim * 0.82, center.y + a * 54);
-            ctx.lineTo(center.x + minDim * 0.82, center.y - a * 54);
-            ctx.stroke();
-        }
-
-        ctx.restore();
-    }
-
-    function drawPortfolioLinks() {
-        var limit = state.width < 700 ? CONFIG.portfolio.linkDistanceMobile : CONFIG.portfolio.linkDistanceDesktop;
-        var limitSq = limit * limit;
-        var count = 0;
-
-        ctx.save();
-        ctx.lineWidth = 1;
-
-        for (var i = 0; i < state.nodes.length; i += 1) {
-            var a = state.nodes[i];
-            for (var j = i + 1; j < state.nodes.length; j += 1) {
-                var b = state.nodes[j];
-                var dx = a.x - b.x;
-                var dy = a.y - b.y;
-                var dSq = dx * dx + dy * dy;
-                if (dSq < limitSq) {
-                    var alpha = (1 - dSq / limitSq) * 0.18;
-                    ctx.strokeStyle = "rgba(143, 214, 255, " + alpha.toFixed(4) + ")";
-                    ctx.beginPath();
-                    ctx.moveTo(a.x, a.y);
-                    ctx.lineTo(b.x, b.y);
-                    ctx.stroke();
-                    count += 1;
-                }
-            }
-        }
-
-        ctx.restore();
-
-        state.linkCount = count;
-        if (dom.metricLinks) dom.metricLinks.textContent = pad3(count);
-        if (dom.gameLinks) dom.gameLinks.textContent = pad3(count);
-    }
-
     function drawFusionLinks() {
         ctx.save();
 
@@ -3287,12 +3070,10 @@ function getFusionAbsorbProfileValue(typeName) {
         if (!state.pointer.active) return;
 
         var r;
-        if (state.gameMode && isCollapsePhase()) {
+        if (isCollapsePhase()) {
             r = CONFIG.game.ironCoreCursorRadius;
-        } else if (state.gameMode) {
-            r = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
         } else {
-            r = state.pointer.down ? CONFIG.portfolio.pointerPushRadius : CONFIG.portfolio.pointerRadius;
+            r = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
         }
 
         ctx.save();
@@ -3435,8 +3216,11 @@ function getFusionAbsorbProfileValue(typeName) {
         if (dom.gameLevel) dom.gameLevel.textContent = pad2(level);
         if (dom.gameCollected) dom.gameCollected.textContent = pad3(state.coreMass);
         if (dom.gameTarget) dom.gameTarget.textContent = pad3(nextMass);
+        var activeNodeCount = state.gameMode ? countNonCoreNodes() : 0;
+
         if (dom.gameLinks) dom.gameLinks.textContent = pad3(state.linkCount);
-        if (dom.gameNodes) dom.gameNodes.textContent = pad3(state.gameMode ? countNonCoreNodes() : state.portfolioNodes.length);
+        if (dom.gameNodes) dom.gameNodes.textContent = pad3(activeNodeCount);
+        if (dom.metricNodes) dom.metricNodes.textContent = pad3(activeNodeCount);
         if (dom.gameAtoms) dom.gameAtoms.textContent = stage.title;
 
         if (dom.gameProgressFill) {
@@ -3511,33 +3295,26 @@ function getFusionAbsorbProfileValue(typeName) {
         updateMiniOrbitProbe(time);
         updateVisualCoreState(dt);
 
+        if (!state.gameMode) {
+            ctx.clearRect(0, 0, state.width, state.height);
+            window.requestAnimationFrame(frame);
+            return;
+        }
+
         ctx.clearRect(0, 0, state.width, state.height);
         drawGameBackdrop();
         drawGrid(time);
         drawBounds();
-        drawPortfolioSignalRings(time);
         drawOrbitTraces(time);
         drawCoreZone(time);
 
         if (!reduceMotion) {
-            if (state.gameMode) {
-                updateGamePhysics(dt, time);
-            } else {
-                for (var i = 0; i < state.nodes.length; i += 1) {
-                    updatePortfolioNode(state.nodes[i], dt, time);
-                }
-            }
+            updateGamePhysics(dt, time);
         }
 
         drawPointerField();
         drawPulses(dt);
-
-        if (state.gameMode) {
-            drawFusionLinks();
-        } else {
-            drawPortfolioLinks();
-        }
-
+        drawFusionLinks();
         drawNodes(time);
         drawSupernovaOverlay(time);
         updateGameStats();
@@ -3598,13 +3375,18 @@ function getFusionAbsorbProfileValue(typeName) {
             return;
         }
 
-        state.pointer.down = true;
-
-        if (state.gameMode && !isCollapsePhase() && tryAbsorbAtPointer()) {
+        if (!state.gameMode) {
+            state.pointer.down = false;
             return;
         }
 
-        addPulse(event.clientX, event.clientY, state.gameMode ? CONFIG.game.pulseForce : 180);
+        state.pointer.down = true;
+
+        if (!isCollapsePhase() && tryAbsorbAtPointer()) {
+            return;
+        }
+
+        addPulse(event.clientX, event.clientY, CONFIG.game.pulseForce);
     });
 
     window.addEventListener("pointerup", function (event) {
