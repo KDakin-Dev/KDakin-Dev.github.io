@@ -178,16 +178,14 @@ body.game-mode .site-page {
 }
 
 .site-lead {
-    max-width: 720px;
+    max-width: 760px;
     margin: 30px 0 0;
     font-size: clamp(18px, 2vw, 24px);
 }
 
-.site-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    margin-top: 36px;
+.site-lead-secondary {
+    margin-top: 18px;
+    font-size: clamp(16px, 1.45vw, 20px);
 }
 
 .site-button {
@@ -215,15 +213,18 @@ body.game-mode .site-page {
     transform: translateY(-1px);
 }
 
-.site-button-secondary {
-    background: transparent;
-    color: var(--site-muted);
-}
-
 .site-game-panel {
     padding: 28px;
     border: 1px solid var(--site-line-soft);
-    background: rgba(0, 0, 0, 0.32);
+    background:
+        radial-gradient(circle at 50% 24%, rgba(255, 209, 102, 0.080), transparent 26%),
+        linear-gradient(180deg, rgba(9, 12, 15, 0.92), rgba(0, 0, 0, 0.56));
+}
+
+.site-star-game-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
 }
 
 .site-game-head {
@@ -237,8 +238,7 @@ body.game-mode .site-page {
 
 .site-game-head span,
 .site-game-head strong,
-.site-telemetry-item span,
-.site-tag-row span,
+..site-tag-row span,
 .site-project-number,
 .site-project-facts dt,
 .site-contact-links a {
@@ -257,95 +257,137 @@ body.game-mode .site-page {
     text-align: right;
 }
 
-.site-telemetry-grid {
+.site-star-preview {
+    position: relative;
+    min-height: 280px;
+    border: 1px solid var(--site-line-soft);
+    background:
+        radial-gradient(circle at 50% 48%, rgba(255, 246, 180, 0.18), transparent 15%),
+        radial-gradient(circle at 50% 50%, rgba(255, 157, 73, 0.12), transparent 34%),
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        rgba(255, 255, 255, 0.018);
+    background-size: auto, auto, 32px 32px, 32px 32px, auto;
+    overflow: hidden;
+}
+
+.site-star-core {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 86px;
+    height: 86px;
+    border-radius: 999px;
+    background:
+        radial-gradient(circle at 36% 32%, #ffffff 0%, #fff3b0 18%, #ffb347 42%, #ff5c35 70%, rgba(170, 20, 28, 0.45) 100%);
+    box-shadow:
+        0 0 36px rgba(255, 209, 102, 0.52),
+        0 0 96px rgba(255, 92, 53, 0.22);
+    transform: translate(-50%, -50%);
+}
+
+.site-star-ring {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    border: 1px solid rgba(255, 209, 102, 0.22);
+    border-radius: 50%;
+    transform: translate(-50%, -50%) rotate(-18deg);
+}
+
+.site-star-ring-a {
+    width: 74%;
+    height: 42%;
+}
+
+.site-star-ring-b {
+    width: 54%;
+    height: 30%;
+    border-color: rgba(99, 166, 255, 0.20);
+    transform: translate(-50%, -50%) rotate(24deg);
+}
+
+.site-star-particle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: var(--site-warm);
+    box-shadow: 0 0 18px rgba(255, 209, 102, 0.78);
+}
+
+.site-star-particle-a {
+    left: 28%;
+    top: 46%;
+}
+
+.site-star-particle-b {
+    left: 67%;
+    top: 59%;
+    background: var(--site-accent);
+    box-shadow: 0 0 18px rgba(99, 166, 255, 0.78);
+}
+
+.site-star-particle-c {
+    left: 58%;
+    top: 31%;
+    width: 5px;
+    height: 5px;
+    background: #ffffff;
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.70);
+}
+
+.site-game-copy h2 {
+    margin: 0;
+    color: var(--site-text);
+    font-size: clamp(28px, 2.4vw, 38px);
+    line-height: 1.02;
+    letter-spacing: -0.045em;
+}
+
+.site-game-copy p {
+    margin: 14px 0 0;
+    color: var(--site-muted);
+    font-size: 15px;
+    line-height: 1.58;
+}
+
+.site-play-button {
+    width: 100%;
+    min-height: 56px;
+    background: #162333;
+}
+
+.site-star-stats {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin-top: 20px;
 }
 
-.site-telemetry-item {
-    min-height: 88px;
+.site-star-stats div {
+    min-height: 72px;
     padding: 14px;
     border: 1px solid var(--site-line-soft);
     background: rgba(255, 255, 255, 0.025);
 }
 
-.site-telemetry-item span {
+.site-star-stats span {
     display: block;
     color: var(--site-dim);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    line-height: 1.3;
+    text-transform: uppercase;
 }
 
-.site-telemetry-item strong {
+.site-star-stats strong {
     display: block;
-    margin-top: 12px;
+    margin-top: 10px;
     color: var(--site-text);
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 22px;
+    font-size: 20px;
     font-weight: 900;
-}
-
-.site-orbit-preview {
-    position: relative;
-    min-height: 240px;
-    margin-top: 14px;
-    overflow: hidden;
-    border: 1px solid var(--site-line-soft);
-    background:
-        radial-gradient(circle at 50% 50%, rgba(99, 166, 255, 0.14), transparent 18%),
-        linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-        rgba(255, 255, 255, 0.02);
-    background-size: auto, 30px 30px, 30px 30px, auto;
-}
-
-.site-orbit-line {
-    position: absolute;
-    border: 1px solid rgba(143, 214, 255, 0.30);
-    border-radius: 50%;
-}
-
-.site-orbit-line-a {
-    left: 7%;
-    top: 20%;
-    width: 86%;
-    height: 58%;
-    transform: rotate(-17deg);
-}
-
-.site-orbit-line-b {
-    left: 14%;
-    top: 29%;
-    width: 72%;
-    height: 42%;
-    opacity: 0.62;
-    transform: rotate(24deg);
-}
-
-.site-orbit-core,
-.site-orbit-probe {
-    position: absolute;
-    left: 0;
-    top: 0;
-    border-radius: 999px;
-    transform: translate(-50%, -50%);
-}
-
-.site-orbit-core {
-    left: 50%;
-    top: 50%;
-    width: 10px;
-    height: 10px;
-    background: var(--site-accent);
-    box-shadow: 0 0 28px rgba(99, 166, 255, 0.85);
-}
-
-.site-orbit-probe {
-    width: 8px;
-    height: 8px;
-    background: var(--site-warm);
-    box-shadow: 0 0 22px rgba(255, 209, 102, 0.82);
-    will-change: transform;
 }
 
 .site-note {
@@ -620,7 +662,7 @@ html.site-reveal-ready [data-reveal].is-visible {
         padding: 18px;
     }
 
-    .site-telemetry-grid,
+    .site-star-stats,
     .site-skill-list {
         grid-template-columns: 1fr;
     }
