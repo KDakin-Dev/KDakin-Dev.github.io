@@ -216,6 +216,7 @@
         stability: 100,
         supernovaTimer: 0,
         endingType: "",
+        statsResultReported: false,
         visualCoreMass: CONFIG.game.initialCoreMass,
         visualCoreRadius: 0,
         visualFusionRadius: 0,
@@ -591,6 +592,7 @@
         state.stability = 100;
         state.supernovaTimer = 0;
         state.endingType = "";
+        state.statsResultReported = false;
         state.coreMass = CONFIG.game.initialCoreMass;
         state.visualCoreMass = CONFIG.game.initialCoreMass;
         state.visualCoreRadius = 0;
@@ -2102,8 +2104,36 @@ function getFusionAbsorbProfileValue(typeName) {
         }
     }
 
+    function normalizeStatsOutcome() {
+        if (state.endingType === "BLACK HOLE") {
+            return "blackHole";
+        }
+        if (state.endingType === "MAGNETAR") {
+            return "magnetar";
+        }
+        return "stable";
+    }
+
+    function reportStarGameComplete() {
+        if (state.statsResultReported) return;
+        state.statsResultReported = true;
+
+        window.dispatchEvent(new CustomEvent("kdakin:star-game-complete", {
+            detail: {
+                outcome: normalizeStatsOutcome(),
+                endingType: state.endingType,
+                coreMass: state.coreMass,
+                collapseMass: state.collapseMass,
+                stability: state.stability,
+                starReadiness: state.starReadiness,
+                starProfile: getStarProfileLabel()
+            }
+        }));
+    }
+
     function showFinalUi() {
         ensureFinalUi();
+        reportStarGameComplete();
 
         var remnantColor = state.endingType === "BLACK HOLE" ? "255, 160, 82" : "143, 214, 255";
         var discovered = Object.keys(state.discoveredProducts).length;
