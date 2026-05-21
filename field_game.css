@@ -4,15 +4,20 @@
     z-index: 0;
     width: 100vw;
     height: 100vh;
-    display: block;
+    display: none;
     background: transparent;
     cursor: crosshair;
+}
+
+body.game-mode #field-canvas {
+    display: block;
 }
 
 .field-scanlines {
     position: fixed;
     inset: 0;
     z-index: 1;
+    display: none;
     pointer-events: none;
     opacity: 0.18;
     background-image: linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px);
@@ -20,12 +25,21 @@
     mix-blend-mode: screen;
 }
 
+body.game-mode .field-scanlines {
+    display: block;
+}
+
 .field-vignette {
     position: fixed;
     inset: 0;
     z-index: 2;
+    display: none;
     pointer-events: none;
     background: radial-gradient(circle at 58% 36%, transparent 0%, transparent 48%, rgba(0, 0, 0, 0.54) 100%);
+}
+
+body.game-mode .field-vignette {
+    display: block;
 }
 
 .game-overlay {
