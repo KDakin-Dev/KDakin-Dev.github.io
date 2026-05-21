@@ -328,15 +328,7 @@ body.game-mode .site-page {
     min-height: 250px;
     border: 1px solid var(--site-line-soft);
     background:
-        radial-gradient(circle at 9% 18%, rgba(255, 209, 102, 0.85) 0 2px, transparent 3px),
-        radial-gradient(circle at 20% 73%, rgba(99, 166, 255, 0.92) 0 2px, transparent 3px),
-        radial-gradient(circle at 27% 23%, rgba(255, 255, 255, 0.76) 0 1.8px, transparent 2.8px),
-        radial-gradient(circle at 48% 6%, rgba(255, 255, 255, 0.92) 0 2.4px, transparent 3.4px),
-        radial-gradient(circle at 82% 22%, rgba(255, 255, 255, 0.60) 0 1.8px, transparent 2.8px),
-        radial-gradient(circle at 90% 48%, rgba(255, 209, 102, 0.90) 0 2.4px, transparent 3.4px),
-        radial-gradient(circle at 92% 66%, rgba(255, 140, 90, 0.90) 0 2.2px, transparent 3.2px),
-        radial-gradient(circle at 76% 74%, rgba(99, 166, 255, 0.90) 0 2px, transparent 3px),
-        radial-gradient(circle at 12% 60%, rgba(150, 64, 54, 0.46) 0 2.6px, transparent 3.8px),
+        radial-gradient(circle at 50% 50%, rgba(255, 184, 73, 0.04), transparent 34%),
         linear-gradient(180deg, rgba(7, 10, 14, 0.98), rgba(1, 2, 4, 0.99));
     overflow: hidden;
 }
@@ -345,7 +337,7 @@ body.game-mode .site-page {
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(circle at 50% 50%, rgba(255, 184, 73, 0.04), transparent 26%);
+    background: radial-gradient(circle at 50% 50%, rgba(255, 184, 73, 0.03), transparent 48%);
     pointer-events: none;
 }
 
@@ -357,21 +349,21 @@ body.game-mode .site-page {
     height: 96px;
     border-radius: 999px;
     background: radial-gradient(circle at 34% 30%, #fffef1 0%, #fff2ad 22%, #ffbe58 45%, #ff7638 73%, #dc4122 100%);
-    box-shadow: 0 0 42px rgba(255, 197, 96, 0.42), 0 0 92px rgba(255, 145, 56, 0.18);
+    box-shadow: 0 0 30px rgba(255, 197, 96, 0.28), 0 0 66px rgba(255, 145, 56, 0.12);
     transform: translate(-50%, -50%) scale(var(--star-scale, 1));
-    filter: hue-rotate(var(--star-hue, 0deg)) saturate(1.03);
-    transition: transform 280ms ease-out, filter 420ms ease-out, box-shadow 280ms ease-out;
+    filter: hue-rotate(var(--star-hue, 0deg)) saturate(var(--star-sat, 1.06)) brightness(var(--star-bright, 1));
+    transition: transform 420ms ease-out, filter 680ms ease-out, box-shadow 420ms ease-out;
     z-index: 3;
 }
 
 .site-star-core::before {
     content: "";
     position: absolute;
-    inset: -24px;
+    inset: -28px;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(255, 186, 73, calc(0.16 + var(--star-glow, 0) * 0.18)) 0%, rgba(255, 186, 73, calc(0.05 + var(--star-glow, 0) * 0.08)) 42%, transparent 74%);
-    transform: scale(calc(0.96 + var(--star-glow, 0) * 0.16));
-    transition: transform 280ms ease-out, background 280ms ease-out;
+    background: radial-gradient(circle, rgba(255, 186, 73, calc(0.08 + var(--star-glow, 0) * 0.08)) 0%, rgba(255, 186, 73, calc(0.03 + var(--star-glow, 0) * 0.05)) 44%, transparent 76%);
+    transform: scale(calc(0.98 + var(--star-glow, 0) * 0.10));
+    transition: transform 420ms ease-out, background 420ms ease-out;
     z-index: -1;
 }
 
@@ -390,9 +382,9 @@ body.game-mode .site-page {
     height: 8px;
     border-radius: 999px;
     background: var(--particle-color, #ffd166);
-    box-shadow: 0 0 12px color-mix(in srgb, var(--particle-color, #ffd166) 75%, white 25%);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--particle-color, #ffd166) 72%, white 28%);
     transform: translate(-50%, -50%);
-    will-change: transform;
+    will-change: left, top;
 }
 
 .site-preview-particle::after {
@@ -400,10 +392,10 @@ body.game-mode .site-page {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 38%;
-    height: 38%;
+    width: 40%;
+    height: 40%;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.46);
+    background: rgba(255, 255, 255, 0.42);
     transform: translate(-50%, -50%);
 }
 
