@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDakin-Dev | Game Designer Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
-    <link rel="stylesheet" href="./site.css?v=27">
+    <link rel="stylesheet" href="./site.css?v=33">
     <link rel="stylesheet" href="./field_game.css?v=8">
 </head>
 <body>
@@ -37,9 +37,9 @@
                 <nav class="site-nav" aria-label="Primary navigation">
                     <a href="#top">Home</a>
                     <span aria-hidden="true">/</span>
-                    <a href="#work">Projects</a>
-                    <span aria-hidden="true">/</span>
                     <a href="#skills">Skills</a>
+                    <span aria-hidden="true">/</span>
+                    <a href="#work">Projects</a>
                     <span aria-hidden="true">/</span>
                     <a href="#contact">Contact</a>
                 </nav>
@@ -98,6 +98,68 @@
                         <div><span>Black holes</span><strong data-star-stat="blackHoles">000</strong></div>
                     </div>
                 </aside>
+            </div>
+        </section>
+
+        <section class="site-block site-block-skills" id="skills" aria-labelledby="skills-title">
+            <div class="site-inner">
+                <div class="site-section-head" data-reveal>
+                    <p class="site-section-label">Skills</p>
+                    <div class="site-section-title-row">
+                        <h2 id="skills-title">Game design toolset.</h2>
+                        <p>
+                            A practical mix of design thinking, engine knowledge, prototyping, documentation,
+                            and visual production experience.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="site-skill-feature">
+                    <aside class="site-skill-game-card" aria-label="Upcoming playable skill game" data-reveal>
+                        <p class="site-card-eyebrow">Next playable block</p>
+                        <h3>Prototype Lab Game</h3>
+                        <div class="site-skill-game-preview" aria-hidden="true">
+                            <span class="site-lab-node site-lab-node-a"></span>
+                            <span class="site-lab-node site-lab-node-b"></span>
+                            <span class="site-lab-node site-lab-node-c"></span>
+                            <span class="site-lab-line site-lab-line-a"></span>
+                            <span class="site-lab-line site-lab-line-b"></span>
+                            <span class="site-lab-cursor"></span>
+                        </div>
+                        <p>
+                            Reserved area for a second small interactive game about fast prototyping,
+                            testing mechanics, and tuning player feedback.
+                        </p>
+                        <button class="site-button site-button-disabled" type="button" disabled>Coming soon</button>
+                    </aside>
+
+                    <div class="site-skill-copy" data-reveal>
+                        <div class="site-skill-row">
+                            <h3>Gameplay systems</h3>
+                            <p>Core loops, rules, progression, risk-reward structure, pacing, and player motivation.</p>
+                        </div>
+                        <div class="site-skill-row">
+                            <h3>Prototyping and iteration</h3>
+                            <p>Turning ideas into playable tests, comparing variants, cutting weak mechanics, and improving feel.</p>
+                        </div>
+                        <div class="site-skill-row">
+                            <h3>Level and encounter design</h3>
+                            <p>Readable spaces, challenge flow, navigation, onboarding, and moment-to-moment player decisions.</p>
+                        </div>
+                        <div class="site-skill-row">
+                            <h3>Narrative and world logic</h3>
+                            <p>Story context, setting rules, character ideas, faction logic, and systems that support the theme.</p>
+                        </div>
+                        <div class="site-skill-row">
+                            <h3>Engines and production</h3>
+                            <p>Unity, Unreal Engine 5, 3D art background, documentation, task breakdowns, and cross-discipline communication.</p>
+                        </div>
+                        <div class="site-skill-row">
+                            <h3>Balance and feedback</h3>
+                            <p>Player feedback loops, readability, difficulty tuning, economy/resource logic, and playtest observations.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -171,30 +233,6 @@
             </div>
         </section>
 
-        <section class="site-block site-block-skills" id="skills" aria-labelledby="skills-title">
-            <div class="site-inner">
-                <div class="site-section-head" data-reveal>
-                    <p class="site-section-label">Skills</p>
-                    <div class="site-section-title-row">
-                        <h2 id="skills-title">Practical stack.</h2>
-                        <p>
-                            Game logic, simulation behavior, game design, debugging, tooling, rendering pipelines,
-                            and project architecture cleanup.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="site-skill-list">
-                    <div class="site-skill-item" data-reveal><b>Simulation</b><span>Orbit prediction, movement, collision, RCS, docking.</span></div>
-                    <div class="site-skill-item" data-reveal><b>Architecture</b><span>Contracts, state ownership, data validation, cleanup.</span></div>
-                    <div class="site-skill-item" data-reveal><b>Rendering</b><span>Canvas, Pygame, ModernGL, HUD layers, VFX states.</span></div>
-                    <div class="site-skill-item" data-reveal><b>Game design</b><span>Gameplay systems, stories, prototypes, mechanics, and player feedback.</span></div>
-                    <div class="site-skill-item" data-reveal><b>Tooling</b><span>Debug launchers, file audits, logs, automated checks.</span></div>
-                    <div class="site-skill-item" data-reveal><b>Documentation</b><span>Readable task specs, contracts, and implementation notes.</span></div>
-                </div>
-            </div>
-        </section>
-
         <section class="site-block site-block-contact" id="contact" aria-labelledby="contact-title">
             <div class="site-inner site-contact-layout" data-reveal>
                 <div>
@@ -219,7 +257,7 @@
     </main>
 
     <script type="module" src="./firebase_stats.js?v=1"></script>
-    <script src="./site_preview.js?v=2" defer></script>
+    <script src="./site_preview.js?v=3" defer></script>
     <script src="./field_game.js?v=9" defer></script>
 </body>
 </html>
