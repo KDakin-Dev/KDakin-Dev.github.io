@@ -348,11 +348,16 @@ body.game-mode .site-page {
     width: 96px;
     height: 96px;
     border-radius: 999px;
-    background: radial-gradient(circle at 34% 30%, #fffef1 0%, #fff2ad 22%, #ffbe58 45%, #ff7638 73%, #dc4122 100%);
+    background:
+        radial-gradient(circle at 34% 30%,
+            var(--star-c0, #fffef1) 0%,
+            var(--star-c1, #fff2ad) 22%,
+            var(--star-c2, #ffbe58) 45%,
+            var(--star-c3, #ff7638) 73%,
+            var(--star-c4, #dc4122) 100%);
     box-shadow: 0 0 30px rgba(255, 197, 96, 0.28), 0 0 66px rgba(255, 145, 56, 0.12);
     transform: translate(-50%, -50%) scale(var(--star-scale, 1));
-    filter: hue-rotate(var(--star-hue, 0deg)) saturate(var(--star-sat, 1.06)) brightness(var(--star-bright, 1));
-    transition: transform 420ms ease-out, filter 680ms ease-out, box-shadow 420ms ease-out;
+    transition: transform 420ms ease-out, box-shadow 420ms ease-out;
     z-index: 3;
 }
 
@@ -361,7 +366,7 @@ body.game-mode .site-page {
     position: absolute;
     inset: -28px;
     border-radius: 999px;
-    background: radial-gradient(circle, rgba(255, 186, 73, calc(0.08 + var(--star-glow, 0) * 0.08)) 0%, rgba(255, 186, 73, calc(0.03 + var(--star-glow, 0) * 0.05)) 44%, transparent 76%);
+    background: radial-gradient(circle, rgba(var(--star-glow-rgb, 255, 186, 73), calc(0.08 + var(--star-glow, 0) * 0.08)) 0%, rgba(var(--star-glow-rgb, 255, 186, 73), calc(0.03 + var(--star-glow, 0) * 0.05)) 44%, transparent 76%);
     transform: scale(calc(0.98 + var(--star-glow, 0) * 0.10));
     transition: transform 420ms ease-out, background 420ms ease-out;
     z-index: -1;
@@ -566,32 +571,162 @@ body.game-mode .site-page {
     line-height: 1.45;
 }
 
-.site-skill-list {
+.site-skill-feature {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
+    grid-template-columns: minmax(340px, 0.42fr) minmax(0, 1fr);
+    gap: 48px;
+    align-items: start;
+}
+
+.site-skill-game-card {
+    display: grid;
+    gap: 18px;
+    padding: 30px;
+    border: 1px solid var(--site-line-soft);
+    background:
+        radial-gradient(circle at 42% 28%, rgba(99, 166, 255, 0.08), transparent 30%),
+        linear-gradient(180deg, rgba(9, 12, 15, 0.92), rgba(0, 0, 0, 0.58));
+}
+
+.site-card-eyebrow {
+    margin: 0;
+    color: var(--site-accent);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.site-skill-game-card h3 {
+    margin: 0;
+    color: var(--site-text);
+    font-size: clamp(28px, 3vw, 42px);
+    line-height: 1;
+    letter-spacing: -0.045em;
+}
+
+.site-skill-game-card p:not(.site-card-eyebrow) {
+    margin: 0;
+    color: var(--site-muted);
+    font-size: 15px;
+    line-height: 1.58;
+}
+
+.site-skill-game-preview {
+    position: relative;
+    min-height: 220px;
+    border: 1px solid var(--site-line-soft);
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.032) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.032) 1px, transparent 1px),
+        radial-gradient(circle at 50% 50%, rgba(99, 166, 255, 0.08), transparent 36%),
+        rgba(255, 255, 255, 0.016);
+    background-size: 32px 32px, 32px 32px, auto, auto;
+    overflow: hidden;
+}
+
+.site-lab-node,
+.site-lab-cursor {
+    position: absolute;
+    border-radius: 999px;
+    transform: translate(-50%, -50%);
+}
+
+.site-lab-node {
+    width: 14px;
+    height: 14px;
+    background: #63a6ff;
+    box-shadow: 0 0 18px rgba(99, 166, 255, 0.58);
+}
+
+.site-lab-node-a {
+    left: 26%;
+    top: 34%;
+}
+
+.site-lab-node-b {
+    left: 70%;
+    top: 40%;
+    background: #ffd166;
+    box-shadow: 0 0 18px rgba(255, 209, 102, 0.52);
+}
+
+.site-lab-node-c {
+    left: 48%;
+    top: 72%;
+    background: #ff8d5f;
+    box-shadow: 0 0 18px rgba(255, 141, 95, 0.48);
+}
+
+.site-lab-line {
+    position: absolute;
+    height: 1px;
+    background: rgba(99, 166, 255, 0.24);
+    transform-origin: left center;
+}
+
+.site-lab-line-a {
+    left: 26%;
+    top: 34%;
+    width: 45%;
+    transform: rotate(8deg);
+}
+
+.site-lab-line-b {
+    left: 48%;
+    top: 72%;
+    width: 27%;
+    transform: rotate(-44deg);
+    background: rgba(255, 209, 102, 0.22);
+}
+
+.site-lab-cursor {
+    left: 42%;
+    top: 48%;
+    width: 38px;
+    height: 38px;
+    border: 1px solid rgba(255, 255, 255, 0.34);
+    box-shadow: 0 0 34px rgba(255, 255, 255, 0.10);
+}
+
+.site-button-disabled,
+.site-button-disabled:hover {
+    border-color: var(--site-line-soft);
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--site-dim);
+    cursor: default;
+    transform: none;
+}
+
+.site-skill-copy {
+    display: grid;
     border-top: 1px solid var(--site-line-soft);
     border-left: 1px solid var(--site-line-soft);
 }
 
-.site-skill-item {
-    min-height: 150px;
-    padding: 24px;
+.site-skill-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr);
+    gap: 28px;
+    min-height: 104px;
+    padding: 22px 26px;
     border-right: 1px solid var(--site-line-soft);
     border-bottom: 1px solid var(--site-line-soft);
 }
 
-.site-skill-item b {
-    display: block;
+.site-skill-row h3 {
+    margin: 0;
     color: var(--site-text);
     font-size: 17px;
+    line-height: 1.22;
+    letter-spacing: -0.01em;
 }
 
-.site-skill-item span {
-    display: block;
-    margin-top: 12px;
+.site-skill-row p {
+    margin: 0;
     color: var(--site-muted);
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.55;
 }
 
@@ -669,6 +804,8 @@ html.site-reveal-ready [data-reveal].is-visible {
     .site-section-head,
     .site-section-title-row,
     .site-project-item,
+    .site-skill-feature,
+    .site-skill-row,
     .site-contact-layout {
         grid-template-columns: 1fr;
     }
@@ -697,8 +834,8 @@ html.site-reveal-ready [data-reveal].is-visible {
         gap: 18px;
     }
 
-    .site-skill-list {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .site-skill-feature {
+        gap: 32px;
     }
 }
 
@@ -745,8 +882,14 @@ html.site-reveal-ready [data-reveal].is-visible {
         border-bottom: 1px solid var(--site-line-soft);
     }
 
-    .site-skill-list {
-        grid-template-columns: 1fr;
+    .site-skill-game-card {
+        padding: 18px;
+    }
+
+    .site-skill-row {
+        min-height: auto;
+        padding: 18px;
+        gap: 8px;
     }
 }
 
