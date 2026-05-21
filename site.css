@@ -65,67 +65,15 @@ body.game-mode .site-shell {
     z-index: 20;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 18px;
     min-height: 76px;
     padding: 12px 0;
     pointer-events: none;
 }
 
-.site-brand,
 .site-nav {
     pointer-events: auto;
-}
-
-.site-brand {
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    min-width: 0;
-    padding: 9px 13px 9px 9px;
-    border: 1px solid var(--site-line-soft);
-    border-radius: 22px;
-    background: rgba(4, 8, 14, 0.64);
-    color: inherit;
-    text-decoration: none;
-    backdrop-filter: blur(16px);
-    box-shadow: 0 18px 56px var(--site-shadow);
-}
-
-.site-brand-icon {
-    display: grid;
-    place-items: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    background: rgba(99, 166, 255, 0.08);
-    box-shadow: 0 0 28px rgba(99, 166, 255, 0.20);
-}
-
-.site-brand-icon svg {
-    width: 34px;
-    height: 34px;
-    display: block;
-}
-
-.site-brand-copy {
-    display: grid;
-    gap: 2px;
-}
-
-.site-brand-copy span {
-    color: var(--site-text);
-    font-size: 13px;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.site-brand-copy small {
-    color: var(--site-dim);
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
 }
 
 .site-nav {
@@ -173,7 +121,6 @@ body.game-mode .site-shell {
 .site-hero-copy,
 .site-command-card,
 .site-work-card,
-.site-method-card,
 .site-skill-chip,
 .site-contact-card {
     position: relative;
@@ -187,7 +134,6 @@ body.game-mode .site-shell {
 .site-hero-copy:before,
 .site-command-card:before,
 .site-work-card:before,
-.site-method-card:before,
 .site-skill-chip:before,
 .site-contact-card:before {
     content: "";
@@ -209,21 +155,24 @@ body.game-mode .site-shell {
 }
 
 .site-kicker {
-    display: inline-flex;
-    align-items: center;
-    gap: 11px;
-    color: var(--site-accent-soft);
+    display: block;
+    width: 100%;
+    margin: 0 0 28px;
+    padding: 16px 22px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0;
+    background: #090909;
+    color: #f3f3f3;
     font-size: 12px;
-    font-weight: 950;
-    letter-spacing: 0.16em;
+    font-weight: 900;
+    letter-spacing: 0.18em;
+    line-height: 1.2;
     text-transform: uppercase;
+    box-shadow: none;
 }
 
 .site-kicker:before {
-    content: "";
-    width: 44px;
-    height: 1px;
-    background: linear-gradient(90deg, var(--site-accent), transparent);
+    display: none;
 }
 
 .site-hero h1 {
@@ -431,12 +380,12 @@ body.game-mode .site-shell {
     display: grid;
     grid-template-columns: minmax(0, 0.78fr) minmax(0, 1fr);
     gap: 28px;
-    align-items: end;
+    align-items: start;
     margin-bottom: 22px;
 }
 
 .site-section-head h2 {
-    margin: 12px 0 0;
+    margin: 0;
     color: var(--site-text);
     font-size: clamp(34px, 5vw, 62px);
     line-height: 0.96;
@@ -500,8 +449,7 @@ body.game-mode .site-shell {
     text-transform: uppercase;
 }
 
-.site-work-card h3,
-.site-method-card h3 {
+.site-work-card h3 {
     margin: 20px 0 0;
     color: var(--site-text);
     font-size: clamp(25px, 3vw, 38px);
@@ -509,8 +457,7 @@ body.game-mode .site-shell {
     letter-spacing: -0.04em;
 }
 
-.site-work-card p,
-.site-method-card p {
+.site-work-card p {
     margin: 16px 0 0;
     color: var(--site-muted);
     font-size: 16px;
@@ -550,30 +497,6 @@ body.game-mode .site-shell {
     line-height: 1.45;
 }
 
-.site-method-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 18px;
-}
-
-.site-method-card {
-    min-height: 260px;
-    padding: 24px;
-    border-radius: 28px;
-}
-
-.site-method-card span {
-    color: var(--site-accent);
-    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
-    font-size: 12px;
-    font-weight: 950;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.site-method-card h3 {
-    font-size: 23px;
-}
 
 .site-skill-grid {
     display: grid;
@@ -659,7 +582,7 @@ body.game-mode .site-shell {
 
 .site-footer {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 18px;
     margin-top: 34px;
     color: var(--site-dim);
@@ -695,7 +618,6 @@ html.site-reveal-ready [data-reveal].is-visible {
         align-items: stretch;
     }
 
-    .site-brand,
     .site-nav {
         justify-content: center;
     }
@@ -703,7 +625,6 @@ html.site-reveal-ready [data-reveal].is-visible {
     .site-hero,
     .site-section-head,
     .site-work-grid,
-    .site-method-grid,
     .site-skill-grid,
     .site-contact-card {
         grid-template-columns: 1fr;
@@ -738,7 +659,6 @@ html.site-reveal-ready [data-reveal].is-visible {
     .site-hero-copy,
     .site-command-card,
     .site-work-card,
-    .site-method-card,
     .site-skill-chip,
     .site-contact-card {
         padding: 20px;
@@ -770,4 +690,9 @@ html.site-reveal-ready [data-reveal].is-visible {
         transform: none;
         transition: none;
     }
+}
+
+
+.site-section-head > div {
+    display: block;
 }
