@@ -328,81 +328,360 @@ body.game-mode .site-page {
     min-height: 250px;
     border: 1px solid var(--site-line-soft);
     background:
-        radial-gradient(circle at 50% 48%, rgba(255, 246, 180, 0.18), transparent 15%),
-        radial-gradient(circle at 50% 50%, rgba(255, 157, 73, 0.12), transparent 34%),
-        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-        rgba(255, 255, 255, 0.018);
-    background-size: auto, auto, 32px 32px, 32px 32px, auto;
+        radial-gradient(circle at 50% 50%, rgba(255, 183, 71, 0.08), transparent 24%),
+        radial-gradient(circle at 50% 50%, rgba(255, 94, 53, 0.06), transparent 42%),
+        radial-gradient(circle at 24% 18%, rgba(255, 255, 255, 0.05) 0 1px, transparent 2px),
+        radial-gradient(circle at 78% 26%, rgba(255, 255, 255, 0.04) 0 1px, transparent 2px),
+        radial-gradient(circle at 14% 72%, rgba(99, 166, 255, 0.05) 0 1px, transparent 2px),
+        linear-gradient(180deg, rgba(9, 12, 15, 0.95), rgba(2, 3, 5, 0.98));
     overflow: hidden;
+}
+
+.site-star-preview:before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 50%, rgba(255, 209, 102, 0.10), transparent 12%);
+    opacity: 0.55;
+    animation: siteStarFieldPulse 4.8s ease-in-out infinite;
 }
 
 .site-star-core {
     position: absolute;
     left: 50%;
     top: 50%;
-    width: 92px;
-    height: 92px;
+    width: 96px;
+    height: 96px;
     border-radius: 999px;
     background:
-        radial-gradient(circle at 36% 32%, #ffffff 0%, #fff3b0 18%, #ffb347 42%, #ff5c35 70%, rgba(170, 20, 28, 0.45) 100%);
+        radial-gradient(circle at 34% 30%, #fffef2 0%, #fff2ad 18%, #ffbc56 42%, #ff7138 72%, #dd3d21 100%);
     box-shadow:
-        0 0 36px rgba(255, 209, 102, 0.52),
-        0 0 96px rgba(255, 92, 53, 0.22);
+        0 0 34px rgba(255, 209, 102, 0.46),
+        0 0 72px rgba(255, 140, 54, 0.22);
     transform: translate(-50%, -50%);
+    animation: siteStarCoreBreath 4.8s ease-in-out infinite, siteStarCoreTint 13s linear infinite;
+    z-index: 3;
 }
 
-.site-star-ring {
+.site-star-halo {
     position: absolute;
     left: 50%;
     top: 50%;
-    border: 1px solid rgba(255, 209, 102, 0.22);
-    border-radius: 50%;
-    transform: translate(-50%, -50%) rotate(-18deg);
-}
-
-.site-star-ring-a {
-    width: 74%;
-    height: 42%;
-}
-
-.site-star-ring-b {
-    width: 54%;
-    height: 30%;
-    border-color: rgba(99, 166, 255, 0.20);
-    transform: translate(-50%, -50%) rotate(24deg);
-}
-
-.site-star-particle {
-    position: absolute;
-    width: 7px;
-    height: 7px;
+    width: 160px;
+    height: 160px;
     border-radius: 999px;
-    background: var(--site-warm);
-    box-shadow: 0 0 18px rgba(255, 209, 102, 0.78);
+    transform: translate(-50%, -50%);
+    mix-blend-mode: screen;
+    opacity: 0;
+    z-index: 2;
 }
 
-.site-star-particle-a {
-    left: 28%;
-    top: 46%;
+.site-star-halo-a {
+    background: radial-gradient(circle, rgba(255, 208, 102, 0.44) 0%, rgba(255, 208, 102, 0.10) 48%, transparent 72%);
+    animation: siteStarHaloA 5s ease-out infinite;
 }
 
-.site-star-particle-b {
-    left: 67%;
-    top: 59%;
-    background: var(--site-accent);
-    box-shadow: 0 0 18px rgba(99, 166, 255, 0.78);
+.site-star-halo-b {
+    background: radial-gradient(circle, rgba(99, 166, 255, 0.28) 0%, rgba(99, 166, 255, 0.08) 48%, transparent 72%);
+    animation: siteStarHaloB 6.2s ease-out infinite;
 }
 
-.site-star-particle-c {
-    left: 58%;
-    top: 31%;
-    width: 5px;
-    height: 5px;
-    background: #ffffff;
-    box-shadow: 0 0 14px rgba(255, 255, 255, 0.70);
+.site-star-halo-c {
+    background: radial-gradient(circle, rgba(255, 92, 53, 0.30) 0%, rgba(255, 92, 53, 0.08) 48%, transparent 72%);
+    animation: siteStarHaloC 7.1s ease-out infinite;
 }
 
+.site-star-dust {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.70);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.32);
+    z-index: 1;
+}
+
+.site-star-dust-a {
+    left: 18%;
+    top: 26%;
+    animation: siteStarDustA 8s linear infinite;
+}
+
+.site-star-dust-b {
+    left: 76%;
+    top: 22%;
+    animation: siteStarDustB 10s linear infinite;
+}
+
+.site-star-dust-c {
+    left: 82%;
+    top: 68%;
+    animation: siteStarDustC 9s linear infinite;
+}
+
+.site-star-flow {
+    position: absolute;
+    left: var(--sx, 10%);
+    top: var(--sy, 10%);
+    width: var(--size, 8px);
+    height: var(--size, 8px);
+    margin-left: calc(var(--size, 8px) * -0.5);
+    margin-top: calc(var(--size, 8px) * -0.5);
+    border-radius: 999px;
+    background: var(--particle, #ffd166);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--particle, #ffd166) 75%, white 25%);
+    opacity: 0;
+    z-index: 4;
+    animation: siteStarParticleFlow var(--duration, 4.6s) linear infinite;
+    animation-delay: var(--delay, 0s);
+}
+
+.site-star-flow:after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: calc(var(--size, 8px) * 0.68);
+    height: calc(var(--size, 8px) * 0.68);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.52);
+    transform: translate(-50%, -50%);
+}
+
+.site-star-flow-1 {
+    --sx: 8%;
+    --sy: 28%;
+    --tx: 48.5%;
+    --ty: 49%;
+    --size: 7px;
+    --duration: 4.3s;
+    --delay: -0.2s;
+    --particle: #ffd166;
+}
+
+.site-star-flow-2 {
+    --sx: 18%;
+    --sy: 78%;
+    --tx: 49.5%;
+    --ty: 52%;
+    --size: 6px;
+    --duration: 5.1s;
+    --delay: -1.8s;
+    --particle: #63a6ff;
+}
+
+.site-star-flow-3 {
+    --sx: 84%;
+    --sy: 16%;
+    --tx: 52%;
+    --ty: 48%;
+    --size: 7px;
+    --duration: 4.8s;
+    --delay: -2.6s;
+    --particle: #f4fbff;
+}
+
+.site-star-flow-4 {
+    --sx: 92%;
+    --sy: 66%;
+    --tx: 51%;
+    --ty: 52%;
+    --size: 8px;
+    --duration: 5.7s;
+    --delay: -0.9s;
+    --particle: #ff8c5a;
+}
+
+.site-star-flow-5 {
+    --sx: 14%;
+    --sy: 14%;
+    --tx: 48%;
+    --ty: 47%;
+    --size: 5px;
+    --duration: 3.9s;
+    --delay: -3.3s;
+    --particle: #ffd166;
+}
+
+.site-star-flow-6 {
+    --sx: 72%;
+    --sy: 82%;
+    --tx: 50%;
+    --ty: 53%;
+    --size: 6px;
+    --duration: 4.9s;
+    --delay: -2.1s;
+    --particle: #63a6ff;
+}
+
+.site-star-flow-7 {
+    --sx: 34%;
+    --sy: 8%;
+    --tx: 50%;
+    --ty: 48%;
+    --size: 7px;
+    --duration: 5.5s;
+    --delay: -4.1s;
+    --particle: #ffffff;
+}
+
+.site-star-flow-8 {
+    --sx: 6%;
+    --sy: 56%;
+    --tx: 49%;
+    --ty: 50%;
+    --size: 8px;
+    --duration: 4.6s;
+    --delay: -1.3s;
+    --particle: #ff6f4f;
+}
+
+.site-star-flow-9 {
+    --sx: 88%;
+    --sy: 42%;
+    --tx: 51%;
+    --ty: 49%;
+    --size: 5px;
+    --duration: 3.7s;
+    --delay: -2.8s;
+    --particle: #ffd166;
+}
+
+@keyframes siteStarParticleFlow {
+    0% {
+        opacity: 0;
+        transform: translate3d(0, 0, 0) scale(0.8);
+    }
+    10% {
+        opacity: 1;
+    }
+    72% {
+        opacity: 1;
+    }
+    88% {
+        opacity: 0.45;
+    }
+    100% {
+        opacity: 0;
+        transform: translate3d(calc(var(--tx) - var(--sx)), calc(var(--ty) - var(--sy)), 0) scale(0.34);
+    }
+}
+
+@keyframes siteStarCoreBreath {
+    0%, 100% {
+        box-shadow:
+            0 0 34px rgba(255, 209, 102, 0.46),
+            0 0 72px rgba(255, 140, 54, 0.22);
+        transform: translate(-50%, -50%) scale(1);
+    }
+    18% {
+        box-shadow:
+            0 0 40px rgba(255, 209, 102, 0.52),
+            0 0 88px rgba(255, 140, 54, 0.26);
+        transform: translate(-50%, -50%) scale(1.016);
+    }
+    32% {
+        box-shadow:
+            0 0 54px rgba(255, 209, 102, 0.62),
+            0 0 110px rgba(255, 140, 54, 0.34);
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+    45% {
+        box-shadow:
+            0 0 44px rgba(255, 209, 102, 0.54),
+            0 0 90px rgba(255, 140, 54, 0.28);
+        transform: translate(-50%, -50%) scale(1.02);
+    }
+    68% {
+        box-shadow:
+            0 0 50px rgba(99, 166, 255, 0.42),
+            0 0 98px rgba(255, 140, 54, 0.24);
+        transform: translate(-50%, -50%) scale(1.04);
+    }
+}
+
+@keyframes siteStarCoreTint {
+    0%, 100% {
+        filter: hue-rotate(0deg) saturate(1);
+    }
+    26% {
+        filter: hue-rotate(8deg) saturate(1.04);
+    }
+    52% {
+        filter: hue-rotate(-10deg) saturate(1.08);
+    }
+    78% {
+        filter: hue-rotate(4deg) saturate(1.02);
+    }
+}
+
+@keyframes siteStarHaloA {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.84);
+    }
+    12% {
+        opacity: 0.42;
+    }
+    44% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.28);
+    }
+}
+
+@keyframes siteStarHaloB {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.82);
+    }
+    16% {
+        opacity: 0;
+    }
+    28% {
+        opacity: 0.26;
+    }
+    56% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.22);
+    }
+}
+
+@keyframes siteStarHaloC {
+    0%, 100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.82);
+    }
+    36% {
+        opacity: 0;
+    }
+    50% {
+        opacity: 0.24;
+    }
+    74% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.24);
+    }
+}
+
+@keyframes siteStarDustA {
+    0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.42; }
+    50% { transform: translate3d(8px, -6px, 0); opacity: 0.88; }
+}
+
+@keyframes siteStarDustB {
+    0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.38; }
+    50% { transform: translate3d(-6px, 8px, 0); opacity: 0.72; }
+}
+
+@keyframes siteStarDustC {
+    0%, 100% { transform: translate3d(0, 0, 0); opacity: 0.34; }
+    50% { transform: translate3d(10px, 4px, 0); opacity: 0.64; }
+}
+
+@keyframes siteStarFieldPulse {
+    0%, 100% { opacity: 0.32; }
+    50% { opacity: 0.62; }
+}
 
 .site-game-copy p {
     margin: 0;
