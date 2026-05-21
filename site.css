@@ -112,8 +112,8 @@ body.game-mode .site-page {
 }
 
 .site-block-hero {
-    display: flex;
-    align-items: stretch;
+    min-height: auto;
+    display: block;
     background:
         linear-gradient(90deg, rgba(99, 166, 255, 0.045), transparent 42%),
         linear-gradient(180deg, #030405, #070b10);
@@ -135,20 +135,13 @@ body.game-mode .site-page {
     display: grid;
     grid-template-columns: minmax(0, 0.94fr) minmax(380px, 480px);
     gap: 76px;
-    align-items: stretch;
-    padding: 108px 0 72px;
+    align-items: start;
+    padding: 92px 0 76px;
 }
 
 .site-hero-copy {
-    max-width: none;
-    min-height: 100%;
-    padding: 30px;
-    border: 1px solid var(--site-line-soft);
-    background:
-        linear-gradient(180deg, rgba(9, 12, 15, 0.66), rgba(0, 0, 0, 0.28));
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    max-width: 780px;
+    padding-top: 2px;
 }
 
 .site-section-label {
@@ -178,19 +171,16 @@ body.game-mode .site-page {
 }
 
 .site-lead {
-    max-width: 820px;
+    max-width: 760px;
     margin: 0;
-    color: #bfccda;
-    font-size: clamp(21px, 1.85vw, 28px);
-    line-height: 1.45;
+    font-size: clamp(22px, 2.0vw, 28px);
+    line-height: 1.48;
 }
 
 .site-lead-secondary {
-    max-width: 760px;
-    margin-top: 26px;
-    color: var(--site-muted);
-    font-size: clamp(16px, 1.22vw, 18px);
-    line-height: 1.64;
+    margin-top: 22px;
+    font-size: clamp(16px, 1.25vw, 18px);
+    line-height: 1.62;
 }
 
 .site-button {
@@ -599,18 +589,6 @@ html.site-reveal-ready [data-reveal].is-visible {
     transform: translateY(0);
 }
 
-
-@media (min-width: 1101px) {
-    .site-hero-copy,
-    .site-game-panel {
-        align-self: stretch;
-    }
-
-    .site-game-panel {
-        min-height: 0;
-    }
-}
-
 @media (max-width: 1100px) {
     .site-inner {
         width: min(100% - 44px, 860px);
@@ -633,10 +611,7 @@ html.site-reveal-ready [data-reveal].is-visible {
 
     .site-hero-layout {
         gap: 36px;
-    }
-
-    .site-hero-copy {
-        min-height: 0;
+        padding: 64px 0 68px;
     }
 
     .site-project-item {
@@ -666,11 +641,7 @@ html.site-reveal-ready [data-reveal].is-visible {
     .site-block-work .site-inner,
     .site-block-skills .site-inner,
     .site-block-contact .site-inner {
-        padding: 54px 0;
-    }
-
-    .site-hero-copy {
-        padding: 18px;
+        padding: 48px 0;
     }
 
     .site-game-panel {
