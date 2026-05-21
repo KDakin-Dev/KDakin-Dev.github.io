@@ -3,18 +3,18 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.11.19-iron-core-impulse-retain",
+        buildVersion: "0.12.00-site-game-isolation",
 
         portfolio: {
-            minNodes: 48,
-            maxNodes: 130,
-            areaPerNode: 17000,
-            linkDistanceDesktop: 146,
-            linkDistanceMobile: 118,
-            pointerRadius: 190,
-            pointerPushRadius: 260,
-            pointerForce: 170,
-            pointerPushForce: 360
+            minNodes: 42,
+            maxNodes: 112,
+            areaPerNode: 20500,
+            linkDistanceDesktop: 172,
+            linkDistanceMobile: 132,
+            pointerRadius: 205,
+            pointerPushRadius: 282,
+            pointerForce: 145,
+            pointerPushForce: 310
         },
 
         game: {
@@ -197,11 +197,12 @@
         gameInput: document.getElementById("game-input"),
         gameAtoms: document.getElementById("game-atoms"),
         gameProgressFill: document.getElementById("game-progress-fill"),
-        gameMessage: document.querySelector(".game-message"),
+        gameOverlay: document.querySelector("[data-field-game-overlay]"),
+        gameMessage: document.querySelector("[data-game-message]"),
         enterGameButton: document.getElementById("enter-game"),
         exitGameButton: document.getElementById("exit-game"),
-        miniProbe: document.querySelector(".probe-dot"),
-        miniOrbitBox: document.querySelector(".mini-orbit")
+        miniProbe: document.querySelector("[data-mini-probe]"),
+        miniOrbitBox: document.querySelector("[data-mini-orbit]")
     };
 
     var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -507,9 +508,16 @@
     }
 
     function getOrbitCenter() {
+        if (state.gameMode) {
+            return {
+                x: state.width * 0.5,
+                y: state.height * 0.48
+            };
+        }
+
         return {
-            x: state.width * 0.5,
-            y: state.height * 0.48
+            x: state.width * 0.61,
+            y: state.height * 0.39
         };
     }
 
@@ -555,7 +563,7 @@
             oy: rand(-5, 5),
             ovx: 0,
             ovy: 0,
-            size: rand(1.1, 2.7),
+            size: rand(1.15, 3.05),
             nucleus: CONFIG.nuclei.H
         };
     }
@@ -2076,22 +2084,23 @@ function getFusionAbsorbProfileValue(typeName) {
     }
 
     function configureLegacyGameHud(enabled) {
-        var stats = document.querySelectorAll(".game-stat");
+        var gameRoot = dom.gameOverlay || document;
+        var stats = gameRoot.querySelectorAll(".game-stat");
         for (var i = 0; i < stats.length; i += 1) {
             stats[i].style.display = enabled ? "none" : "";
         }
 
-        var progress = document.querySelector(".game-progress");
+        var progress = gameRoot.querySelector(".game-progress");
         if (progress) progress.style.display = enabled ? "none" : "";
 
-        var topbar = document.querySelector(".game-topbar");
+        var topbar = gameRoot.querySelector(".game-topbar");
         if (topbar) {
             topbar.style.gridTemplateColumns = enabled ? "auto" : "";
             topbar.style.justifyContent = enabled ? "end" : "";
             topbar.style.pointerEvents = enabled ? "none" : "";
         }
 
-        var exit = document.getElementById("exit-game");
+        var exit = gameRoot.querySelector("#exit-game");
         if (exit) {
             exit.style.minHeight = enabled ? "42px" : "";
             exit.style.minWidth = enabled ? "78px" : "";
@@ -2926,12 +2935,12 @@ function getFusionAbsorbProfileValue(typeName) {
     }
 
     function drawGrid(time) {
-        var grid = state.gameMode ? 70 : 80;
+        var grid = state.gameMode ? 70 : 92;
         var offset = (time * 0.006) % grid;
         ctx.save();
-        ctx.globalAlpha = state.gameMode ? 0.5 : 0.34;
+        ctx.globalAlpha = state.gameMode ? 0.5 : 0.26;
         ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(99, 166, 255, 0.055)";
+        ctx.strokeStyle = state.gameMode ? "rgba(99, 166, 255, 0.055)" : "rgba(143, 214, 255, 0.045)";
         ctx.beginPath();
 
         var x;
@@ -3071,8 +3080,40 @@ function getFusionAbsorbProfileValue(typeName) {
             var rot = params.rot + Math.sin(time * 0.00006 + params.group) * 0.035;
             ctx.beginPath();
             ctx.ellipse(center.x, center.y, params.a, params.b, rot, 0, Math.PI * 2);
-            ctx.strokeStyle = "rgba(99, 166, 255, " + (state.gameMode ? 0.05 : 0.13 - i * 0.015) + ")";
+            ctx.strokeStyle = "rgba(143, 214, 255, " + (state.gameMode ? 0.05 : 0.115 - i * 0.014) + ")";
             ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        ctx.restore();
+    }
+
+    function drawPortfolioSignalRings(time) {
+        if (state.gameMode) return;
+
+        var center = getOrbitCenter();
+        var minDim = Math.min(state.width, state.height);
+        var pulse = 0.5 + Math.sin(time * 0.0011) * 0.5;
+
+        ctx.save();
+        ctx.lineWidth = 1;
+
+        for (var i = 0; i < 4; i += 1) {
+            var r = minDim * (0.18 + i * 0.105) + pulse * 8;
+            ctx.beginPath();
+            ctx.arc(center.x, center.y, r, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(143, 214, 255, " + (0.034 - i * 0.004).toFixed(4) + ")";
+            ctx.stroke();
+        }
+
+        ctx.globalAlpha = 0.22;
+        ctx.strokeStyle = "rgba(126, 242, 176, 0.09)";
+        ctx.setLineDash([8, 14]);
+
+        for (var a = -2; a <= 2; a += 1) {
+            ctx.beginPath();
+            ctx.moveTo(center.x - minDim * 0.82, center.y + a * 54);
+            ctx.lineTo(center.x + minDim * 0.82, center.y - a * 54);
             ctx.stroke();
         }
 
@@ -3095,8 +3136,8 @@ function getFusionAbsorbProfileValue(typeName) {
                 var dy = a.y - b.y;
                 var dSq = dx * dx + dy * dy;
                 if (dSq < limitSq) {
-                    var alpha = (1 - dSq / limitSq) * 0.22;
-                    ctx.strokeStyle = "rgba(99, 166, 255, " + alpha.toFixed(4) + ")";
+                    var alpha = (1 - dSq / limitSq) * 0.18;
+                    ctx.strokeStyle = "rgba(143, 214, 255, " + alpha.toFixed(4) + ")";
                     ctx.beginPath();
                     ctx.moveTo(a.x, a.y);
                     ctx.lineTo(b.x, b.y);
@@ -3474,6 +3515,7 @@ function getFusionAbsorbProfileValue(typeName) {
         drawGameBackdrop();
         drawGrid(time);
         drawBounds();
+        drawPortfolioSignalRings(time);
         drawOrbitTraces(time);
         drawCoreZone(time);
 
@@ -3504,10 +3546,12 @@ function getFusionAbsorbProfileValue(typeName) {
     }
 
     function setupReveal() {
-        var items = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
+        var items = Array.prototype.slice.call(document.querySelectorAll("[data-reveal]"));
+        document.documentElement.classList.add("site-reveal-ready");
+
         if (!("IntersectionObserver" in window)) {
             items.forEach(function (item) {
-                item.classList.add("visible");
+                item.classList.add("is-visible");
             });
             return;
         }
@@ -3515,13 +3559,17 @@ function getFusionAbsorbProfileValue(typeName) {
         var observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 if (entry.isIntersecting) {
-                    entry.target.classList.add("visible");
+                    entry.target.classList.add("is-visible");
                     observer.unobserve(entry.target);
                 }
             });
         }, { threshold: 0.12 });
 
         items.forEach(function (item) {
+            var rect = item.getBoundingClientRect();
+            if (rect.top < window.innerHeight && rect.bottom > 0) {
+                item.classList.add("is-visible");
+            }
             observer.observe(item);
         });
     }
