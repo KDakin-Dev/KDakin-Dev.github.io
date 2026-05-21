@@ -112,11 +112,78 @@ body.game-mode .site-page {
 }
 
 .site-block-hero {
+    position: relative;
     min-height: auto;
     display: block;
+    overflow: hidden;
     background:
         linear-gradient(90deg, rgba(99, 166, 255, 0.045), transparent 42%),
         linear-gradient(180deg, #030405, #070b10);
+}
+
+.site-hero-sky {
+    position: relative;
+    min-height: 220px;
+    border-bottom: 1px solid var(--site-line-soft);
+    overflow: hidden;
+    background: #000000;
+}
+
+.site-hero-sky:before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("./star_sparkle.gif?v=21");
+    background-repeat: repeat;
+    background-size: 640px 360px;
+    opacity: 0.72;
+    image-rendering: auto;
+}
+
+.site-hero-sky:after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 58% 40%, rgba(99, 166, 255, 0.10), transparent 24%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.62));
+    pointer-events: none;
+}
+
+.site-hero-sky-inner {
+    position: relative;
+    z-index: 1;
+    min-height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.site-welcome-bubble {
+    position: relative;
+    margin-right: clamp(10px, 8vw, 132px);
+    padding: 12px 18px 13px;
+    border: 2px solid rgba(255, 255, 255, 0.95);
+    background: rgba(255, 252, 236, 0.96);
+    color: #b32224;
+    font-size: clamp(17px, 2vw, 26px);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 18px 44px rgba(0, 0, 0, 0.52);
+}
+
+.site-welcome-bubble:after {
+    content: "";
+    position: absolute;
+    left: 24px;
+    bottom: -13px;
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 252, 236, 0.96);
+    border-right: 2px solid rgba(255, 255, 255, 0.95);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.95);
+    transform: rotate(45deg);
 }
 
 .site-block-work {
@@ -136,12 +203,12 @@ body.game-mode .site-page {
     grid-template-columns: minmax(0, 0.94fr) minmax(380px, 480px);
     gap: 76px;
     align-items: start;
-    padding: 92px 0 76px;
+    padding: 74px 0 74px;
 }
 
 .site-hero-copy {
     max-width: 780px;
-    padding-top: 2px;
+    padding-top: 0;
 }
 
 .site-section-label {
@@ -173,12 +240,20 @@ body.game-mode .site-page {
 .site-lead {
     max-width: 760px;
     margin: 0;
-    font-size: clamp(22px, 2.0vw, 28px);
-    line-height: 1.48;
+    font-size: clamp(22px, 2.0vw, 29px);
+    line-height: 1.44;
+}
+
+.site-lead-opportunity {
+    max-width: 700px;
+    margin-top: 12px;
+    color: var(--site-text);
+    font-size: clamp(24px, 2.4vw, 34px);
+    line-height: 1.28;
 }
 
 .site-lead-secondary {
-    margin-top: 22px;
+    margin-top: 24px;
     font-size: clamp(16px, 1.25vw, 18px);
     line-height: 1.62;
 }
@@ -609,9 +684,18 @@ html.site-reveal-ready [data-reveal].is-visible {
         padding: 14px 0;
     }
 
+    .site-hero-sky,
+    .site-hero-sky-inner {
+        min-height: 170px;
+    }
+
+    .site-welcome-bubble {
+        margin-right: 0;
+    }
+
     .site-hero-layout {
         gap: 36px;
-        padding: 64px 0 68px;
+        padding: 54px 0 60px;
     }
 
     .site-project-item {
@@ -637,11 +721,16 @@ html.site-reveal-ready [data-reveal].is-visible {
         display: none;
     }
 
+    .site-hero-sky,
+    .site-hero-sky-inner {
+        min-height: 138px;
+    }
+
     .site-hero-layout,
     .site-block-work .site-inner,
     .site-block-skills .site-inner,
     .site-block-contact .site-inner {
-        padding: 48px 0;
+        padding: 42px 0;
     }
 
     .site-game-panel {
