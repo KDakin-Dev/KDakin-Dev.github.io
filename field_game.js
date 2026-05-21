@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.04-mass-gate-hud",
+        buildVersion: "0.12.05-balanced-mass-stability-h-label",
 
         game: {
             playAreaLeft: 18,
@@ -79,8 +79,7 @@
             ironCoreMassThreshold: 960,
             massGateFirstRecipeCount: 3,
             massGateRecipeStride: 2,
-            massGateAbsorbLightMultiplier: 3.4,
-            massGateAbsorbAlphaMultiplier: 2.2,
+            massGateGlobalMassMultiplier: 1.5,
 
             collapseCriticalMass: 320,
             collapseBlackHoleMass: 380,
@@ -121,24 +120,24 @@
             // balance side = white/yellow;
             // hot/heavy/collapse side = orange/red/dark red.
             H: { name: "H", mass: 1, radius: 4.2, color: "110, 220, 255", absorb: 0.6 },
-            D: { name: "D", mass: 2, radius: 4.35, color: "80, 245, 255", absorb: 1.7 },
-            He3: { name: "He3", mass: 3, radius: 4.5, color: "70, 180, 255", absorb: 3.4 },
-            He4: { name: "He4", mass: 4, radius: 4.65, color: "185, 230, 255", absorb: 8.5 },
+            D: { name: "D", mass: 2, radius: 4.35, color: "80, 245, 255", absorb: 2.0 },
+            He3: { name: "He3", mass: 3, radius: 4.5, color: "70, 180, 255", absorb: 3.0 },
+            He4: { name: "He4", mass: 4, radius: 4.65, color: "185, 230, 255", absorb: 5.0 },
 
-            Be8: { name: "Be8", mass: 8, radius: 5.25, color: "245, 252, 255", absorb: 13.0, unstable: true },
-            C12: { name: "C12", mass: 12, radius: 5.85, color: "255, 245, 185", absorb: 32.0 },
-            O16: { name: "O16", mass: 16, radius: 6.45, color: "255, 230, 85", absorb: 52.0 },
-            Ne20: { name: "Ne20", mass: 20, radius: 7.05, color: "255, 200, 55", absorb: 74.0 },
-            Mg24: { name: "Mg24", mass: 24, radius: 7.65, color: "255, 165, 45", absorb: 98.0 },
+            Be8: { name: "Be8", mass: 8, radius: 5.25, color: "245, 252, 255", absorb: 8.0, unstable: true },
+            C12: { name: "C12", mass: 12, radius: 5.85, color: "255, 245, 185", absorb: 12.0 },
+            O16: { name: "O16", mass: 16, radius: 6.45, color: "255, 230, 85", absorb: 16.0 },
+            Ne20: { name: "Ne20", mass: 20, radius: 7.05, color: "255, 200, 55", absorb: 21.0 },
+            Mg24: { name: "Mg24", mass: 24, radius: 7.65, color: "255, 165, 45", absorb: 27.0 },
 
-            Si28: { name: "Si28", mass: 28, radius: 8.25, color: "255, 120, 35", absorb: 130.0 },
-            S32: { name: "S32", mass: 32, radius: 8.85, color: "255, 82, 28", absorb: 164.0 },
-            Ar36: { name: "Ar36", mass: 36, radius: 9.45, color: "235, 48, 34", absorb: 202.0 },
-            Ca40: { name: "Ca40", mass: 40, radius: 10.05, color: "210, 30, 42", absorb: 245.0 },
-            Ti44: { name: "Ti44", mass: 44, radius: 10.65, color: "185, 20, 48", absorb: 292.0 },
-            Cr48: { name: "Cr48", mass: 48, radius: 11.25, color: "158, 14, 52", absorb: 344.0 },
-            Fe52: { name: "Fe52", mass: 52, radius: 11.95, color: "130, 8, 48", absorb: 402.0 },
-            Fe56: { name: "Fe56", mass: 56, radius: 12.6, color: "90, 0, 34", absorb: 470.0 }
+            Si28: { name: "Si28", mass: 28, radius: 8.25, color: "255, 120, 35", absorb: 34.0 },
+            S32: { name: "S32", mass: 32, radius: 8.85, color: "255, 82, 28", absorb: 42.0 },
+            Ar36: { name: "Ar36", mass: 36, radius: 9.45, color: "235, 48, 34", absorb: 51.0 },
+            Ca40: { name: "Ca40", mass: 40, radius: 10.05, color: "210, 30, 42", absorb: 61.0 },
+            Ti44: { name: "Ti44", mass: 44, radius: 10.65, color: "185, 20, 48", absorb: 72.0 },
+            Cr48: { name: "Cr48", mass: 48, radius: 11.25, color: "158, 14, 52", absorb: 84.0 },
+            Fe52: { name: "Fe52", mass: 52, radius: 11.95, color: "130, 8, 48", absorb: 97.0 },
+            Fe56: { name: "Fe56", mass: 56, radius: 12.6, color: "90, 0, 34", absorb: 112.0 }
         },
 
         growthStages: [
@@ -1563,45 +1562,49 @@
         }
     }
 
-    function getMassGateAbsorbMultiplier(typeName) {
+    function getMassGateAbsorbMultiplier() {
         if (!state.massGateActive) return 1.0;
-        if (typeName === "D" || typeName === "He3") return CONFIG.game.massGateAbsorbLightMultiplier;
-        if (typeName === "He4") return CONFIG.game.massGateAbsorbAlphaMultiplier;
-        return 1.0;
+        return CONFIG.game.massGateGlobalMassMultiplier;
     }
 
     function getFusionAbsorbProfileValue(typeName) {
         var nucleus = getNucleus(typeName);
-        var mass = nucleus.mass || 1;
+        var profileByType = {
+            D: { stability: 2.6, temp: -0.3, readiness: 7.0, role: "stable" },
+            He3: { stability: 2.3, temp: 0.9, readiness: 8.0, role: "stable" },
+            He4: { stability: 2.0, temp: 1.6, readiness: 8.5, role: "balanced" },
+            Be8: { stability: 1.6, temp: 1.9, readiness: 10.0, role: "balanced" },
+            C12: { stability: 1.3, temp: 2.2, readiness: 12.0, role: "balanced" },
+            O16: { stability: 1.0, temp: 2.7, readiness: 16.0, role: "balanced" },
+            Ne20: { stability: 0.7, temp: 3.1, readiness: 18.0, role: "hot" },
+            Mg24: { stability: 0.5, temp: 3.5, readiness: 20.0, role: "hot" },
+            Si28: { stability: 0.3, temp: 4.0, readiness: 22.0, role: "hot" },
+            S32: { stability: 0.1, temp: 4.5, readiness: 24.0, role: "heavy" },
+            Ar36: { stability: 0.0, temp: 5.0, readiness: 26.0, role: "heavy" },
+            Ca40: { stability: -0.2, temp: 5.5, readiness: 29.0, role: "heavy" },
+            Ti44: { stability: -0.5, temp: 6.1, readiness: 32.0, role: "heavy" },
+            Cr48: { stability: -0.8, temp: 6.7, readiness: 35.0, role: "heavy" },
+            Fe52: { stability: -1.1, temp: 7.3, readiness: 38.0, role: "heavy" },
+            Fe56: { stability: -1.4, temp: 8.0, readiness: 41.0, role: "heavy" }
+        };
+        var profile = profileByType[typeName] || { stability: 0.0, temp: 0.0, readiness: 0.0, role: "balanced" };
+        var coreGain = nucleus.absorb || 0;
 
-        if (typeName === "D") return { core: 0.9, profileMass: 0.8, readiness: 7.0, temp: -0.4, stability: 3.2, role: "stable" };
-        if (typeName === "He3") return { core: 1.4, profileMass: 1.2, readiness: 8.0, temp: 1.2, stability: 2.0, role: "stable" };
-        if (typeName === "He4") return { core: 2.2, profileMass: 2.0, readiness: 8.5, temp: 2.5, stability: 1.5, role: "balanced" };
-
-        if (mass < 16) {
-            return { core: nucleus.absorb * 0.42, profileMass: mass * 0.46, readiness: 10.0, temp: 2.2, stability: 0.8, role: "balanced" };
-        }
-
-        if (mass < 20) {
-            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, readiness: 16.0, temp: 3.1, stability: -0.4, role: "hot" };
-        }
-
-        if (mass < 28) {
-            return { core: nucleus.absorb * 0.44, profileMass: mass * 0.54, readiness: mass * 0.85, temp: 3.4, stability: -0.8, role: "hot" };
-        }
-
-        if (mass < 44) {
-            return { core: nucleus.absorb * 0.46, profileMass: mass * 0.62, readiness: mass * 0.72, temp: 5.2, stability: -3.0, role: "heavy" };
-        }
-
-        return { core: nucleus.absorb * 0.48, profileMass: mass * 0.72, readiness: mass * 0.72, temp: 7.0, stability: -5.2, role: "heavy" };
+        return {
+            core: coreGain,
+            profileMass: coreGain * 0.62,
+            readiness: profile.readiness,
+            temp: profile.temp,
+            stability: profile.stability,
+            role: profile.role
+        };
     }
 
     function applyStarProfileAbsorb(node) {
         var nucleus = getNucleus(node.nucleusName);
         syncMassGateState();
         var effect = getFusionAbsorbProfileValue(node.nucleusName);
-        var massGateMultiplier = getMassGateAbsorbMultiplier(node.nucleusName);
+        var massGateMultiplier = getMassGateAbsorbMultiplier();
         var coreGain = effect.core * massGateMultiplier;
 
         state.coreMass += coreGain;
@@ -3295,7 +3298,7 @@
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            if (state.gameMode && (n.nucleusName !== "H" || absorbable)) {
+            if (state.gameMode) {
                 ctx.fillStyle = "rgba(235, 245, 255, 0.90)";
                 ctx.font = "11px SFMono-Regular, Consolas, monospace";
                 ctx.textAlign = "center";
