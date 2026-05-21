@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDakin-Dev | Game Designer Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
-    <link rel="stylesheet" href="./site.css?v=33">
+    <link rel="stylesheet" href="./site.css?v=34">
     <link rel="stylesheet" href="./field_game.css?v=8">
 </head>
 <body>
@@ -115,22 +115,24 @@
                 </div>
 
                 <div class="site-skill-feature">
-                    <aside class="site-skill-game-card" aria-label="Upcoming playable skill game" data-reveal>
-                        <p class="site-card-eyebrow">Next playable block</p>
-                        <h3>Prototype Lab Game</h3>
-                        <div class="site-skill-game-preview" aria-hidden="true">
-                            <span class="site-lab-node site-lab-node-a"></span>
-                            <span class="site-lab-node site-lab-node-b"></span>
-                            <span class="site-lab-node site-lab-node-c"></span>
-                            <span class="site-lab-line site-lab-line-a"></span>
-                            <span class="site-lab-line site-lab-line-b"></span>
-                            <span class="site-lab-cursor"></span>
+                    <aside class="site-skill-game-card site-sail-card" aria-label="Sail and Fire playable game" data-reveal>
+                        <p class="site-card-eyebrow">Playable block</p>
+                        <h3>Sail &amp; Fire</h3>
+                        <div class="site-skill-game-preview site-sail-preview" aria-hidden="true">
+                            <span class="site-sail-wave site-sail-wave-a"></span>
+                            <span class="site-sail-wave site-sail-wave-b"></span>
+                            <span class="site-sail-island"></span>
+                            <span class="site-sail-ship"></span>
+                            <span class="site-sail-sail"></span>
+                            <span class="site-sail-shot site-sail-shot-a"></span>
+                            <span class="site-sail-shot site-sail-shot-b"></span>
+                            <span class="site-sail-wind"></span>
                         </div>
                         <p>
-                            Reserved area for a second small interactive game about fast prototyping,
-                            testing mechanics, and tuning player feedback.
+                            Browser sailing combat prototype: wind, sail control, cannon fire,
+                            enemy ships, cargo pickup, docking, and debug mode.
                         </p>
-                        <button class="site-button site-button-disabled" type="button" disabled>Coming soon</button>
+                        <a class="site-button" href="./sail_game.html">Play demo</a>
                     </aside>
 
                     <div class="site-skill-copy" data-reveal>
@@ -216,6 +218,27 @@
 
                     <article class="site-project-item" data-reveal>
                         <div class="site-project-number">03</div>
+                        <div class="site-project-body">
+                            <h3>Sail &amp; Fire</h3>
+                            <p>
+                                Playable browser sailing prototype for the portfolio site: wind-driven movement,
+                                cannon combat, seeded islands, cargo collection, docking, and debug overlay.
+                            </p>
+                            <div class="site-tag-row">
+                                <span>HTML</span>
+                                <span>Canvas</span>
+                                <span>Arcade physics</span>
+                                <span>Portfolio demo</span>
+                            </div>
+                        </div>
+                        <dl class="site-project-facts">
+                            <div><dt>Launch</dt><dd><a href="./sail_game.html">Play demo</a></dd></div>
+                            <div><dt>Debug</dt><dd><a href="./sail_game.html?debug=1">Open debug mode</a></dd></div>
+                        </dl>
+                    </article>
+
+                    <article class="site-project-item" data-reveal>
+                        <div class="site-project-number">04</div>
                         <div class="site-project-body">
                             <h3>Field Game</h3>
                             <p>

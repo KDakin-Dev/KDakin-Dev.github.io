@@ -1,0 +1,241 @@
+:root {
+    --sail-bg: #07111a;
+    --sail-panel: rgba(8, 13, 18, 0.86);
+    --sail-panel-strong: rgba(8, 13, 18, 0.96);
+    --sail-line: rgba(255, 255, 255, 0.12);
+    --sail-line-soft: rgba(255, 255, 255, 0.07);
+    --sail-text: #edf6ff;
+    --sail-muted: #8fa5b8;
+    --sail-dim: #556574;
+    --sail-blue: #63a6ff;
+    --sail-green: #32d1a0;
+    --sail-warn: #ffd166;
+    --sail-red: #ff6c5f;
+}
+
+.sail-page {
+    min-height: 100vh;
+    overflow-x: hidden;
+    background:
+        radial-gradient(circle at 22% 10%, rgba(99, 166, 255, 0.14), transparent 28%),
+        radial-gradient(circle at 78% 18%, rgba(50, 209, 160, 0.10), transparent 30%),
+        linear-gradient(180deg, #061018 0%, #02060a 100%);
+    color: var(--sail-text);
+}
+
+.sail-shell {
+    min-height: 100vh;
+    padding: 28px;
+}
+
+.sail-stage {
+    display: grid;
+    gap: 18px;
+    width: min(100%, 1280px);
+    margin: 0 auto;
+}
+
+.sail-header,
+.sail-notes {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.18fr) minmax(0, 1fr) minmax(220px, 0.24fr);
+    gap: 22px;
+    align-items: start;
+    padding: 22px;
+    border: 1px solid var(--sail-line-soft);
+    background: var(--sail-panel);
+    backdrop-filter: blur(14px);
+}
+
+.sail-back,
+.sail-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid var(--sail-line);
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--sail-text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.11em;
+    text-decoration: none;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.sail-back:hover,
+.sail-button:hover {
+    border-color: rgba(99, 166, 255, 0.70);
+    background: rgba(99, 166, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+.sail-title-block {
+    display: grid;
+    gap: 10px;
+}
+
+.sail-kicker {
+    margin: 0;
+    color: var(--sail-blue);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.sail-title-block h1 {
+    margin: 0;
+    font-size: clamp(38px, 6vw, 76px);
+    line-height: 0.92;
+    letter-spacing: -0.07em;
+}
+
+.sail-title-block p,
+.sail-notes p {
+    max-width: 760px;
+    margin: 0;
+    color: var(--sail-muted);
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.sail-actions {
+    display: grid;
+    gap: 10px;
+}
+
+.sail-game-wrap {
+    position: relative;
+    min-height: min(72vh, 760px);
+    border: 1px solid var(--sail-line-soft);
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.030) 1px, transparent 1px),
+        #071520;
+    background-size: 48px 48px, 48px 48px, auto;
+    box-shadow: 0 28px 90px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
+}
+
+#sail-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: min(72vh, 760px);
+}
+
+.sail-hud {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    right: 16px;
+    z-index: 4;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(84px, 1fr));
+    gap: 8px;
+    pointer-events: none;
+}
+
+.sail-hud div {
+    display: grid;
+    gap: 2px;
+    min-height: 50px;
+    padding: 8px 10px;
+    border: 1px solid var(--sail-line-soft);
+    background: rgba(0, 0, 0, 0.42);
+}
+
+.sail-hud span {
+    color: var(--sail-dim);
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.sail-hud strong {
+    color: var(--sail-text);
+    font-size: 15px;
+    letter-spacing: 0.04em;
+}
+
+.sail-message {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 5;
+    width: min(620px, calc(100% - 32px));
+    padding: 12px 14px;
+    border: 1px solid var(--sail-line-soft);
+    background: rgba(0, 0, 0, 0.52);
+    color: var(--sail-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    pointer-events: none;
+}
+
+.sail-pause-card {
+    position: absolute;
+    inset: 0;
+    z-index: 8;
+    display: grid;
+    place-content: center;
+    gap: 10px;
+    background: rgba(0, 0, 0, 0.48);
+    text-align: center;
+}
+
+.sail-pause-card strong {
+    font-size: clamp(32px, 5vw, 64px);
+    line-height: 1;
+    letter-spacing: -0.05em;
+}
+
+.sail-pause-card span {
+    color: var(--sail-muted);
+}
+
+.sail-notes {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.sail-notes strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--sail-blue);
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+@media (max-width: 960px) {
+    .sail-shell {
+        padding: 14px;
+    }
+
+    .sail-header,
+    .sail-notes {
+        grid-template-columns: 1fr;
+    }
+
+    .sail-hud {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 560px) {
+    .sail-hud {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .sail-hud div {
+        min-height: 44px;
+        padding: 6px 8px;
+    }
+}

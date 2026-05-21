@@ -905,3 +905,141 @@ html.site-reveal-ready [data-reveal].is-visible {
         transition: none;
     }
 }
+
+.site-sail-card {
+    background:
+        radial-gradient(circle at 34% 24%, rgba(50, 209, 160, 0.10), transparent 30%),
+        radial-gradient(circle at 70% 70%, rgba(99, 166, 255, 0.08), transparent 34%),
+        linear-gradient(180deg, rgba(9, 12, 15, 0.94), rgba(0, 0, 0, 0.58));
+}
+
+.site-sail-preview {
+    background:
+        linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
+        radial-gradient(circle at 32% 18%, rgba(50, 209, 160, 0.10), transparent 28%),
+        linear-gradient(180deg, rgba(12, 51, 72, 0.92), rgba(5, 20, 31, 0.96));
+    background-size: 30px 30px, 30px 30px, auto, auto;
+}
+
+.site-sail-wave,
+.site-sail-island,
+.site-sail-ship,
+.site-sail-sail,
+.site-sail-shot,
+.site-sail-wind {
+    position: absolute;
+    display: block;
+}
+
+.site-sail-wave {
+    left: -12%;
+    right: -12%;
+    height: 1px;
+    background: rgba(180, 226, 255, 0.22);
+    transform: rotate(-8deg);
+}
+
+.site-sail-wave-a {
+    top: 38%;
+    box-shadow: 0 34px 0 rgba(180, 226, 255, 0.16), 0 68px 0 rgba(180, 226, 255, 0.11);
+}
+
+.site-sail-wave-b {
+    top: 24%;
+    opacity: 0.62;
+    box-shadow: 0 42px 0 rgba(180, 226, 255, 0.12), 0 84px 0 rgba(180, 226, 255, 0.08);
+}
+
+.site-sail-island {
+    left: 62%;
+    top: 18%;
+    width: 92px;
+    height: 56px;
+    border: 1px solid rgba(255, 231, 170, 0.24);
+    border-radius: 50%;
+    background:
+        radial-gradient(ellipse at 38% 35%, rgba(49, 104, 60, 0.95), transparent 28%),
+        radial-gradient(ellipse at 64% 60%, rgba(49, 104, 60, 0.80), transparent 24%),
+        #9b7a45;
+    transform: rotate(-12deg);
+}
+
+.site-sail-ship {
+    left: 36%;
+    top: 55%;
+    width: 86px;
+    height: 34px;
+    border: 1px solid rgba(99, 166, 255, 0.72);
+    border-radius: 52% 46% 44% 52%;
+    background: #d7eaff;
+    box-shadow: 0 0 32px rgba(99, 166, 255, 0.20);
+    transform: translate(-50%, -50%) rotate(16deg);
+    clip-path: polygon(0 50%, 18% 12%, 78% 18%, 100% 50%, 78% 82%, 18% 88%);
+}
+
+.site-sail-sail {
+    left: 39%;
+    top: 52%;
+    width: 34px;
+    height: 24px;
+    background: rgba(99, 166, 255, 0.82);
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    transform: translate(-50%, -50%) rotate(16deg);
+}
+
+.site-sail-shot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #ffeebe;
+    box-shadow: 0 0 14px rgba(255, 238, 190, 0.70);
+}
+
+.site-sail-shot-a {
+    left: 55%;
+    top: 45%;
+}
+
+.site-sail-shot-b {
+    left: 70%;
+    top: 39%;
+    opacity: 0.58;
+}
+
+.site-sail-wind {
+    right: 18px;
+    bottom: 18px;
+    width: 58px;
+    height: 58px;
+    border: 1px solid rgba(99, 166, 255, 0.38);
+    border-radius: 999px;
+}
+
+.site-sail-wind::before,
+.site-sail-wind::after {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 27px;
+    width: 28px;
+    height: 2px;
+    background: rgba(99, 166, 255, 0.82);
+    transform: rotate(-34deg);
+}
+
+.site-sail-wind::after {
+    left: 34px;
+    top: 19px;
+    width: 9px;
+    transform: rotate(26deg);
+}
+
+.site-project-facts a {
+    color: var(--site-accent);
+    text-decoration: none;
+}
+
+.site-project-facts a:hover {
+    text-decoration: underline;
+}

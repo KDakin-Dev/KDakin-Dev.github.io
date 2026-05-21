@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sail &amp; Fire | KDakin-Dev</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
+    <link rel="stylesheet" href="./site.css?v=34">
+    <link rel="stylesheet" href="./sail_game.css?v=1">
+</head>
+<body class="sail-page">
+    <main class="sail-shell" aria-label="Sail and Fire playable prototype">
+        <section class="sail-stage">
+            <header class="sail-header">
+                <a class="sail-back" href="./index.html#skills">Back to portfolio</a>
+                <div class="sail-title-block">
+                    <p class="sail-kicker">Playable prototype</p>
+                    <h1>Sail &amp; Fire</h1>
+                    <p>
+                        Wind-driven arcade sailing combat. Raise the sail, turn with the rudder,
+                        fire at hostile ships, collect cargo, and dock near islands to sell it.
+                    </p>
+                </div>
+                <div class="sail-actions">
+                    <button class="sail-button" type="button" data-sail-reset>New run</button>
+                    <button class="sail-button" type="button" data-sail-pause>Pause</button>
+                </div>
+            </header>
+
+            <div class="sail-game-wrap">
+                <canvas id="sail-canvas" aria-label="Sail and Fire game canvas"></canvas>
+                <div class="sail-hud" aria-label="Game state">
+                    <div><span>HP</span><strong data-hud="hp">100</strong></div>
+                    <div><span>Sail</span><strong data-hud="sail">00</strong></div>
+                    <div><span>Wind</span><strong data-hud="wind">N</strong></div>
+                    <div><span>Cargo</span><strong data-hud="cargo">000</strong></div>
+                    <div><span>Gold</span><strong data-hud="gold">000</strong></div>
+                    <div><span>Enemies</span><strong data-hud="enemies">00</strong></div>
+                </div>
+                <div class="sail-message" data-sail-message>
+                    W/S sail. A/D rudder. Mouse to aim. Click or Space to fire. Dock near islands to sell cargo.
+                </div>
+                <div class="sail-pause-card" data-sail-pause-card hidden>
+                    <strong>Paused</strong>
+                    <span>Press P or the Pause button to continue.</span>
+                </div>
+            </div>
+
+            <footer class="sail-notes">
+                <div>
+                    <strong>Controls</strong>
+                    <p>W/S: sail power. A/D: rudder. Mouse: aim. LMB or Space: fire. P: pause.</p>
+                </div>
+                <div>
+                    <strong>Portfolio scope</strong>
+                    <p>Canvas MVP for website launch. The planned Three.js version can replace this page later without changing the portfolio entry.</p>
+                </div>
+                <div>
+                    <strong>Debug</strong>
+                    <p>Add ?debug=1 to show steering vectors, hit radii, and runtime counters.</p>
+                </div>
+            </footer>
+        </section>
+    </main>
+    <script src="./sail_game.js?v=1" defer></script>
+</body>
+</html>
