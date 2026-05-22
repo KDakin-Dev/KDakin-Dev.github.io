@@ -178,7 +178,6 @@
         return {
             x: x,
             z: z,
-            y: 0,
             vx: 0,
             vz: 0,
             heading: heading,
@@ -190,7 +189,6 @@
             cargoValue: 0,
             cargoCapacity: isPlayer ? 6 : 2,
             gold: 0,
-            kills: 0,
             hitFlash: 0,
             sinkTimer: 0,
             fireCooldown: 0,
@@ -205,10 +203,8 @@
             aiState: 'patrol',
             targetX: x,
             targetZ: z,
-            patrolIndex: 0,
             isPlayer: isPlayer,
             mesh: null,
-            dockRing: null,
             debugRing: null,
             damage: isPlayer ? 35 : 18,
             cannonCooldownMul: 1,
@@ -516,9 +512,7 @@
                 return {
                     x: x,
                     z: z,
-                    r: ENEMY_ZONE_RADIUS + randRange(rng, -70, 80),
-                    debugRing: null,
-                    index: index
+                    r: ENEMY_ZONE_RADIUS + randRange(rng, -70, 80)
                 };
             }
         }
@@ -528,9 +522,7 @@
         return {
             x: Math.sin(angle) * radius,
             z: Math.cos(angle) * radius,
-            r: ENEMY_ZONE_RADIUS,
-            debugRing: null,
-            index: index
+            r: ENEMY_ZONE_RADIUS
         };
     }
 
@@ -581,9 +573,7 @@
             shapeSeedB: 0,
             shapeSeedC: 0,
             name: 'Harbor',
-            mesh: null,
-            dockRing: null,
-            debugRing: null
+            mesh: null
         });
 
         for (i = 0; i < islandZones.length; i += 1) {
@@ -596,9 +586,7 @@
                 r: islandRadius,
                 dock: zone.dock,
                 name: zone.dock ? 'Trade Pier ' + tradeIndex++ : 'Wild Island ' + wildIndex++,
-                mesh: null,
-                dockRing: null,
-                    debugRing: null
+                mesh: null
             }, makeIslandShapeData(zone.dock ? 'trade' : pickWildIslandShape(wildIndex, rng), rng)));
         }
 
@@ -613,7 +601,6 @@
             enemy.zoneX = zone.x;
             enemy.zoneZ = zone.z;
             enemy.zoneRadius = zone.r;
-            enemy.zoneIndex = zone.index;
             enemy.targetX = spawn.x;
             enemy.targetZ = spawn.z;
             enemies.push(enemy);
@@ -631,7 +618,6 @@
             activeDockIndex: -1,
             dockPanelOpen: false,
             dockTimer: 0,
-            sellCooldown: 0,
             player: makeShip(-250, -190, 0.35, true),
             enemies: enemies,
             enemyZones: enemyZones,
@@ -646,8 +632,6 @@
             cameraTargetX: 0,
             cameraTargetZ: 0,
             cameraOrbit: Math.PI * 0.25,
-            mouseNdcX: 0,
-            mouseNdcY: 0,
             mouseWorldX: 0,
             mouseWorldZ: 0,
             mouseInside: false,
@@ -754,6 +738,7 @@
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
+            splashRing: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             wakeLane: makeWakeLaneMaterial(),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
@@ -819,7 +804,6 @@
         geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
         mesh.rotation.x = -Math.PI * 0.5;
         mesh.position.y = -2;
-        mesh.receiveShadow = false;
         waterPositions = geometry.attributes.position;
         waterBasePositions = new Float32Array(waterPositions.array.length);
         waterBasePositions.set(waterPositions.array);
@@ -913,7 +897,6 @@
         sailPivot.position.set(0, 43, 1);
         boom.position.set(0, -5, 0);
         sail.position.set(0, 8, 0.35);
-        sail.userData.isSail = true;
         cannonL.position.set(-17, 19, 2);
         cannonR.position.set(17, 19, 2);
 
@@ -928,8 +911,6 @@
         group.add(cannonR);
         group.userData.sailMesh = sail;
         group.userData.sailPivot = sailPivot;
-        group.userData.boomMesh = boom;
-        group.userData.hullMesh = hull;
         group.scale.setScalar(isPlayer ? 1.0 : 0.95);
         return group;
     }
@@ -941,6 +922,8 @@
         var palmCount = island.dock ? 4 : clamp(Math.round(island.r / 30), 1, 4);
         var i;
         var palmPoint;
+        var dockRing;
+        var debugRing;
 
         if (island.dock) {
             base = new THREE.Mesh(new THREE.CylinderGeometry(island.r, island.r * 1.12, 18, 13), materials.sand);
@@ -970,14 +953,12 @@
 
             island.dockX = island.x;
             island.dockZ = island.z + island.r + 34;
-            island.dockRing = createDebugRing(DOCK_INTERACT_RADIUS, materials.dockZone);
-            island.dockRing.position.set(island.dockX, WATER_DEBUG_Y, island.dockZ);
-            setOverlayObject(island.dockRing, 24);
-            worldGroup.add(island.dockRing);
+            dockRing = createFlatRing(DOCK_INTERACT_RADIUS, materials.dockZone);
+            dockRing.position.set(island.dockX, WATER_DEBUG_Y, island.dockZ);
+            worldGroup.add(dockRing);
         } else {
             island.dockX = island.x;
             island.dockZ = island.z;
-            island.dockRing = null;
         }
 
         group.position.set(island.x, 0, island.z);
@@ -985,10 +966,9 @@
         worldGroup.add(group);
 
         if (DEBUG_ENABLED) {
-            island.debugRing = createDebugRing(island.r, materials.debugGreen);
-            island.debugRing.position.set(island.x, WATER_DEBUG_Y, island.z);
-            setOverlayObject(island.debugRing, 24);
-            worldGroup.add(island.debugRing);
+            debugRing = createFlatRing(island.r, materials.debugGreen);
+            debugRing.position.set(island.x, WATER_DEBUG_Y, island.z);
+            worldGroup.add(debugRing);
         }
     }
 
@@ -1036,7 +1016,7 @@
         return group;
     }
 
-    function createDebugRing(radius, material) {
+    function createFlatRing(radius, material) {
         var mat = material && material.clone ? material.clone() : material;
         var ring = new THREE.Mesh(new THREE.RingGeometry(radius - 1.5, radius + 1.5, 64), mat);
         ring.rotation.x = -Math.PI * 0.5;
@@ -1102,23 +1082,38 @@
         setOverlayObject(aimMarker, 29);
         worldGroup.add(aimMarker);
 
-        windGeometry = new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(0, 0, 0),
-            new THREE.Vector3(0, 0, 0)
-        ]);
-        windArrow = new THREE.Line(windGeometry, materials.wind);
-        setOverlayObject(windArrow, 26);
-        windArrow.visible = DEBUG_ENABLED;
-        worldGroup.add(windArrow);
+        if (DEBUG_ENABLED) {
+            windGeometry = new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 0, 0)
+            ]);
+            windArrow = new THREE.Line(windGeometry, materials.wind);
+            setOverlayObject(windArrow, 26);
+            worldGroup.add(windArrow);
+        } else {
+            windArrow = null;
+        }
+    }
+
+    function disposeObjectGeometry(object) {
+        object.traverse(function (child) {
+            if (child.geometry && child.geometry.dispose) {
+                child.geometry.dispose();
+            }
+        });
     }
 
     function clearWorldGroup() {
+        var child;
+
         if (!worldGroup) {
             return;
         }
 
         while (worldGroup.children.length > 0) {
-            worldGroup.remove(worldGroup.children[0]);
+            child = worldGroup.children[0];
+            worldGroup.remove(child);
+            disposeObjectGeometry(child);
         }
     }
 
@@ -1141,9 +1136,8 @@
 
         for (i = 0; i < state.enemyZones.length; i += 1) {
             zone = state.enemyZones[i];
-            ring = createDebugRing(zone.r, materials.debugRed);
+            ring = createFlatRing(zone.r, materials.debugRed);
             ring.position.set(zone.x, WATER_DEBUG_Y, zone.z);
-            zone.debugRing = ring;
             worldGroup.add(ring);
         }
     }
@@ -1163,7 +1157,7 @@
 
         state.player.mesh = createShipMesh(true);
         attachShipHelpers(state.player);
-        state.player.debugRing = DEBUG_ENABLED ? createDebugRing(PLAYER_RADIUS, materials.debugGreen) : null;
+        state.player.debugRing = DEBUG_ENABLED ? createFlatRing(PLAYER_RADIUS, materials.debugGreen) : null;
         worldGroup.add(state.player.mesh);
         if (state.player.debugRing) {
             worldGroup.add(state.player.debugRing);
@@ -1172,7 +1166,7 @@
         for (i = 0; i < state.enemies.length; i += 1) {
             state.enemies[i].mesh = createShipMesh(false);
             attachShipHelpers(state.enemies[i]);
-            state.enemies[i].debugRing = DEBUG_ENABLED ? createDebugRing(ENEMY_RADIUS, materials.debugRed) : null;
+            state.enemies[i].debugRing = DEBUG_ENABLED ? createFlatRing(ENEMY_RADIUS, materials.debugRed) : null;
             worldGroup.add(state.enemies[i].mesh);
             if (state.enemies[i].debugRing) {
                 worldGroup.add(state.enemies[i].debugRing);
@@ -1248,8 +1242,6 @@
         var y = -(((clientY - rect.top) / rect.height) * 2 - 1);
         var hit = new THREE.Vector3();
 
-        state.mouseNdcX = x;
-        state.mouseNdcY = y;
         raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
 
         if (raycaster.ray.intersectPlane(groundPlane, hit)) {
@@ -1635,9 +1627,7 @@
         return {
             info: shot.info,
             shot: shot,
-            canFire: shot.info.inArc && shot.rangeOk && p.fireCooldown <= 0 && p.hp > 0 && !state.gameOver,
-            inArc: shot.info.inArc,
-            reloading: p.fireCooldown > 0
+            canFire: shot.info.inArc && shot.rangeOk && p.fireCooldown <= 0 && p.hp > 0 && !state.gameOver
         };
     }
 
@@ -1720,8 +1710,7 @@
             vy: shot.vy,
             vz: shot.vz,
             life: PROJECTILE_MAX_LIFE,
-            mesh: mesh,
-            active: true
+            mesh: mesh
         };
 
         worldGroup.add(mesh);
@@ -1738,10 +1727,6 @@
 
         for (i = state.projectiles.length - 1; i >= 0; i -= 1) {
             p = state.projectiles[i];
-            if (!p.active) {
-                continue;
-            }
-
             p.life -= dt;
             p.vy -= GRAVITY * dt;
             p.x += p.vx * dt;
@@ -1769,7 +1754,6 @@
             }
 
             if (hit) {
-                p.active = false;
                 worldGroup.remove(p.mesh);
                 state.projectiles.splice(i, 1);
             }
@@ -1839,7 +1823,6 @@
     function sinkEnemy(enemy) {
         var crateCount = 2 + Math.floor(state.rng() * 3);
         var i;
-        state.player.kills += 1;
         enemy.sinkTimer = 0.01;
         setMessage('Enemy ship disabled. Cargo crates in the water.', 2.4);
 
@@ -1859,8 +1842,7 @@
             z: z,
             value: value,
             mesh: mesh,
-            bob: randRange(state.rng, 0, TAU),
-            active: true
+            bob: randRange(state.rng, 0, TAU)
         };
         mesh.position.set(x, 8, z);
         worldGroup.add(mesh);
@@ -1886,7 +1868,7 @@
     }
 
     function makeSplash(x, z) {
-        var ring = createDebugRing(10, materials.debugGreen);
+        var ring = createFlatRing(10, materials.splashRing);
         var splash = {
             x: x,
             z: z,
@@ -1947,7 +1929,6 @@
         state.activeDockIndex = activeDockIndex;
         state.dockTimer = Math.max(0, state.dockTimer - dt);
         state.docked = state.dockTimer > 0 || state.dockPanelOpen;
-        state.sellCooldown = Math.max(0, state.sellCooldown - dt);
 
         if (!state.nearDock && !state.dockPanelOpen) {
             state.docked = false;
