@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.21-web-audio-sfx",
+        buildVersion: "0.12.23-soft-absorb-fusion-supernova",
 
         game: {
             playAreaLeft: 18,
@@ -125,14 +125,10 @@
 
         audio: {
             enabled: true,
-            masterGain: 0.42,
-            ambientGain: 0.055,
-            ironCoreAmbientGain: 0.082,
-            supernovaGain: 0.18,
-            absorbGain: 0.095,
-            fusionGain: 0.085,
-            gateGain: 0.11,
-            uiGain: 0.052
+            masterGain: 0.28,
+            absorbGain: 0.055,
+            fusionGain: 0.05,
+            supernovaGain: 0.08
         },
 
         nuclei: {
@@ -333,10 +329,6 @@
     var audio = {
         context: null,
         master: null,
-        ambient: null,
-        ambientOscA: null,
-        ambientOscB: null,
-        ambientFilter: null,
         noiseBuffer: null,
         unlocked: false,
         started: false,
@@ -372,43 +364,8 @@
         master.gain.value = 0.0;
         master.connect(context.destination);
 
-        var ambient = context.createGain();
-        ambient.gain.value = 0.0;
-
-        var filter = context.createBiquadFilter();
-        filter.type = "lowpass";
-        filter.frequency.value = 180;
-        filter.Q.value = 0.75;
-
-        var oscA = context.createOscillator();
-        oscA.type = "sine";
-        oscA.frequency.value = 48;
-
-        var oscB = context.createOscillator();
-        oscB.type = "triangle";
-        oscB.frequency.value = 72;
-
-        var gainA = context.createGain();
-        var gainB = context.createGain();
-        gainA.gain.value = 0.54;
-        gainB.gain.value = 0.22;
-
-        oscA.connect(gainA);
-        oscB.connect(gainB);
-        gainA.connect(filter);
-        gainB.connect(filter);
-        filter.connect(ambient);
-        ambient.connect(master);
-
-        oscA.start();
-        oscB.start();
-
         audio.context = context;
         audio.master = master;
-        audio.ambient = ambient;
-        audio.ambientOscA = oscA;
-        audio.ambientOscB = oscB;
-        audio.ambientFilter = filter;
         audio.noiseBuffer = createAudioNoiseBuffer(context);
         return true;
     }
@@ -429,39 +386,14 @@
     }
 
     function stopAudioBed() {
-        if (!audio.context || !audio.ambient || !audio.master) return;
-        setAudioTarget(audio.ambient.gain, 0.0, 0.12);
-        setAudioTarget(audio.master.gain, 0.0, 0.18);
+        if (!audio.context || !audio.master) return;
+        setAudioTarget(audio.master.gain, 0.0, 0.08);
     }
 
     function updateAudioBed() {
-        if (!audio.unlocked || !audio.context || !state.gameMode) return;
-
-        var temp01 = clamp(state.starProfileTemp / 100, 0, 1);
-        var mass01 = clamp(state.coreMass / Math.max(1, CONFIG.game.ironCoreMassThreshold), 0, 1);
-        var collapse01 = clamp(state.collapseMass / Math.max(1, CONFIG.game.collapseCriticalMass), 0, 1);
-        var phaseBoost = isCollapsePhase() ? 1.0 : (isSupernovaPhase() ? 1.35 : 0.0);
-        var baseGain = CONFIG.audio.ambientGain;
-
-        if (isCollapsePhase()) {
-            baseGain = CONFIG.audio.ironCoreAmbientGain;
-        } else if (isSupernovaPhase()) {
-            baseGain = CONFIG.audio.supernovaGain;
-        } else if (isEndingPhase()) {
-            baseGain = CONFIG.audio.ambientGain * 0.28;
-        }
-
-        var pulse = 0.5 + Math.sin(audio.context.currentTime * (0.55 + mass01 * 0.65)) * 0.5;
-        var targetGain = baseGain * (0.72 + pulse * 0.28);
-        var freqA = 38 + temp01 * 18 + mass01 * 14 + phaseBoost * 18;
-        var freqB = 57 + mass01 * 26 + collapse01 * 34 + phaseBoost * 22;
-        var filterFreq = 135 + temp01 * 230 + collapse01 * 380 + phaseBoost * 90;
-
-        setAudioTarget(audio.ambient.gain, targetGain, 0.22);
-        setAudioTarget(audio.ambientOscA.frequency, freqA, 0.20);
-        setAudioTarget(audio.ambientOscB.frequency, freqB, 0.20);
-        setAudioTarget(audio.ambientFilter.frequency, filterFreq, 0.20);
-        setAudioTarget(audio.master.gain, CONFIG.audio.masterGain, 0.08);
+        if (!audio.unlocked || !audio.context || !audio.master) return;
+        var targetGain = state.gameMode ? CONFIG.audio.masterGain : 0.0;
+        setAudioTarget(audio.master.gain, targetGain, 0.12);
     }
 
     function audioNow() {
@@ -513,9 +445,9 @@
         source.loop = true;
         filter.type = "lowpass";
         filter.frequency.setValueAtTime(filterFreq || 420, start);
-        filter.Q.setValueAtTime(0.85, start);
+        filter.Q.setValueAtTime(0.45, start);
         amp.gain.setValueAtTime(0.0001, start);
-        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + 0.025);
+        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + 0.035);
         amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
 
         source.connect(filter);
@@ -525,63 +457,78 @@
         source.stop(start + duration + 0.04);
     }
 
+    function playSweepTone(startFreq, endFreq, duration, gain, type, startOffset) {
+        if (!audio.unlocked || !audio.context) return;
+        var context = audio.context;
+        var start = context.currentTime + (startOffset || 0);
+        var osc = context.createOscillator();
+        var amp = context.createGain();
+        var filter = context.createBiquadFilter();
+
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(Math.max(20, startFreq), start);
+        osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), start + duration);
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(Math.max(300, Math.max(startFreq, endFreq) * 4), start);
+        filter.Q.setValueAtTime(0.3, start);
+        amp.gain.setValueAtTime(0.0001, start);
+        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + 0.035);
+        amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+        osc.connect(filter);
+        filter.connect(amp);
+        amp.connect(audio.master);
+        osc.start(start);
+        osc.stop(start + duration + 0.04);
+    }
+
     function playAbsorbSound(typeName, collapseMode) {
-        if (!canPlayCue("absorb", 0.035)) return;
+        if (!canPlayCue("absorb", 0.06)) return;
         var nucleus = getNucleus(typeName);
         var mass = nucleus.mass || 1;
-        var heavy01 = clamp((mass - 4) / 52, 0, 1);
-        var freq = collapseMode ? 165 - heavy01 * 60 : 540 - heavy01 * 330;
-        var gain = CONFIG.audio.absorbGain * (collapseMode ? 1.16 : 1.0);
-        var dur = collapseMode ? 0.20 : 0.135;
+        var heavy01 = clamp((mass - 1) / 55, 0, 1);
+        var base = collapseMode ? 270 : 340;
+        var freq = base - heavy01 * 85 + rand(-8, 8);
+        var gain = CONFIG.audio.absorbGain;
+        var dur = 0.12 + heavy01 * 0.035;
 
-        playTone(freq, dur, gain, heavy01 > 0.45 ? "triangle" : "sine", 0);
-        playTone(freq * 1.52, dur * 0.72, gain * 0.34, "sine", 0.018);
-        if (mass >= 28 || collapseMode) {
-            playNoise(0.13, gain * 0.16, 260 + heavy01 * 360, 0.0);
-        }
+        playTone(freq, dur, gain, "triangle", 0.0);
+        playTone(freq * 1.52, dur * 0.72, gain * 0.38, "sine", 0.025);
     }
 
     function playFusionSound(productName) {
-        if (!canPlayCue("fusion", 0.08)) return;
+        if (!canPlayCue("fusion", 0.24)) return;
         var nucleus = getNucleus(productName);
         var mass = nucleus.mass || 1;
-        var heavy01 = clamp((mass - 2) / 54, 0, 1);
-        var root = 660 - heavy01 * 310;
+        var heavy01 = clamp((mass - 1) / 55, 0, 1);
         var gain = CONFIG.audio.fusionGain;
+        var root = 520 - heavy01 * 180;
 
-        playTone(root, 0.17, gain, "sine", 0);
-        playTone(root * 1.5, 0.18, gain * 0.54, "triangle", 0.045);
-        playTone(root * 2.0, 0.20, gain * 0.35, "sine", 0.090);
+        playTone(root, 0.13, gain * 0.72, "sine", 0.0);
+        playTone(root * 1.25, 0.14, gain * 0.82, "triangle", 0.055);
+        playTone(root * 1.5, 0.16, gain * 0.52, "sine", 0.115);
     }
 
     function playGateEnterSound() {
-        if (!canPlayCue("gate-enter", 0.30)) return;
-        var gain = CONFIG.audio.gateGain;
-        playTone(196, 0.25, gain * 0.72, "triangle", 0);
-        playTone(132, 0.38, gain * 0.66, "sine", 0.065);
+        return;
     }
 
     function playGateCompleteSound() {
-        if (!canPlayCue("gate-complete", 0.30)) return;
-        var gain = CONFIG.audio.gateGain;
-        playTone(330, 0.16, gain * 0.70, "sine", 0);
-        playTone(495, 0.18, gain * 0.58, "sine", 0.055);
-        playTone(660, 0.22, gain * 0.48, "sine", 0.105);
+        return;
     }
 
     function playIronCoreSound() {
-        if (!canPlayCue("iron-core", 0.80)) return;
-        playTone(74, 0.60, CONFIG.audio.gateGain * 1.0, "sawtooth", 0);
-        playTone(111, 0.54, CONFIG.audio.gateGain * 0.58, "triangle", 0.04);
-        playNoise(0.55, CONFIG.audio.gateGain * 0.18, 520, 0.02);
+        return;
     }
 
     function playSupernovaSound() {
-        if (!canPlayCue("supernova", 1.20)) return;
-        playTone(72, 1.15, CONFIG.audio.supernovaGain * 0.88, "sawtooth", 0);
-        playTone(39, 1.55, CONFIG.audio.supernovaGain * 0.70, "triangle", 0.11);
-        playNoise(1.20, CONFIG.audio.supernovaGain * 0.48, 680, 0.08);
-        playTone(210, 0.40, CONFIG.audio.supernovaGain * 0.28, "sine", 0.42);
+        if (!canPlayCue("supernova", 8.0)) return;
+        var gain = CONFIG.audio.supernovaGain;
+
+        playSweepTone(90, 42, 1.8, gain * 0.85, "sine", 0.0);
+        playNoise(1.4, gain * 0.45, 360, 0.05);
+        playTone(170, 0.7, gain * 0.42, "triangle", 0.18);
+        playTone(340, 0.55, gain * 0.28, "sine", 0.42);
     }
 
     function getNucleus(name) {
@@ -2162,7 +2109,7 @@
         if (!isNodeAbsorbable(node)) return;
 
         if (isCollapsePhase()) {
-            absorbCollapseNode(node);
+            absorbCollapseNode(node, true);
             return;
         }
 
@@ -2206,7 +2153,7 @@
         return { core: 3.8, collapse: 8.9, stability: -6.4, temp: 0.0, role: "collapse" };
     }
 
-    function absorbCollapseNode(node) {
+    function absorbCollapseNode(node, playSound) {
         var nucleus = getNucleus(node.nucleusName);
         var effect = getCollapseAbsorbValue(node.nucleusName);
 
@@ -2223,7 +2170,9 @@
             state.lastReaction = nucleus.name + " drove the collapse";
         }
 
-        playAbsorbSound(node.nucleusName, true);
+        if (playSound !== false) {
+            playAbsorbSound(node.nucleusName, true);
+        }
         removeNode(node);
         addPulse(node.x, node.y, 170 + Math.min(260, effect.collapse * 6));
 
@@ -3459,7 +3408,7 @@
             var absorbRadius = coreRadius() * CONFIG.game.ironCoreAbsorbRadiusScale + n.radius * CONFIG.game.visualScale + CONFIG.game.ironCoreAutoAbsorbPadding;
 
             if (d <= absorbRadius) {
-                absorbCollapseNode(n);
+                absorbCollapseNode(n, false);
                 absorbed += 1;
                 if (!isCollapsePhase()) break;
             }
