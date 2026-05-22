@@ -51,9 +51,11 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_CURVE_SAMPLES = 24;
+    var WAKE_CURVE_SAMPLES = 32;
     var WAKE_MAX_AGE = 2.6;
     var WAKE_SAMPLE_DISTANCE = 8.0;
+    var WAKE_RENDER_SPACING = 7.0;
+    var WAKE_SMOOTH_PASSES = 2;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -2200,7 +2202,11 @@
             return;
         }
 
-        ship.wakeDistance = 0;
+        ship.wakeDistance -= WAKE_SAMPLE_DISTANCE;
+        if (ship.wakeDistance > WAKE_SAMPLE_DISTANCE) {
+            ship.wakeDistance %= WAKE_SAMPLE_DISTANCE;
+        }
+
         leftPoint = wakeEmitterWorld(ship, -1);
         rightPoint = wakeEmitterWorld(ship, 1);
 
@@ -2212,6 +2218,7 @@
         var samples = sideSign < 0 ? ship.wakeLeftSamples : ship.wakeRightSamples;
         var points = [];
         var current = wakeEmitterWorld(ship, sideSign);
+        var lastPoint;
         var i;
 
         points.push({
@@ -2220,13 +2227,104 @@
             age: 0
         });
 
-        for (i = 0; i < samples.length && points.length < WAKE_CURVE_SAMPLES; i += 1) {
-            if (length2(samples[i].x - current.x, samples[i].z - current.z) > 3.0) {
+        for (i = 0; i < samples.length && points.length < WAKE_CURVE_SAMPLES * 2; i += 1) {
+            lastPoint = points[points.length - 1];
+            if (length2(samples[i].x - lastPoint.x, samples[i].z - lastPoint.z) > 3.0) {
                 points.push(samples[i]);
             }
         }
 
         return points;
+    }
+
+    function makeWakePoint(x, z, age) {
+        return {
+            x: x,
+            z: z,
+            age: age
+        };
+    }
+
+    function interpolateWakePoint(a, b, t) {
+        return makeWakePoint(
+            lerp(a.x, b.x, t),
+            lerp(a.z, b.z, t),
+            lerp(a.age, b.age, t)
+        );
+    }
+
+    function smoothWakePath(points) {
+        var result = points.slice();
+        var pass;
+        var next;
+        var i;
+        var a;
+        var b;
+
+        if (result.length < 3) {
+            return result;
+        }
+
+        for (pass = 0; pass < WAKE_SMOOTH_PASSES; pass += 1) {
+            next = [result[0]];
+            for (i = 0; i < result.length - 1; i += 1) {
+                a = result[i];
+                b = result[i + 1];
+                next.push(interpolateWakePoint(a, b, 0.25));
+                next.push(interpolateWakePoint(a, b, 0.75));
+            }
+            next.push(result[result.length - 1]);
+            result = next;
+        }
+
+        return result;
+    }
+
+    function resampleWakePath(points) {
+        var distances = [0];
+        var total = 0;
+        var renderCount;
+        var result = [];
+        var segmentIndex = 0;
+        var target;
+        var d0;
+        var d1;
+        var u;
+        var i;
+        var d;
+
+        if (points.length <= 2) {
+            return points.slice(0, WAKE_CURVE_SAMPLES);
+        }
+
+        for (i = 1; i < points.length; i += 1) {
+            d = length2(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z);
+            total += d;
+            distances.push(total);
+        }
+
+        if (total < 1) {
+            return [points[0]];
+        }
+
+        renderCount = Math.min(WAKE_CURVE_SAMPLES, Math.max(2, Math.ceil(total / WAKE_RENDER_SPACING) + 1));
+
+        for (i = 0; i < renderCount; i += 1) {
+            target = total * i / Math.max(1, renderCount - 1);
+            while (segmentIndex < distances.length - 2 && distances[segmentIndex + 1] < target) {
+                segmentIndex += 1;
+            }
+            d0 = distances[segmentIndex];
+            d1 = distances[segmentIndex + 1];
+            u = d1 > d0 ? (target - d0) / (d1 - d0) : 0;
+            result.push(interpolateWakePoint(points[segmentIndex], points[segmentIndex + 1], u));
+        }
+
+        return result;
+    }
+
+    function buildWakeRenderPoints(controlPoints) {
+        return resampleWakePath(smoothWakePath(controlPoints));
     }
 
     function wakeLaneAlpha(t, age, speedRatio) {
@@ -2236,18 +2334,101 @@
         return clamp(startFade * tailFade * ageFade * (0.52 + speedRatio * 0.48), 0, 1);
     }
 
-    function getWakePointTangent(points, index) {
+    function getWakePointTangent(points, index, ship) {
         var current = points[index];
         var prev = points[Math.max(0, index - 1)] || current;
         var next = points[Math.min(points.length - 1, index + 1)] || current;
         var tx = prev.x - next.x;
         var tz = prev.z - next.z;
-        var tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
+        var speed;
+        var tangentLength;
+        var velocityBlend;
+
+        if (index === 0 && ship) {
+            speed = length2(ship.vx, ship.vz);
+            if (speed > 1) {
+                return {
+                    x: ship.vx / speed,
+                    z: ship.vz / speed
+                };
+            }
+        }
+
+        tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
+        tx /= tangentLength;
+        tz /= tangentLength;
+
+        if (index === 1 && ship) {
+            speed = length2(ship.vx, ship.vz);
+            if (speed > 1) {
+                velocityBlend = 0.35;
+                tx = lerp(tx, ship.vx / speed, velocityBlend);
+                tz = lerp(tz, ship.vz / speed, velocityBlend);
+                tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
+                tx /= tangentLength;
+                tz /= tangentLength;
+            }
+        }
 
         return {
-            x: tx / tangentLength,
-            z: tz / tangentLength
+            x: tx,
+            z: tz
         };
+    }
+
+    function getStableWakeNormal(tangent, previousNormal) {
+        var nx = -tangent.z;
+        var nz = tangent.x;
+        var normalLength = Math.sqrt(nx * nx + nz * nz) || 1;
+        var dot;
+
+        nx /= normalLength;
+        nz /= normalLength;
+
+        if (previousNormal) {
+            dot = nx * previousNormal.x + nz * previousNormal.z;
+            if (dot < 0) {
+                nx = -nx;
+                nz = -nz;
+            }
+            nx = lerp(previousNormal.x, nx, 0.68);
+            nz = lerp(previousNormal.z, nz, 0.68);
+            normalLength = Math.sqrt(nx * nx + nz * nz) || 1;
+            nx /= normalLength;
+            nz /= normalLength;
+        }
+
+        return {
+            x: nx,
+            z: nz
+        };
+    }
+
+    function wakeCornerWidthFactor(points, index) {
+        var prev = points[index - 1];
+        var current = points[index];
+        var next = points[index + 1];
+        var ax;
+        var az;
+        var bx;
+        var bz;
+        var al;
+        var bl;
+        var dot;
+
+        if (!prev || !next) {
+            return 1;
+        }
+
+        ax = current.x - prev.x;
+        az = current.z - prev.z;
+        bx = next.x - current.x;
+        bz = next.z - current.z;
+        al = Math.sqrt(ax * ax + az * az) || 1;
+        bl = Math.sqrt(bx * bx + bz * bz) || 1;
+        dot = clamp((ax / al) * (bx / bl) + (az / al) * (bz / bl), -1, 1);
+
+        return 0.46 + smoothstep(-0.10, 0.86, dot) * 0.54;
     }
 
     function hideWakeLane(mesh) {
@@ -2270,6 +2451,8 @@
         var i;
         var point;
         var tangent;
+        var normal;
+        var previousNormal = null;
         var nx;
         var nz;
         var t;
@@ -2282,7 +2465,7 @@
         }
 
         speed = length2(ship.vx, ship.vz);
-        points = collectWakePoints(ship, sideSign);
+        points = buildWakeRenderPoints(collectWakePoints(ship, sideSign));
         count = points.length;
 
         if (ship.hp <= 0 || speed < 10 || count < 2) {
@@ -2298,11 +2481,14 @@
 
         for (i = 0; i < count; i += 1) {
             point = points[i];
-            tangent = getWakePointTangent(points, i);
-            nx = -tangent.z;
-            nz = tangent.x;
+            tangent = getWakePointTangent(points, i, ship);
+            normal = getStableWakeNormal(tangent, previousNormal);
+            previousNormal = normal;
+            nx = normal.x;
+            nz = normal.z;
             t = i / Math.max(1, count - 1);
             width = (0.80 + speedRatio * 0.55) * (0.25 + Math.sin(Math.PI * t) * 0.75);
+            width *= wakeCornerWidthFactor(points, i);
             alpha = wakeLaneAlpha(t, point.age, speedRatio);
 
             positions[(i * 2) * 3 + 0] = point.x + nx * width;
