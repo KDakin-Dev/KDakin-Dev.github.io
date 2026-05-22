@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.23-soft-absorb-fusion-supernova",
+        buildVersion: "0.12.24-manual-absorb-supernova-only",
 
         game: {
             playAreaLeft: 18,
@@ -127,7 +127,6 @@
             enabled: true,
             masterGain: 0.28,
             absorbGain: 0.055,
-            fusionGain: 0.05,
             supernovaGain: 0.08
         },
 
@@ -497,16 +496,7 @@
     }
 
     function playFusionSound(productName) {
-        if (!canPlayCue("fusion", 0.24)) return;
-        var nucleus = getNucleus(productName);
-        var mass = nucleus.mass || 1;
-        var heavy01 = clamp((mass - 1) / 55, 0, 1);
-        var gain = CONFIG.audio.fusionGain;
-        var root = 520 - heavy01 * 180;
-
-        playTone(root, 0.13, gain * 0.72, "sine", 0.0);
-        playTone(root * 1.25, 0.14, gain * 0.82, "triangle", 0.055);
-        playTone(root * 1.5, 0.16, gain * 0.52, "sine", 0.115);
+        return;
     }
 
     function playGateEnterSound() {
@@ -2101,7 +2091,6 @@
         state.hotPairs = [];
         state.lastReaction = reaction.label;
         addPulse(x, y, 170);
-        playFusionSound(reaction.product);
         updateAbsorbButtons(true);
     }
 
