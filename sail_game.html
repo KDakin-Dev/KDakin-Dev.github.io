@@ -108,6 +108,19 @@
             box-shadow: 0 0 14px rgba(244, 251, 255, 0.42), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
         }
 
+
+        .sail-sea-fog-vignette {
+            position: absolute;
+            inset: 0;
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 50% 48%, rgba(5, 16, 24, 0.00) 0%, rgba(5, 16, 24, 0.04) 46%, rgba(4, 10, 16, 0.42) 100%),
+                linear-gradient(180deg, rgba(5, 12, 18, 0.08), rgba(4, 8, 13, 0.34));
+            transition: opacity 180ms linear;
+        }
+
         @media (max-width: 720px) {
             .sail-bottom-status {
                 bottom: 12px;
@@ -139,6 +152,7 @@
 
             <div class="sail-game-wrap">
                 <canvas id="sail-canvas" aria-label="Sail and Fire WebGL game canvas"></canvas>
+                <div class="sail-sea-fog-vignette" data-sea-fog-vignette aria-hidden="true"></div>
                 <div class="sail-loading" data-sail-loading>
                     <strong>Loading WebGL scene</strong>
                     <span>Three.js isometric prototype</span>

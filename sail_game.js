@@ -24,6 +24,7 @@
         resetButton: document.querySelector('[data-sail-reset]'),
         loading: document.querySelector('[data-sail-loading]'),
         minimap: document.querySelector('[data-sail-minimap]'),
+        seaFogVignette: document.querySelector('[data-sea-fog-vignette]'),
         bottomSail: document.querySelector('[data-bottom-sail]'),
         bottomSailStages: document.querySelectorAll('[data-sail-stage]'),
         bottomLeftCard: document.querySelector('[data-bottom-left-card]'),
@@ -47,10 +48,13 @@
     var TAU = Math.PI * 2;
     var FIXED_DT = 1 / 60;
     var MAX_RENDER_ALPHA = 1;
-    var SEA_LIMIT = 3200;
-    var SEA_SOFT_LIMIT = 2850;
-    var SEA_HARD_LIMIT = 3450;
-    var WATER_SIZE = 7600;
+    var SEA_SAFE_LIMIT = 3600;
+    var SEA_DANGER_LIMIT = 4550;
+    var SEA_FOG_LIMIT = 5400;
+    var SEA_LIMIT = SEA_FOG_LIMIT;
+    var SEA_SOFT_LIMIT = SEA_SAFE_LIMIT;
+    var SEA_HARD_LIMIT = SEA_FOG_LIMIT;
+    var WATER_SIZE = 14800;
     var WATER_OVERLAY_Y = 10;
     var WATER_TRAIL_Y = 6.8;
     var WATER_DEBUG_Y = 11;
@@ -70,7 +74,7 @@
     var AIM_ZONE_ALPHA_COOLDOWN = 0.135;
     var AIM_ZONE_EDGE_ALPHA_MIN = 0.48;
     var AIM_ZONE_RADIUS_ALPHA_MIN = 0.42;
-    var PLAYER_CANNON_RELOAD_BASE = 0.50;
+    var PLAYER_CANNON_RELOAD_BASE = 0.39;
     var ENEMY_CANNON_RELOAD_BASE = 1.15;
     var WAKE_CURVE_SAMPLES = 96;
     var WAKE_MIN_SPEED = 8;
@@ -85,8 +89,8 @@
     var ENEMY_RADIUS = 23;
     var DOCK_INTERACT_RADIUS = 72;
     var ISLAND_SHORE_BUFFER = 230;
-    var SHALLOW_WATER_WIDTH = 160;
-    var WATER_SEGMENTS = 144;
+    var SHALLOW_WATER_WIDTH = 208;
+    var WATER_SEGMENTS = 180;
     var ISLAND_TOTAL_COUNT = 16;
     var TRADING_ISLAND_COUNT = 4;
     var WILD_ISLAND_COUNT = ISLAND_TOTAL_COUNT - TRADING_ISLAND_COUNT;
@@ -96,7 +100,15 @@
     var ISLAND_PLACEMENT_ATTEMPTS = 180;
     var ENEMY_SHORE_CLEARANCE = 360;
     var ENEMY_ZONE_COUNT = 5;
+    var DANGER_ENEMY_ZONE_COUNT = 4;
+    var ENEMY_NORMAL_SHIP_COUNT = 7;
+    var ENEMY_DANGER_SHIP_COUNT = 7;
     var ENEMY_ZONE_RADIUS = 420;
+    var DANGER_ENEMY_ZONE_RADIUS = 520;
+    var DANGER_ENEMY_HP_MUL = 1.55;
+    var DANGER_ENEMY_DAMAGE_MUL = 1.45;
+    var DANGER_ENEMY_RELOAD_MUL = 0.82;
+    var DANGER_ENEMY_SAIL_POWER_MUL = 1.08;
     var THREE = null;
     var renderer = null;
     var scene = null;
@@ -339,8 +351,8 @@
             zones.push({
                 dock: true,
                 angle: rotation + i * TAU / TRADING_ISLAND_COUNT,
-                minRadius: 1450,
-                maxRadius: 2580,
+                minRadius: 1500,
+                maxRadius: 3120,
                 angleJitter: 0.22,
                 minIslandRadius: 58,
                 maxIslandRadius: 94
@@ -351,8 +363,8 @@
             zones.push({
                 dock: false,
                 angle: rotation + (i + 0.5) * TAU / WILD_ISLAND_COUNT,
-                minRadius: i % 3 === 0 ? 620 : 1040,
-                maxRadius: i % 3 === 0 ? 1850 : 2760,
+                minRadius: i % 3 === 0 ? 680 : 1120,
+                maxRadius: i % 3 === 0 ? 2200 : 3380,
                 angleJitter: 0.26,
                 minIslandRadius: i % 4 === 0 ? 32 : (i % 4 === 1 ? 52 : (i % 4 === 2 ? 76 : 42)),
                 maxIslandRadius: i % 4 === 0 ? 54 : (i % 4 === 1 ? 90 : (i % 4 === 2 ? 128 : 72))
@@ -569,33 +581,40 @@
         return null;
     }
 
-    function makeEnemyZone(rng, islands, index) {
+    function makeEnemyZone(rng, islands, index, tier) {
+        var isDanger = tier === 'danger';
+        var zoneCount = isDanger ? DANGER_ENEMY_ZONE_COUNT : ENEMY_ZONE_COUNT;
+        var baseRadius = isDanger ? DANGER_ENEMY_ZONE_RADIUS : ENEMY_ZONE_RADIUS;
+        var minRadius = isDanger ? SEA_SAFE_LIMIT + 320 : 980;
+        var maxRadius = isDanger ? SEA_DANGER_LIMIT - 280 : SEA_SAFE_LIMIT - 360;
         var attempt;
         var angle;
         var radius;
         var x;
         var z;
 
-        for (attempt = 0; attempt < 80; attempt += 1) {
+        for (attempt = 0; attempt < 100; attempt += 1) {
             angle = randRange(rng, 0, TAU);
-            radius = randRange(rng, 980, SEA_SOFT_LIMIT - 360);
+            radius = randRange(rng, minRadius, maxRadius);
             x = Math.sin(angle) * radius;
             z = Math.cos(angle) * radius;
-            if (isPointClearOfIslandList(x, z, islands, ENEMY_SHORE_CLEARANCE + ENEMY_ZONE_RADIUS * 0.35)) {
+            if (isPointClearOfIslandList(x, z, islands, ENEMY_SHORE_CLEARANCE + baseRadius * 0.35)) {
                 return {
                     x: x,
                     z: z,
-                    r: ENEMY_ZONE_RADIUS + randRange(rng, -70, 80)
+                    r: baseRadius + randRange(rng, -70, 90),
+                    tier: isDanger ? 'danger' : 'normal'
                 };
             }
         }
 
-        angle = (index / Math.max(1, ENEMY_ZONE_COUNT)) * TAU + 0.35;
-        radius = SEA_SOFT_LIMIT * 0.62;
+        angle = (index / Math.max(1, zoneCount)) * TAU + (isDanger ? 0.76 : 0.35);
+        radius = isDanger ? (SEA_SAFE_LIMIT + SEA_DANGER_LIMIT) * 0.5 : SEA_SAFE_LIMIT * 0.62;
         return {
             x: Math.sin(angle) * radius,
             z: Math.cos(angle) * radius,
-            r: ENEMY_ZONE_RADIUS
+            r: baseRadius,
+            tier: isDanger ? 'danger' : 'normal'
         };
     }
 
@@ -605,18 +624,33 @@
         var radius;
         var x;
         var z;
+        var outerLimit = zone.tier === 'danger' ? SEA_DANGER_LIMIT - 150 : SEA_SAFE_LIMIT - 180;
 
-        for (attempt = 0; attempt < 60; attempt += 1) {
+        for (attempt = 0; attempt < 70; attempt += 1) {
             angle = randRange(rng, 0, TAU);
             radius = Math.sqrt(rng()) * zone.r;
             x = zone.x + Math.sin(angle) * radius;
             z = zone.z + Math.cos(angle) * radius;
-            if (length2(x, z) < SEA_SOFT_LIMIT - 180 && isPointClearOfIslandList(x, z, islands, ENEMY_SHORE_CLEARANCE)) {
+            if (length2(x, z) < outerLimit && isPointClearOfIslandList(x, z, islands, ENEMY_SHORE_CLEARANCE)) {
                 return { x: x, z: z };
             }
         }
 
         return { x: zone.x, z: zone.z };
+    }
+
+    function applyEnemyZoneDifficulty(enemy, zone) {
+        if (!zone || zone.tier !== 'danger') {
+            enemy.zoneTier = 'normal';
+            return;
+        }
+
+        enemy.zoneTier = 'danger';
+        enemy.maxHp = Math.round(enemy.maxHp * DANGER_ENEMY_HP_MUL);
+        enemy.hp = enemy.maxHp;
+        enemy.damage = Math.round(enemy.damage * DANGER_ENEMY_DAMAGE_MUL);
+        enemy.cannonCooldownMul *= DANGER_ENEMY_RELOAD_MUL;
+        enemy.sailPowerMul *= DANGER_ENEMY_SAIL_POWER_MUL;
     }
 
     function makeInitialState() {
@@ -664,13 +698,21 @@
         }
 
         for (i = 0; i < ENEMY_ZONE_COUNT; i += 1) {
-            enemyZones.push(makeEnemyZone(rng, islands, i));
+            enemyZones.push(makeEnemyZone(rng, islands, i, 'normal'));
+        }
+        for (i = 0; i < DANGER_ENEMY_ZONE_COUNT; i += 1) {
+            enemyZones.push(makeEnemyZone(rng, islands, i, 'danger'));
         }
 
-        for (i = 0; i < 7; i += 1) {
-            zone = enemyZones[i % enemyZones.length];
+        for (i = 0; i < ENEMY_NORMAL_SHIP_COUNT + ENEMY_DANGER_SHIP_COUNT; i += 1) {
+            if (i < ENEMY_NORMAL_SHIP_COUNT) {
+                zone = enemyZones[i % ENEMY_ZONE_COUNT];
+            } else {
+                zone = enemyZones[ENEMY_ZONE_COUNT + ((i - ENEMY_NORMAL_SHIP_COUNT) % DANGER_ENEMY_ZONE_COUNT)];
+            }
             spawn = randomPointInEnemyZone(rng, zone, islands);
             enemy = makeShip(spawn.x, spawn.z, randRange(rng, 0, TAU), false);
+            applyEnemyZoneDifficulty(enemy, zone);
             enemy.zoneX = zone.x;
             enemy.zoneZ = zone.z;
             enemy.zoneRadius = zone.r;
@@ -838,7 +880,7 @@
             crate: makeMaterial(0xb57231, 0.88, 0.0),
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
             dockZone: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 })),
-            fogBoundary: new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false }),
+            fogBoundary: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })),
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
@@ -865,14 +907,17 @@
     }
 
     function islandShallowWaterWidth(island) {
-        return clamp(island.r * 0.9, 76, SHALLOW_WATER_WIDTH);
+        return clamp(island.r * 1.17, 99, SHALLOW_WATER_WIDTH);
     }
 
     function computeWaterColorAt(worldX, worldZ) {
+        var distanceFromCenter = length2(worldX, worldZ);
         var color = new THREE.Color(0x1d5a78);
-        var deep = new THREE.Color(0x061725);
+        var dangerWater = new THREE.Color(0x0b2634);
+        var deep = new THREE.Color(0x061019);
         var shallow = new THREE.Color(0x58c6bd);
-        var deepFactor = smoothstep(SEA_SOFT_LIMIT * 0.55, SEA_HARD_LIMIT, length2(worldX, worldZ));
+        var dangerFactor = smoothstep(SEA_SAFE_LIMIT, SEA_DANGER_LIMIT, distanceFromCenter);
+        var fogFactor = smoothstep(SEA_DANGER_LIMIT, SEA_FOG_LIMIT, distanceFromCenter);
         var shallowFactor = 0;
         var i;
         var island;
@@ -880,7 +925,8 @@
         var distanceFromCoast;
         var shallowWidth;
 
-        color.lerp(deep, deepFactor * 0.88);
+        color.lerp(dangerWater, dangerFactor * 0.56);
+        color.lerp(deep, fogFactor * 0.82);
 
         for (i = 0; i < state.islands.length; i += 1) {
             island = state.islands[i];
@@ -1330,7 +1376,7 @@
     }
 
     function createFogBoundary() {
-        var ring = new THREE.Mesh(new THREE.RingGeometry(SEA_SOFT_LIMIT, SEA_HARD_LIMIT, 160), materials.fogBoundary);
+        var ring = new THREE.Mesh(new THREE.RingGeometry(SEA_DANGER_LIMIT, SEA_FOG_LIMIT, 192), materials.fogBoundary);
         ring.rotation.x = -Math.PI * 0.5;
         ring.position.y = 0.35;
         ring.renderOrder = 1;
@@ -1402,7 +1448,7 @@
 
         scene = new THREE.Scene();
         scene.background = new THREE.Color(0x061019);
-        scene.fog = new THREE.Fog(0x061019, SEA_SOFT_LIMIT * 0.62, SEA_HARD_LIMIT * 1.12);
+        scene.fog = new THREE.Fog(0x061019, SEA_DANGER_LIMIT * 0.86, SEA_FOG_LIMIT * 1.12);
 
         camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
         raycaster = new THREE.Raycaster();
@@ -1557,10 +1603,12 @@
         var d = length2(ship.x, ship.z);
         var nx;
         var nz;
+        var dangerFactor;
         var fogFactor;
         var outward;
+        var outwardDrag;
 
-        if (d <= SEA_SOFT_LIMIT) {
+        if (d <= SEA_DANGER_LIMIT) {
             return;
         }
 
@@ -1572,26 +1620,21 @@
             nz = ship.z / d;
         }
 
-        fogFactor = clamp((d - SEA_SOFT_LIMIT) / (SEA_HARD_LIMIT - SEA_SOFT_LIMIT), 0, 1);
+        dangerFactor = smoothstep(SEA_DANGER_LIMIT, SEA_FOG_LIMIT, d);
+        fogFactor = smoothstep(SEA_FOG_LIMIT * 0.92, SEA_FOG_LIMIT * 1.28, d);
         outward = ship.vx * nx + ship.vz * nz;
 
         if (outward > 0) {
-            ship.vx -= nx * outward * (0.42 + fogFactor * 0.72);
-            ship.vz -= nz * outward * (0.42 + fogFactor * 0.72);
+            outwardDrag = ship.isPlayer ? 0.12 + dangerFactor * 0.42 + fogFactor * 0.26 : 0.22 + dangerFactor * 0.58 + fogFactor * 0.34;
+            ship.vx -= nx * outward * outwardDrag;
+            ship.vz -= nz * outward * outwardDrag;
         }
 
-        ship.vx -= nx * fogFactor * 42 * dt;
-        ship.vz -= nz * fogFactor * 42 * dt;
+        ship.vx -= nx * (dangerFactor * 18 + fogFactor * 42) * dt;
+        ship.vz -= nz * (dangerFactor * 18 + fogFactor * 42) * dt;
 
-        if (d > SEA_HARD_LIMIT) {
-            ship.x = nx * SEA_HARD_LIMIT;
-            ship.z = nz * SEA_HARD_LIMIT;
-            ship.vx *= 0.28;
-            ship.vz *= 0.28;
-        }
-
-        if (ship.isPlayer && fogFactor > 0.40 && state.messageTimer <= 0) {
-            setMessage('Heavy fog blocks the open sea.', 2.0);
+        if (ship.isPlayer && dangerFactor > 0.35 && state.messageTimer <= 0) {
+            setMessage('Dense fog ahead. The open sea is unsafe.', 2.0);
         }
     }
 
@@ -2861,9 +2904,13 @@
         ctx.moveTo(0, 90);
         ctx.lineTo(180, 90);
         ctx.stroke();
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+        ctx.strokeStyle = 'rgba(80, 216, 194, 0.16)';
         ctx.beginPath();
-        ctx.arc(90, 90, (SEA_SOFT_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
+        ctx.arc(90, 90, (SEA_SAFE_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(32, 60, 74, 0.42)';
+        ctx.beginPath();
+        ctx.arc(90, 90, (SEA_DANGER_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
         ctx.stroke();
 
         for (i = 0; i < state.islands.length; i += 1) {
@@ -2882,14 +2929,14 @@
             ctx.fillRect(mapToMini(crate.x) - 1.5, mapToMini(crate.z) - 1.5, 3, 3);
         }
 
-        ctx.fillStyle = 'rgba(255, 108, 95, 0.95)';
         for (i = 0; i < state.enemies.length; i += 1) {
             enemy = state.enemies[i];
             if (enemy.hp <= 0) {
                 continue;
             }
+            ctx.fillStyle = enemy.zoneTier === 'danger' ? 'rgba(255, 70, 66, 0.98)' : 'rgba(255, 108, 95, 0.95)';
             ctx.beginPath();
-            ctx.arc(mapToMini(enemy.x), mapToMini(enemy.z), 3, 0, TAU);
+            ctx.arc(mapToMini(enemy.x), mapToMini(enemy.z), enemy.zoneTier === 'danger' ? 3.7 : 3, 0, TAU);
             ctx.fill();
         }
 
@@ -2904,6 +2951,21 @@
         ctx.closePath();
         ctx.fill();
         ctx.restore();
+    }
+
+    function getSeaFogVignetteAlpha() {
+        var p = state.player;
+        var distanceFromCenter = length2(p.x, p.z);
+        var dangerFactor = smoothstep(SEA_DANGER_LIMIT, SEA_FOG_LIMIT, distanceFromCenter);
+        var farFogFactor = smoothstep(SEA_FOG_LIMIT, SEA_FOG_LIMIT * 1.24, distanceFromCenter);
+        return clamp(dangerFactor * 0.42 + farFogFactor * 0.22, 0, 0.64);
+    }
+
+    function updateSeaFogVignette() {
+        if (!hud.seaFogVignette) {
+            return;
+        }
+        hud.seaFogVignette.style.opacity = getSeaFogVignetteAlpha().toFixed(3);
     }
 
     function setBottomReloadHud(card, ring, text, cooldown, reloadSeconds) {
@@ -2971,6 +3033,7 @@
             hud.reload.textContent = 'L ' + formatCannonReload(p.leftCannonCooldown, getShipCannonReloadSeconds(p)) + ' / R ' + formatCannonReload(p.rightCannonCooldown, getShipCannonReloadSeconds(p));
         }
         updateBottomStatusHud();
+        updateSeaFogVignette();
         if (hud.dock) {
             hud.dock.textContent = state.dockPanelOpen ? 'SHOP' : (state.nearDock ? 'PRESS F' : (state.docked ? 'DOCKED' : 'NO'));
         }
