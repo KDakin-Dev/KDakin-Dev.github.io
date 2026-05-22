@@ -42,6 +42,9 @@
     var SEA_SOFT_LIMIT = 2850;
     var SEA_HARD_LIMIT = 3450;
     var WATER_SIZE = 7600;
+    var WATER_OVERLAY_Y = 10;
+    var WATER_TRAIL_Y = 9;
+    var WATER_DEBUG_Y = 11;
     var GRAVITY = 160;
     var PROJECTILE_MAX_LIFE = 3.2;
     var BROADSIDE_HALF_ARC = 0.82;
@@ -677,6 +680,18 @@
         });
     }
 
+    function makeWaterOverlayMaterial(material) {
+        material.depthTest = false;
+        material.depthWrite = false;
+        return material;
+    }
+
+    function setOverlayObject(object, renderOrder) {
+        object.renderOrder = renderOrder || 20;
+        object.frustumCulled = false;
+        return object;
+    }
+
     var materials = null;
 
     function initMaterials() {
@@ -702,18 +717,18 @@
             leaf: makeMaterial(0x2f7f54, 0.92, 0.0),
             crate: makeMaterial(0xb57231, 0.88, 0.0),
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
-            dockZone: new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 }),
+            dockZone: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 })),
             fogBoundary: new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false }),
-            debugGreen: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 }),
-            debugRed: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 }),
-            wind: new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.44 }),
-            wake: new THREE.LineBasicMaterial({ color: 0xd8f5ff, transparent: true, opacity: 0.38 }),
+            debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
+            debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
+            wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
+            wake: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0xd8f5ff, transparent: true, opacity: 0.30 })),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
-            aimGood: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 }),
-            aimBad: new THREE.MeshBasicMaterial({ color: 0xff6c5f, transparent: true, opacity: 0.84 }),
-            aimMarkerGood: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 }),
-            aimMarkerBad: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.58 })
+            aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
+            aimBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, transparent: true, opacity: 0.84 })),
+            aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 })),
+            aimMarkerBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.58 }))
         };
 
         materials.hullPlayer.side = THREE.DoubleSide;
@@ -924,7 +939,8 @@
             island.dockX = island.x;
             island.dockZ = island.z + island.r + 34;
             island.dockRing = createDebugRing(DOCK_INTERACT_RADIUS, materials.dockZone);
-            island.dockRing.position.set(island.dockX, 1.4, island.dockZ);
+            island.dockRing.position.set(island.dockX, WATER_DEBUG_Y, island.dockZ);
+            setOverlayObject(island.dockRing, 24);
             worldGroup.add(island.dockRing);
         } else {
             island.dockX = island.x;
@@ -938,7 +954,8 @@
 
         if (DEBUG_ENABLED) {
             island.debugRing = createDebugRing(island.r, materials.debugGreen);
-            island.debugRing.position.set(island.x, 1, island.z);
+            island.debugRing.position.set(island.x, WATER_DEBUG_Y, island.z);
+            setOverlayObject(island.debugRing, 24);
             worldGroup.add(island.debugRing);
         }
     }
@@ -991,6 +1008,7 @@
         var mat = material && material.clone ? material.clone() : material;
         var ring = new THREE.Mesh(new THREE.RingGeometry(radius - 1.5, radius + 1.5, 64), mat);
         ring.rotation.x = -Math.PI * 0.5;
+        setOverlayObject(ring, 22);
         return ring;
     }
 
@@ -1007,7 +1025,7 @@
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(values, 3));
-        return new THREE.Line(geometry, material);
+        return setOverlayObject(new THREE.Line(geometry, material), 18);
     }
 
     function createHealthBar() {
@@ -1036,13 +1054,14 @@
         var windGeometry;
 
         aimDots = new THREE.InstancedMesh(dotGeometry, materials.aimGood, AIM_DOT_COUNT);
-        aimDots.frustumCulled = false;
+        setOverlayObject(aimDots, 30);
         aimDotMatrix = new THREE.Matrix4();
         worldGroup.add(aimDots);
 
         aimMarker = new THREE.Mesh(new THREE.RingGeometry(13, 16, 32), materials.aimMarkerGood);
         aimMarker.rotation.x = -Math.PI * 0.5;
-        aimMarker.position.y = 1;
+        aimMarker.position.y = WATER_OVERLAY_Y;
+        setOverlayObject(aimMarker, 29);
         worldGroup.add(aimMarker);
 
         windGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -1050,7 +1069,7 @@
             new THREE.Vector3(0, 0, 0)
         ]);
         windArrow = new THREE.Line(windGeometry, materials.wind);
-        windArrow.frustumCulled = false;
+        setOverlayObject(windArrow, 26);
         windArrow.visible = DEBUG_ENABLED;
         worldGroup.add(windArrow);
     }
@@ -1085,7 +1104,7 @@
         for (i = 0; i < state.enemyZones.length; i += 1) {
             zone = state.enemyZones[i];
             ring = createDebugRing(zone.r, materials.debugRed);
-            ring.position.set(zone.x, 0.9, zone.z);
+            ring.position.set(zone.x, WATER_DEBUG_Y, zone.z);
             zone.debugRing = ring;
             worldGroup.add(ring);
         }
@@ -2147,7 +2166,7 @@
             if (point) {
                 lastX = point.x;
                 lastZ = point.z;
-                attr.setXYZ(i, point.x, 1.1 + Math.sin(state.time * 2 + i) * 0.4, point.z);
+                attr.setXYZ(i, point.x, WATER_TRAIL_Y, point.z);
             } else {
                 attr.setXYZ(i, lastX, -1000, lastZ);
             }
@@ -2203,7 +2222,7 @@
         }
 
         if (ship.debugRing) {
-            ship.debugRing.position.set(ship.x, 1.1, ship.z);
+            ship.debugRing.position.set(ship.x, WATER_DEBUG_Y, ship.z);
             ship.debugRing.visible = DEBUG_ENABLED && ship.hp > 0;
         }
 
@@ -2248,7 +2267,7 @@
         aimDots.visible = state.mouseInside && player.hp > 0;
         aimMarker.material = aimStatus.canFire ? materials.aimMarkerGood : materials.aimMarkerBad;
         aimMarker.visible = state.mouseInside && player.hp > 0;
-        aimMarker.position.set(aimStatus.shot.endX, 1.2, aimStatus.shot.endZ);
+        aimMarker.position.set(aimStatus.shot.endX, WATER_OVERLAY_Y, aimStatus.shot.endZ);
         vx = aimStatus.shot.vx;
         vy = aimStatus.shot.vy;
         vz = aimStatus.shot.vz;
@@ -2259,7 +2278,7 @@
         for (i = 0; i < AIM_DOT_COUNT; i += 1) {
             t = (i / Math.max(1, AIM_DOT_COUNT - 1)) * aimStatus.shot.flightTime;
             var dotX = simX + vx * t;
-            var dotY = Math.max(1.5, simY + vy * t - GRAVITY * t * t * 0.5);
+            var dotY = Math.max(WATER_OVERLAY_Y + 2, simY + vy * t - GRAVITY * t * t * 0.5);
             var dotZ = simZ + vz * t;
             var dotScale = 0.62 + i / AIM_DOT_COUNT * 0.42;
             aimDotMatrix.makeScale(dotScale, dotScale, dotScale);
@@ -2272,8 +2291,8 @@
             windArrow.visible = DEBUG_ENABLED;
             if (DEBUG_ENABLED) {
                 windAttr = windArrow.geometry.attributes.position;
-                windAttr.setXYZ(0, player.x, 70, player.z);
-                windAttr.setXYZ(1, player.x + Math.sin(state.windAngle) * 140, 70, player.z + Math.cos(state.windAngle) * 140);
+                windAttr.setXYZ(0, player.x, WATER_DEBUG_Y + 18, player.z);
+                windAttr.setXYZ(1, player.x + Math.sin(state.windAngle) * 95, WATER_DEBUG_Y + 18, player.z + Math.cos(state.windAngle) * 95);
                 windAttr.needsUpdate = true;
             }
         }
