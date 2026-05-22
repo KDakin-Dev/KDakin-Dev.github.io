@@ -2,8 +2,9 @@
     "use strict";
 
     var CONFIG = {
-        canvasDprMax: 2,
-        buildVersion: "0.12.24-manual-absorb-supernova-only",
+        canvasDprMax: 1.25,
+        targetGameFps: 60,
+        buildVersion: "0.12.25-performance-pass",
 
         game: {
             playAreaLeft: 18,
@@ -199,7 +200,7 @@
     };
 
     var canvas = document.getElementById("field-canvas");
-    var ctx = canvas.getContext("2d", { alpha: true });
+    var ctx = canvas.getContext("2d", { alpha: false, desynchronized: true });
 
     var dom = {
         metricNodes: document.getElementById("metric-nodes"),
@@ -300,7 +301,9 @@
         },
         unlockTimer: 0,
         unlockName: "",
-        audioGateInitialized: false
+        audioGateInitialized: false,
+        frameRequestId: 0,
+        lastRenderTime: 0
     };
 
     function clamp(value, min, max) {
@@ -1460,6 +1463,10 @@
         configureLegacyGameHud(true);
         hideAbsorbUi();
 
+        state.lastTime = 0;
+        state.lastRenderTime = 0;
+        requestFrame();
+
         if (document.documentElement.requestFullscreen) {
             document.documentElement.requestFullscreen().catch(function () {});
         }
@@ -1482,6 +1489,9 @@
         configureLegacyGameHud(false);
         stopAudioBed();
         updateGameStats();
+        state.lastTime = 0;
+        state.lastRenderTime = 0;
+        ctx.clearRect(0, 0, state.width, state.height);
 
         if (document.fullscreenElement && document.exitFullscreen) {
             document.exitFullscreen().catch(function () {});
@@ -2254,7 +2264,6 @@
         root.style.border = "1px solid rgba(255, 209, 102, 0.32)";
         root.style.borderRadius = "18px";
         root.style.background = "rgba(5, 10, 16, 0.78)";
-        root.style.backdropFilter = "blur(14px)";
         root.style.boxShadow = "0 16px 60px rgba(0, 0, 0, 0.36)";
         root.style.overflow = "visible";
         root.style.color = "rgba(215, 227, 244, 0.96)";
@@ -2713,7 +2722,6 @@
         root.style.border = "1px solid rgba(255, 209, 102, 0.46)";
         root.style.borderRadius = "24px";
         root.style.background = "rgba(5, 10, 16, 0.76)";
-        root.style.backdropFilter = "blur(14px)";
         root.style.boxShadow = "0 0 70px rgba(255, 209, 102, 0.22)";
         document.body.appendChild(root);
         state.unlockRoot = root;
@@ -2762,7 +2770,6 @@
         root.style.border = "1px solid rgba(255, 209, 102, 0.42)";
         root.style.borderRadius = "28px";
         root.style.background = "rgba(5, 10, 16, 0.84)";
-        root.style.backdropFilter = "blur(18px)";
         root.style.boxShadow = "0 0 90px rgba(255, 209, 102, 0.22), 0 26px 90px rgba(0,0,0,0.55)";
         root.style.color = "rgba(235,245,255,0.96)";
         root.style.textAlign = "center";
@@ -3673,7 +3680,7 @@
             ctx.strokeStyle = "rgba(" + coreColor + ", " + lineAlpha.toFixed(4) + ")";
             ctx.lineWidth = 1.25;
             ctx.shadowColor = "rgba(" + coreColor + ", " + (0.12 + glowPulse * 0.16).toFixed(4) + ")";
-            ctx.shadowBlur = 10 + glowPulse * 18;
+            ctx.shadowBlur = 6 + glowPulse * 8;
             ctx.stroke();
         }
 
@@ -3697,12 +3704,12 @@
             black.addColorStop(1, "rgba(255, 107, 139, 0)");
             ctx.fillStyle = black;
             ctx.shadowColor = "rgba(255, 107, 139, 0.72)";
-            ctx.shadowBlur = 44;
+            ctx.shadowBlur = 22;
         } else {
             var collapseGlowPulse = isCollapsePhase() ? getIronCoreGlowPulse(time || 0) : 0;
             ctx.fillStyle = "rgba(" + coreColor + ", " + (isCollapsePhase() ? "0.76" : "0.68") + ")";
             ctx.shadowColor = "rgba(" + coreColor + ", " + (isCollapsePhase() ? (0.58 + collapseGlowPulse * 0.26).toFixed(4) : "0.58") + ")";
-            ctx.shadowBlur = isEndingPhase() ? 58 : (isCollapsePhase() ? 34 + getIronCoreRisk01() * 18 + collapseGlowPulse * 34 : 26 + level * 4);
+            ctx.shadowBlur = isEndingPhase() ? 34 : (isCollapsePhase() ? 22 + getIronCoreRisk01() * 10 + collapseGlowPulse * 16 : 16 + level * 2);
         }
 
         ctx.fill();
@@ -3755,7 +3762,7 @@
 
             ctx.strokeStyle = "rgba(" + color + ", " + alpha.toFixed(4) + ")";
             ctx.shadowColor = "rgba(" + color + ", 0.35)";
-            ctx.shadowBlur = 6 + hot.heat01 * 18;
+            ctx.shadowBlur = 3 + hot.heat01 * 8;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -3803,7 +3810,7 @@
                 ctx.arc(n.x, n.y, size + (primaryGlow ? 14 : 10) + glowPulse * 4, 0, Math.PI * 2);
                 ctx.fillStyle = "rgba(255, 209, 102, " + glowAlpha.toFixed(4) + ")";
                 ctx.shadowColor = "rgba(255, 209, 102, " + (primaryGlow ? "0.38" : "0.18") + ")";
-                ctx.shadowBlur = primaryGlow ? 16 + glowPulse * 12 : 9 + glowPulse * 5;
+                ctx.shadowBlur = primaryGlow ? 8 + glowPulse * 5 : 4 + glowPulse * 3;
                 ctx.fill();
 
                 ctx.beginPath();
@@ -3817,7 +3824,7 @@
             ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
             ctx.fillStyle = "rgba(" + nucleusColor + ", " + alpha.toFixed(4) + ")";
             ctx.shadowColor = "rgba(" + nucleusColor + ", 0.48)";
-            ctx.shadowBlur = state.gameMode ? 22 : 10;
+            ctx.shadowBlur = state.gameMode ? 8 : 4;
             ctx.fill();
 
             ctx.shadowBlur = 0;
@@ -4567,7 +4574,28 @@
         dom.miniProbe.style.transform = "translate(" + px1.toFixed(2) + "px, " + py1.toFixed(2) + "px) translate(-50%, -50%)";
     }
 
+    function requestFrame() {
+        if (state.frameRequestId) return;
+        state.frameRequestId = window.requestAnimationFrame(frame);
+    }
+
     function frame(time) {
+        state.frameRequestId = 0;
+
+        if (!state.gameMode) {
+            state.lastTime = 0;
+            state.lastRenderTime = 0;
+            ctx.clearRect(0, 0, state.width, state.height);
+            return;
+        }
+
+        var minFrameMs = 1000 / Math.max(1, CONFIG.targetGameFps || 60);
+        if (state.lastRenderTime && time - state.lastRenderTime < minFrameMs) {
+            requestFrame();
+            return;
+        }
+        state.lastRenderTime = time;
+
         if (!state.lastTime) state.lastTime = time;
         var dt = clamp((time - state.lastTime) / 1000, 0.001, 0.033);
         state.lastTime = time;
@@ -4577,12 +4605,6 @@
         updateMiniOrbitProbe(time);
         updateVisualCoreState(dt);
         updateAudioBed();
-
-        if (!state.gameMode) {
-            ctx.clearRect(0, 0, state.width, state.height);
-            window.requestAnimationFrame(frame);
-            return;
-        }
 
         state.gameElapsed += dt;
 
@@ -4605,7 +4627,7 @@
         drawSupernovaOverlay(time);
         updateGameStats();
 
-        window.requestAnimationFrame(frame);
+        requestFrame();
     }
 
     function setupReveal() {
@@ -4710,5 +4732,5 @@
     resize();
     updateScroll();
     setupReveal();
-    window.requestAnimationFrame(frame);
+    ctx.clearRect(0, 0, state.width, state.height);
 }());

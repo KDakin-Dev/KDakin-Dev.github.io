@@ -70,8 +70,11 @@
         var particles = [];
         var maxParticles = 3;
         var spawnIntervalMs = 1560;
+        var targetFps = 24;
         var lastSpawnAt = 0;
         var lastTime = 0;
+        var lastDrawTime = 0;
+        var previewVisible = true;
         var pulse = 0;
         var currentPalette = {
             colors: palettes[1].colors.map(function (c) { return c.slice(); }),
@@ -125,6 +128,7 @@
             node.style.setProperty('--particle-color', palette.particle);
             node.style.width = size.toFixed(2) + 'px';
             node.style.height = size.toFixed(2) + 'px';
+            node.style.transform = 'translate(' + x.toFixed(2) + 'px, ' + y.toFixed(2) + 'px) translate(-50%, -50%)';
             layer.appendChild(node);
 
             particles.push({
@@ -172,11 +176,41 @@
                 '0 0 ' + glowB.toFixed(1) + 'px rgba(' + rgbTriplet(currentPalette.glow) + ', ' + alphaB.toFixed(3) + ')';
         }
 
+        function isPreviewActive() {
+            return previewVisible && !document.hidden && !document.body.classList.contains('game-mode');
+        }
+
+        if ('IntersectionObserver' in window) {
+            var observer = new IntersectionObserver(function (entries) {
+                previewVisible = entries.some(function (entry) {
+                    return entry.isIntersecting;
+                });
+            }, { threshold: 0.05 });
+            observer.observe(preview);
+        }
+
         function frame(time) {
             if (!lastTime) {
                 lastTime = time;
                 lastSpawnAt = time;
+                lastDrawTime = time;
             }
+
+            if (!isPreviewActive()) {
+                lastTime = time;
+                window.setTimeout(function () {
+                    window.requestAnimationFrame(frame);
+                }, 360);
+                return;
+            }
+
+            var minFrameMs = 1000 / targetFps;
+            if (time - lastDrawTime < minFrameMs) {
+                window.requestAnimationFrame(frame);
+                return;
+            }
+            lastDrawTime = time;
+
             var dt = clamp((time - lastTime) / 1000, 0, 0.05);
             lastTime = time;
 
@@ -189,8 +223,7 @@
                 var particle = particles[i];
                 particle.x += particle.vx * dt;
                 particle.y += particle.vy * dt;
-                particle.node.style.left = particle.x.toFixed(2) + 'px';
-                particle.node.style.top = particle.y.toFixed(2) + 'px';
+                particle.node.style.transform = 'translate(' + particle.x.toFixed(2) + 'px, ' + particle.y.toFixed(2) + 'px) translate(-50%, -50%)';
 
                 var dx = particle.impactX - particle.x;
                 var dy = particle.impactY - particle.y;

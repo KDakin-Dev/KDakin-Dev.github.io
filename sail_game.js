@@ -187,7 +187,8 @@
                 worldX: 0,
                 worldY: 0,
                 inside: false
-            }
+            },
+            lastRenderTime: 0
         };
     }
 
@@ -203,7 +204,7 @@
 
     function resize() {
         var rect = canvas.getBoundingClientRect();
-        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        var dpr = Math.min(window.devicePixelRatio || 1, 1.25);
         state.width = Math.max(320, rect.width);
         state.height = Math.max(320, rect.height);
         state.dpr = dpr;
@@ -882,6 +883,13 @@
     }
 
     function frame(time) {
+        var minFrameMs = 1000 / 60;
+        if (state.lastRenderTime && time - state.lastRenderTime < minFrameMs) {
+            window.requestAnimationFrame(frame);
+            return;
+        }
+        state.lastRenderTime = time;
+
         if (!state.lastFrameTime) {
             state.lastFrameTime = time;
         }

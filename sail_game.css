@@ -44,7 +44,6 @@
     padding: 22px;
     border: 1px solid var(--sail-line-soft);
     background: var(--sail-panel);
-    backdrop-filter: blur(14px);
 }
 
 .sail-back,

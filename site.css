@@ -66,7 +66,6 @@ body.game-mode .site-page {
     width: 100%;
     border-bottom: 1px solid var(--site-line-soft);
     background: rgba(0, 0, 0, 0.92);
-    backdrop-filter: blur(14px);
 }
 
 .site-topbar-inner {
@@ -133,11 +132,14 @@ body.game-mode .site-page {
     content: "";
     position: absolute;
     inset: 0;
-    background-image: url("./star_sparkle.gif?v=21");
-    background-repeat: repeat;
-    background-size: 640px 360px;
-    opacity: 0.72;
-    image-rendering: auto;
+    background-image:
+        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.52) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 72% 34%, rgba(180,226,255,0.44) 0 1px, transparent 1.9px),
+        radial-gradient(circle at 42% 68%, rgba(255,255,255,0.34) 0 1px, transparent 1.7px),
+        radial-gradient(circle at 88% 82%, rgba(143,214,255,0.32) 0 1px, transparent 1.8px),
+        linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.20));
+    background-size: 280px 160px, 360px 220px, 420px 260px, 520px 300px, 100% 100%;
+    opacity: 0.74;
 }
 
 .site-hero-sky:after {
@@ -389,7 +391,7 @@ body.game-mode .site-page {
     background: var(--particle-color, #ffd166);
     box-shadow: 0 0 10px color-mix(in srgb, var(--particle-color, #ffd166) 72%, white 28%);
     transform: translate(-50%, -50%);
-    will-change: left, top;
+    will-change: transform;
 }
 
 .site-preview-particle::after {
