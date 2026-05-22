@@ -6,7 +6,7 @@
     <title>Sail &amp; Fire | KDakin-Dev</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
     <link rel="stylesheet" href="./site.css?v=34">
-    <link rel="stylesheet" href="./sail_game.css?v=3">
+    <link rel="stylesheet" href="./sail_game.css?v=5">
 </head>
 <body class="sail-page">
     <main class="sail-shell" aria-label="Sail and Fire isometric 3D prototype">
@@ -40,13 +40,15 @@
                     <div><span>Cargo</span><strong data-hud="cargo">0/6</strong></div>
                     <div><span>Gold</span><strong data-hud="gold">000</strong></div>
                     <div><span>Enemies</span><strong data-hud="enemies">00</strong></div>
+                    <div><span>Reload</span><strong data-hud="reload">READY</strong></div>
                     <div><span>Dock</span><strong data-hud="dock">NO</strong></div>
                     <div><span>Upg</span><strong data-hud="upgrade">1/2/3</strong></div>
                 </div>
+                <canvas class="sail-minimap" width="180" height="180" data-sail-minimap aria-label="Tactical minimap"></canvas>
                 <div class="sail-message" data-sail-message>
-                    W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock near islands to sell cargo.
+                    W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space broadside fire. Dock near islands to sell cargo.
                 </div>
-                <div class="sail-pause-card" data-sail-pause-card hidden>
+                <div class="sail-pause-card" data-sail-pause-card hidden aria-hidden="true">
                     <strong>Paused</strong>
                     <span>Press P or the Pause button to continue.</span>
                 </div>
@@ -55,11 +57,11 @@
             <footer class="sail-notes">
                 <div>
                     <strong>Controls</strong>
-                    <p>W/S: sail power. A/D: rudder. Q/E: orbit camera. Mouse: aim. LMB or Space: fire. P: pause.</p>
+                    <p>W/S: sail power. A/D: rudder. Q/E: orbit camera. Mouse: aim. LMB or Space: broadside fire. P: pause.</p>
                 </div>
                 <div>
                     <strong>3D scope</strong>
-                    <p>Orthographic camera, procedural low-poly ships, islands, water mesh, cannonball arcs, and WebGL scene sync.</p>
+                    <p>Orthographic camera, procedural low-poly ships, islands, water mesh, broadside cannon arcs, wake trails, and WebGL scene sync.</p>
                 </div>
                 <div>
                     <strong>Debug</strong>
@@ -68,6 +70,6 @@
             </footer>
         </section>
     </main>
-    <script src="./sail_game.js?v=3" defer></script>
+    <script src="./sail_game.js?v=5" defer></script>
 </body>
 </html>

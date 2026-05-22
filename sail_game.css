@@ -166,7 +166,7 @@
     right: 16px;
     z-index: 4;
     display: grid;
-    grid-template-columns: repeat(8, minmax(72px, 1fr));
+    grid-template-columns: repeat(9, minmax(68px, 1fr));
     gap: 8px;
     pointer-events: none;
 }
@@ -195,12 +195,25 @@
     letter-spacing: 0.04em;
 }
 
+.sail-minimap {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 5;
+    width: 180px;
+    height: 180px;
+    border: 1px solid var(--sail-line-soft);
+    background: rgba(0, 0, 0, 0.46);
+    pointer-events: none;
+    backdrop-filter: blur(6px);
+}
+
 .sail-message {
     position: absolute;
     left: 16px;
     bottom: 16px;
     z-index: 5;
-    width: min(720px, calc(100% - 32px));
+    width: min(640px, calc(100% - 232px));
     padding: 12px 14px;
     border: 1px solid var(--sail-line-soft);
     background: rgba(0, 0, 0, 0.52);
@@ -215,11 +228,21 @@
     position: absolute;
     inset: 0;
     z-index: 8;
-    display: grid;
+    display: none;
     place-content: center;
     gap: 10px;
     background: rgba(0, 0, 0, 0.48);
     text-align: center;
+    pointer-events: none;
+}
+
+.sail-pause-card.is-visible {
+    display: grid;
+    pointer-events: auto;
+}
+
+.sail-pause-card[hidden] {
+    display: none !important;
 }
 
 .sail-pause-card strong {
@@ -271,5 +294,15 @@
     .sail-hud div {
         min-height: 44px;
         padding: 6px 8px;
+    }
+}
+
+@media (max-width: 720px) {
+    .sail-minimap {
+        display: none;
+    }
+
+    .sail-message {
+        width: min(720px, calc(100% - 32px));
     }
 }
