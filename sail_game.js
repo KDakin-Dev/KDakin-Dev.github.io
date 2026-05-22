@@ -24,6 +24,14 @@
         resetButton: document.querySelector('[data-sail-reset]'),
         loading: document.querySelector('[data-sail-loading]'),
         minimap: document.querySelector('[data-sail-minimap]'),
+        bottomSail: document.querySelector('[data-bottom-sail]'),
+        bottomSailStages: document.querySelectorAll('[data-sail-stage]'),
+        bottomLeftCard: document.querySelector('[data-bottom-left-card]'),
+        bottomLeftRing: document.querySelector('[data-bottom-left-ring]'),
+        bottomLeftText: document.querySelector('[data-bottom-left-text]'),
+        bottomRightCard: document.querySelector('[data-bottom-right-card]'),
+        bottomRightRing: document.querySelector('[data-bottom-right-ring]'),
+        bottomRightText: document.querySelector('[data-bottom-right-text]'),
         dockPanel: document.querySelector('[data-dock-panel]'),
         dockClose: document.querySelector('[data-dock-close]'),
         dockSell: document.querySelector('[data-dock-sell]'),
@@ -50,8 +58,12 @@
     var PROJECTILE_MAX_LIFE = 3.2;
     var BROADSIDE_HALF_ARC = 0.82;
     var AIM_DOT_COUNT = 30;
+    var AIM_DOT_MIN_COUNT = 5;
+    var AIM_DOT_SPACING = 34;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
+    var PLAYER_CANNON_RELOAD_BASE = 0.58;
+    var ENEMY_CANNON_RELOAD_BASE = 1.15;
     var WAKE_CURVE_SAMPLES = 96;
     var WAKE_MIN_SPEED = 8;
     var WAKE_FULL_SPEED = 150;
@@ -238,7 +250,8 @@
             hitFlash: 0,
             sinkTimer: 0,
             prevSinkTimer: 0,
-            fireCooldown: 0,
+            leftCannonCooldown: 0,
+            rightCannonCooldown: 0,
             fireHintCooldown: 0,
             wakeLeft: null,
             wakeRight: null,
@@ -685,14 +698,16 @@
             mouseWorldX: 0,
             mouseWorldZ: 0,
             mouseInside: false,
-            messageText: 'W/S sail stages. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. F docks at piers.',
+            messageText: 'W/S sail stages. A/D rudder. Q/E camera. Hold Space or LMB to aim, release to fire. F docks at piers.',
             messageTimer: 0,
             input: {
                 left: false,
                 right: false,
                 camLeft: false,
                 camRight: false,
-                fire: false,
+                aimHeld: false,
+                aimSource: '',
+                fireReleaseQueued: false,
                 dock: false
             }
         };
@@ -793,9 +808,7 @@
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
-            aimBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, transparent: true, opacity: 0.84 })),
-            aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 })),
-            aimMarkerBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.58 }))
+            aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 }))
         };
 
         materials.hullPlayer.side = THREE.DoubleSide;
@@ -1288,9 +1301,19 @@
 
     function updateMouseWorld(clientX, clientY) {
         var rect = canvas.getBoundingClientRect();
-        var x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        var y = -(((clientY - rect.top) / rect.height) * 2 - 1);
-        var hit = new THREE.Vector3();
+        var inside = clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom;
+        var x;
+        var y;
+        var hit;
+
+        if (!inside) {
+            state.mouseInside = false;
+            return false;
+        }
+
+        x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+        hit = new THREE.Vector3();
 
         raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
 
@@ -1298,7 +1321,11 @@
             state.mouseWorldX = hit.x;
             state.mouseWorldZ = hit.z;
             state.mouseInside = true;
+            return true;
         }
+
+        state.mouseInside = false;
+        return false;
     }
 
     function updateCamera(dt, renderAlpha) {
@@ -1487,8 +1514,11 @@
 
         resolveSeaBoundary(ship, dt);
 
-        if (ship.fireCooldown > 0) {
-            ship.fireCooldown -= dt;
+        if (ship.leftCannonCooldown > 0) {
+            ship.leftCannonCooldown = Math.max(0, ship.leftCannonCooldown - dt);
+        }
+        if (ship.rightCannonCooldown > 0) {
+            ship.rightCannonCooldown = Math.max(0, ship.rightCannonCooldown - dt);
         }
         if (ship.fireHintCooldown > 0) {
             ship.fireHintCooldown -= dt;
@@ -1520,9 +1550,9 @@
 
         updateShipPhysics(state.player, rudder, 0, dt);
 
-        if (state.input.fire) {
+        if (state.input.fireReleaseQueued) {
             fireFromShip(state.player, state.mouseWorldX, state.mouseWorldZ);
-            state.input.fire = false;
+            state.input.fireReleaseQueued = false;
         }
     }
 
@@ -1599,9 +1629,7 @@
                 desiredX += (enemy.x - player.x) * 0.45;
                 desiredZ += (enemy.z - player.z) * 0.45;
             }
-            if (enemy.fireCooldown <= 0) {
-                fireFromShip(enemy, player.x + player.vx * 0.9, player.z + player.vz * 0.9);
-            }
+            fireFromShip(enemy, player.x + player.vx * 0.9, player.z + player.vz * 0.9);
         } else if (distanceToPlayer < 720 && zoneDistance < enemy.zoneRadius * 1.15) {
             enemy.aiState = 'chase';
             desiredX = player.x + player.vx * 1.2;
@@ -1673,13 +1701,52 @@
         };
     }
 
-    function getPlayerAimStatus() {
+    function getCannonCooldownField(side) {
+        return side < 0 ? 'leftCannonCooldown' : 'rightCannonCooldown';
+    }
+
+    function getShipCannonCooldown(ship, side) {
+        return Math.max(0, ship[getCannonCooldownField(side)] || 0);
+    }
+
+    function setShipCannonCooldown(ship, side, cooldown) {
+        ship[getCannonCooldownField(side)] = cooldown;
+    }
+
+    function getShipCannonReloadSeconds(ship) {
+        return (ship.isPlayer ? PLAYER_CANNON_RELOAD_BASE : ENEMY_CANNON_RELOAD_BASE) * ship.cannonCooldownMul;
+    }
+
+    function formatCannonReload(cooldown, reloadSeconds) {
+        if (cooldown <= 0) {
+            return 'READY';
+        }
+        return pad((1 - cooldown / Math.max(0.001, reloadSeconds)) * 100, 2) + '%';
+    }
+
+    function getReloadProgress(cooldown, reloadSeconds) {
+        return clamp(1 - cooldown / Math.max(0.001, reloadSeconds), 0, 1);
+    }
+
+    function formatBottomReload(cooldown, reloadSeconds) {
+        if (cooldown <= 0) {
+            return 'RDY';
+        }
+        return pad(getReloadProgress(cooldown, reloadSeconds) * 100, 2) + '%';
+    }
+
+    function getAimDotCount(shot) {
+        return clamp(Math.round(shot.range / AIM_DOT_SPACING) + 2, AIM_DOT_MIN_COUNT, AIM_DOT_COUNT);
+    }
+
+    function getPlayerAimStatus(renderAlpha) {
         var p = state.player;
-        var shot = getShotPlan(p, state.mouseWorldX, state.mouseWorldZ);
+        var aimShip = typeof renderAlpha === 'number' ? sampleShipTransform(p, renderAlpha) : p;
+        var shot = getShotPlan(p, state.mouseWorldX, state.mouseWorldZ, aimShip);
         return {
             info: shot.info,
             shot: shot,
-            canFire: shot.info.inArc && shot.rangeOk && p.fireCooldown <= 0 && p.hp > 0 && !state.gameOver
+            canFire: shot.info.inArc && getShipCannonCooldown(p, shot.info.side) <= 0 && p.hp > 0 && !state.gameOver
         };
     }
 
@@ -1692,11 +1759,12 @@
         return leftError < rightError ? leftHeading : rightHeading;
     }
 
-    function getShotPlan(ship, targetX, targetZ) {
-        var info = getBroadsideInfo(ship, targetX, targetZ);
-        var startX = ship.x + info.rightX * info.side * 21 + forwardX(ship.heading) * 5;
+    function getShotPlan(ship, targetX, targetZ, aimShip) {
+        var sourceShip = aimShip || ship;
+        var info = getBroadsideInfo(sourceShip, targetX, targetZ);
+        var startX = sourceShip.x + info.rightX * info.side * 21 + forwardX(sourceShip.heading) * 5;
         var startY = 20;
-        var startZ = ship.z + info.rightZ * info.side * 21 + forwardZ(ship.heading) * 5;
+        var startZ = sourceShip.z + info.rightZ * info.side * 21 + forwardZ(sourceShip.heading) * 5;
         var dx = targetX - startX;
         var dz = targetZ - startZ;
         var rawDist = Math.max(1, length2(dx, dz));
@@ -1721,7 +1789,8 @@
             vy: clamp(vy, 48, 245),
             vz: vz,
             flightTime: flightTime,
-            rangeOk: rawDist <= AIM_MAX_RANGE
+            range: dist,
+            rangeLimited: rawDist > AIM_MAX_RANGE
         };
     }
 
@@ -1731,21 +1800,17 @@
         var mesh;
         var cooldown;
 
-        if (ship.fireCooldown > 0 || ship.hp <= 0 || state.gameOver) {
+        if (ship.hp <= 0 || state.gameOver) {
             return false;
         }
 
         shot = getShotPlan(ship, targetX, targetZ);
+        if (getShipCannonCooldown(ship, shot.info.side) > 0) {
+            return false;
+        }
         if (!shot.info.inArc) {
             if (ship.isPlayer && ship.fireHintCooldown <= 0) {
                 setMessage('Target outside broadside arc. Turn the ship side-on before firing.', 1.8);
-                ship.fireHintCooldown = 0.8;
-            }
-            return false;
-        }
-        if (!shot.rangeOk) {
-            if (ship.isPlayer && ship.fireHintCooldown <= 0) {
-                setMessage('Target is out of cannon range.', 1.6);
                 ship.fireHintCooldown = 0.8;
             }
             return false;
@@ -1767,8 +1832,8 @@
 
         worldGroup.add(mesh);
         state.projectiles.push(projectile);
-        cooldown = ship.isPlayer ? 0.58 * ship.cannonCooldownMul : 1.15;
-        ship.fireCooldown = cooldown;
+        cooldown = getShipCannonReloadSeconds(ship);
+        setShipCannonCooldown(ship, shot.info.side, cooldown);
         return true;
     }
 
@@ -2513,6 +2578,8 @@
         var windAttr;
         var player;
         var aimStatus;
+        var aimVisible;
+        var dotCount;
 
         renderAlpha = typeof renderAlpha === 'number' ? renderAlpha : MAX_RENDER_ALPHA;
         renderTime = typeof renderTime === 'number' ? renderTime : state.time;
@@ -2534,28 +2601,36 @@
         }
 
         player = state.player;
-        aimStatus = getPlayerAimStatus();
-        aimDots.material = aimStatus.canFire ? materials.aimGood : materials.aimBad;
-        aimDots.visible = state.mouseInside && player.hp > 0;
-        aimMarker.material = aimStatus.canFire ? materials.aimMarkerGood : materials.aimMarkerBad;
-        aimMarker.visible = state.mouseInside && player.hp > 0;
-        aimMarker.position.set(aimStatus.shot.endX, WATER_OVERLAY_Y, aimStatus.shot.endZ);
-        vx = aimStatus.shot.vx;
-        vy = aimStatus.shot.vy;
-        vz = aimStatus.shot.vz;
-        simX = aimStatus.shot.startX;
-        simY = aimStatus.shot.startY;
-        simZ = aimStatus.shot.startZ;
+        aimVisible = state.input.aimHeld && state.mouseInside && player.hp > 0 && !state.gameOver;
+        aimDots.visible = aimVisible;
+        aimMarker.visible = aimVisible;
 
-        for (i = 0; i < AIM_DOT_COUNT; i += 1) {
-            t = (i / Math.max(1, AIM_DOT_COUNT - 1)) * aimStatus.shot.flightTime;
-            var dotX = simX + vx * t;
-            var dotY = Math.max(WATER_OVERLAY_Y + 2, simY + vy * t - GRAVITY * t * t * 0.5);
-            var dotZ = simZ + vz * t;
-            var dotScale = 0.62 + i / AIM_DOT_COUNT * 0.42;
-            aimDotMatrix.makeScale(dotScale, dotScale, dotScale);
-            aimDotMatrix.setPosition(dotX, dotY, dotZ);
-            aimDots.setMatrixAt(i, aimDotMatrix);
+        if (aimVisible) {
+            aimStatus = getPlayerAimStatus(renderAlpha);
+            aimDots.material = materials.aimGood;
+            aimMarker.material = materials.aimMarkerGood;
+            aimMarker.position.set(aimStatus.shot.endX, WATER_OVERLAY_Y, aimStatus.shot.endZ);
+            vx = aimStatus.shot.vx;
+            vy = aimStatus.shot.vy;
+            vz = aimStatus.shot.vz;
+            simX = aimStatus.shot.startX;
+            simY = aimStatus.shot.startY;
+            simZ = aimStatus.shot.startZ;
+            dotCount = getAimDotCount(aimStatus.shot);
+            aimDots.count = dotCount;
+
+            for (i = 0; i < dotCount; i += 1) {
+                t = (i / Math.max(1, dotCount - 1)) * aimStatus.shot.flightTime;
+                var dotX = simX + vx * t;
+                var dotY = Math.max(WATER_OVERLAY_Y + 2, simY + vy * t - GRAVITY * t * t * 0.5);
+                var dotZ = simZ + vz * t;
+                var dotScale = 0.62 + i / Math.max(1, dotCount) * 0.42;
+                aimDotMatrix.makeScale(dotScale, dotScale, dotScale);
+                aimDotMatrix.setPosition(dotX, dotY, dotZ);
+                aimDots.setMatrixAt(i, aimDotMatrix);
+            }
+        } else {
+            aimDots.count = 0;
         }
         aimDots.instanceMatrix.needsUpdate = true;
 
@@ -2645,6 +2720,41 @@
         ctx.restore();
     }
 
+    function setBottomReloadHud(card, ring, text, cooldown, reloadSeconds) {
+        var progress = getReloadProgress(cooldown, reloadSeconds);
+
+        if (ring) {
+            ring.style.setProperty('--reload-fill', progress.toFixed(3));
+        }
+        if (text) {
+            text.textContent = formatBottomReload(cooldown, reloadSeconds);
+        }
+        if (card) {
+            card.classList.toggle('is-ready', cooldown <= 0);
+        }
+    }
+
+    function updateBottomStatusHud() {
+        var p = state.player;
+        var reloadSeconds = getShipCannonReloadSeconds(p);
+        var sailPercent = Math.round(p.sail * 100);
+        var sailStage = clamp(Math.round(p.sail / SAIL_STAGE_STEP), 0, 3);
+        var i;
+        var dot;
+
+        if (hud.bottomSail) {
+            hud.bottomSail.textContent = pad(sailPercent, 2) + '%';
+        }
+
+        for (i = 0; i < hud.bottomSailStages.length; i += 1) {
+            dot = hud.bottomSailStages[i];
+            dot.classList.toggle('is-on', i <= sailStage);
+        }
+
+        setBottomReloadHud(hud.bottomLeftCard, hud.bottomLeftRing, hud.bottomLeftText, p.leftCannonCooldown, reloadSeconds);
+        setBottomReloadHud(hud.bottomRightCard, hud.bottomRightRing, hud.bottomRightText, p.rightCannonCooldown, reloadSeconds);
+    }
+
     function updateHud() {
         var p = state.player;
         var aliveEnemies = state.enemies.filter(function (enemy) {
@@ -2672,8 +2782,9 @@
             hud.enemies.textContent = pad(aliveEnemies, 2);
         }
         if (hud.reload) {
-            hud.reload.textContent = p.fireCooldown <= 0 ? 'READY' : pad((1 - p.fireCooldown / (0.58 * p.cannonCooldownMul)) * 100, 2) + '%';
+            hud.reload.textContent = 'L ' + formatCannonReload(p.leftCannonCooldown, getShipCannonReloadSeconds(p)) + ' / R ' + formatCannonReload(p.rightCannonCooldown, getShipCannonReloadSeconds(p));
         }
+        updateBottomStatusHud();
         if (hud.dock) {
             hud.dock.textContent = state.dockPanelOpen ? 'SHOP' : (state.nearDock ? 'PRESS F' : (state.docked ? 'DOCKED' : 'NO'));
         }
@@ -2684,7 +2795,7 @@
                 debugText += ' ai=' + state.enemies.map(function (enemy) { return enemy.aiState; }).join(',');
                 hud.message.textContent = state.messageTimer > 0 ? state.messageText + ' | ' + debugText : debugText;
             } else {
-                hud.message.textContent = state.messageTimer > 0 ? state.messageText : (state.nearDock ? 'Press F to open the pier services menu.' : 'W/S sail stages. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock at a pier with F.');
+                hud.message.textContent = state.messageTimer > 0 ? state.messageText : (state.nearDock ? 'Press F to open the pier services menu.' : 'W/S sail stages. A/D rudder. Q/E camera. Hold Space or LMB to aim, release to fire. Dock at a pier with F.');
             }
         }
 
@@ -2748,7 +2859,7 @@
     }
 
     function onKeyDown(event) {
-        if (event.repeat && event.code !== 'Space') {
+        if (event.repeat) {
             return;
         }
 
@@ -2784,7 +2895,8 @@
         } else if (event.code === 'KeyE') {
             state.input.camRight = true;
         } else if (event.code === 'Space') {
-            state.input.fire = true;
+            state.input.aimHeld = true;
+            state.input.aimSource = 'keyboard';
             event.preventDefault();
         } else if (event.code === 'KeyF') {
             state.input.dock = true;
@@ -2809,6 +2921,15 @@
             state.input.camLeft = false;
         } else if (event.code === 'KeyE') {
             state.input.camRight = false;
+        } else if (event.code === 'Space') {
+            if (!state.dockPanelOpen && state.input.aimHeld && state.input.aimSource === 'keyboard' && state.mouseInside) {
+                state.input.fireReleaseQueued = true;
+            }
+            if (state.input.aimSource === 'keyboard') {
+                state.input.aimHeld = false;
+                state.input.aimSource = '';
+            }
+            event.preventDefault();
         } else if (event.code === 'KeyF') {
             state.input.dock = false;
         }
@@ -2835,9 +2956,21 @@
             }
             if (event.button === 0) {
                 updateMouseWorld(event.clientX, event.clientY);
-                state.input.fire = true;
+                state.input.aimHeld = true;
+                state.input.aimSource = 'mouse';
                 event.preventDefault();
             }
+        });
+        window.addEventListener('mouseup', function (event) {
+            if (event.button !== 0 || !state.input.aimHeld || state.input.aimSource !== 'mouse') {
+                return;
+            }
+            if (updateMouseWorld(event.clientX, event.clientY) && !state.dockPanelOpen) {
+                state.input.fireReleaseQueued = true;
+            }
+            state.input.aimHeld = false;
+            state.input.aimSource = '';
+            event.preventDefault();
         });
         canvas.addEventListener('contextmenu', function (event) {
             event.preventDefault();
@@ -2869,7 +3002,7 @@
             THREE = await import(THREE_URL);
             initThree();
             installEvents();
-            setMessage('Sail and Fire loaded. W/S switch sail stages, A/D rudder, Q/E camera, LMB broadside fire.', 5);
+            setMessage('Sail and Fire loaded. W/S switch sail stages, A/D rudder, Q/E camera. Hold Space or LMB to aim, release to fire.', 5);
             window.requestAnimationFrame(renderFrame);
         } catch (error) {
             if (hud.loading) {

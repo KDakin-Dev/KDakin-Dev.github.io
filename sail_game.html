@@ -7,6 +7,124 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
     <link rel="stylesheet" href="./site.css?v=34">
     <link rel="stylesheet" href="./sail_game.css?v=19">
+    <style>
+        .sail-bottom-status {
+            position: absolute;
+            left: 50%;
+            bottom: 18px;
+            z-index: 12;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border: 1px solid rgba(199, 235, 255, 0.18);
+            border-radius: 999px;
+            background: rgba(6, 12, 19, 0.58);
+            box-shadow: 0 14px 35px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            color: #f4fbff;
+            font-family: inherit;
+            pointer-events: none;
+            transform: translateX(-50%);
+            backdrop-filter: blur(10px);
+        }
+
+        .sail-status-card {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 34px;
+            padding: 5px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.065);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+            white-space: nowrap;
+        }
+
+        .sail-status-icon,
+        .sail-status-reload-ring {
+            width: 26px;
+            height: 26px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: #f4fbff;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+        }
+
+        .sail-status-reload-ring {
+            --reload-fill: 1;
+            background: conic-gradient(#f4fbff calc(var(--reload-fill) * 360deg), rgba(255, 255, 255, 0.12) 0deg);
+            position: relative;
+        }
+
+        .sail-status-reload-ring::after {
+            content: attr(data-label);
+            position: absolute;
+            inset: 4px;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            background: rgba(6, 12, 19, 0.86);
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .sail-stage-dots {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .sail-stage-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.18);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+            transform: scale(0.86);
+            transition: transform 110ms ease, background 110ms ease, box-shadow 110ms ease;
+        }
+
+        .sail-stage-dot.is-on {
+            background: #f4fbff;
+            box-shadow: 0 0 13px rgba(244, 251, 255, 0.46), inset 0 0 0 1px rgba(255, 255, 255, 0.75);
+            transform: scale(1);
+        }
+
+        .sail-status-value {
+            min-width: 38px;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-align: right;
+            color: rgba(244, 251, 255, 0.88);
+        }
+
+        .sail-status-card.is-ready .sail-status-reload-ring {
+            box-shadow: 0 0 14px rgba(244, 251, 255, 0.42), inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+        }
+
+        @media (max-width: 720px) {
+            .sail-bottom-status {
+                bottom: 12px;
+                gap: 6px;
+                padding: 6px;
+            }
+
+            .sail-status-card {
+                gap: 5px;
+                padding: 4px 6px;
+            }
+
+            .sail-status-value {
+                display: none;
+            }
+        }
+    </style>
 </head>
 <body class="sail-page">
     <main class="sail-shell" aria-label="Sail and Fire isometric 3D prototype">
@@ -37,8 +155,28 @@
                     <div><span>Upg</span><strong data-hud="upgrade">1/2/3</strong></div>
                 </div>
                 <canvas class="sail-minimap" width="180" height="180" data-sail-minimap aria-label="Tactical minimap"></canvas>
+                <div class="sail-bottom-status" data-sail-status aria-label="Ship status">
+                    <div class="sail-status-card sail-status-card-sail" aria-label="Sail stage">
+                        <span class="sail-status-icon">S</span>
+                        <span class="sail-stage-dots" aria-hidden="true">
+                            <span class="sail-stage-dot" data-sail-stage="0"></span>
+                            <span class="sail-stage-dot" data-sail-stage="1"></span>
+                            <span class="sail-stage-dot" data-sail-stage="2"></span>
+                            <span class="sail-stage-dot" data-sail-stage="3"></span>
+                        </span>
+                        <strong class="sail-status-value" data-bottom-sail>00%</strong>
+                    </div>
+                    <div class="sail-status-card" data-bottom-left-card aria-label="Left cannon reload">
+                        <span class="sail-status-reload-ring" data-bottom-left-ring data-label="L"></span>
+                        <strong class="sail-status-value" data-bottom-left-text>RDY</strong>
+                    </div>
+                    <div class="sail-status-card" data-bottom-right-card aria-label="Right cannon reload">
+                        <span class="sail-status-reload-ring" data-bottom-right-ring data-label="R"></span>
+                        <strong class="sail-status-value" data-bottom-right-text>RDY</strong>
+                    </div>
+                </div>
                 <div class="sail-message" data-sail-message>
-                    W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Press F inside a pier zone to dock.
+                    W/S sail. A/D rudder. Q/E camera. Hold Space or LMB to aim, release to fire. Press F inside a pier zone to dock.
                 </div>
 
                 <div class="sail-dock-panel" data-dock-panel hidden aria-hidden="true" role="dialog" aria-label="Dock services">
@@ -71,7 +209,7 @@
             <footer class="sail-notes">
                 <div>
                     <strong>Controls</strong>
-                    <p>W/S: sail power. A/D: rudder. Q/E: orbit camera. Mouse: aim. LMB or Space: broadside fire. P: pause.</p>
+                    <p>W/S: sail power. A/D: rudder. Q/E: orbit camera. Hold Space or LMB: aim. Release: broadside fire. P: pause.</p>
                 </div>
                 <div>
                     <strong>3D scope</strong>
@@ -84,6 +222,6 @@
             </footer>
         </section>
     </main>
-    <script src="./sail_game.js?v=30" defer></script>
+    <script src="./sail_game.js?v=31" defer></script>
 </body>
 </html>
