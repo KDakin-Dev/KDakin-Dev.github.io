@@ -51,9 +51,7 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_POINT_COUNT = 34;
-    var WAKE_FOAM_INSTANCE_COUNT = 56;
-    var WAKE_LIFE = 3.2;
+    var WAKE_CURVE_SAMPLES = 18;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -195,10 +193,8 @@
             sinkTimer: 0,
             fireCooldown: 0,
             fireHintCooldown: 0,
-            wakeTimer: 0,
-            wakePoints: [],
-            wakeRibbon: null,
-            wakeFoam: null,
+            wakeLeft: null,
+            wakeRight: null,
             healthBar: null,
             aiTimer: 0,
             aiState: 'patrol',
@@ -724,8 +720,7 @@
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
-            wakeRibbon: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xe7f6ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide })),
-            wakeFoam: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.58, side: THREE.DoubleSide })),
+            wakeLane: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xf6fbff, transparent: true, opacity: 0.52, side: THREE.DoubleSide })),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
@@ -1015,29 +1010,22 @@
         return ring;
     }
 
-    function createWakeRibbonMesh() {
+    function createWakeLaneMesh() {
         var geometry = new THREE.BufferGeometry();
-        var positions = new Float32Array(WAKE_POINT_COUNT * 2 * 3);
+        var positions = new Float32Array(WAKE_CURVE_SAMPLES * 2 * 3);
         var indices = [];
         var i;
 
-        for (i = 0; i < WAKE_POINT_COUNT - 1; i += 1) {
+        for (i = 0; i < WAKE_CURVE_SAMPLES - 1; i += 1) {
             indices.push(i * 2, i * 2 + 1, i * 2 + 2);
             indices.push(i * 2 + 1, i * 2 + 3, i * 2 + 2);
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setIndex(indices);
-        geometry.setDrawRange(0, 0);
+        geometry.setDrawRange(0, (WAKE_CURVE_SAMPLES - 1) * 6);
 
-        return setOverlayObject(new THREE.Mesh(geometry, materials.wakeRibbon.clone()), 18);
-    }
-
-    function createWakeFoamMesh() {
-        var geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
-        var mesh = new THREE.InstancedMesh(geometry, materials.wakeFoam.clone(), WAKE_FOAM_INSTANCE_COUNT);
-        mesh.frustumCulled = false;
-        return setOverlayObject(mesh, 19);
+        return setOverlayObject(new THREE.Mesh(geometry, materials.wakeLane.clone()), 18);
     }
 
     function createHealthBar() {
@@ -1055,11 +1043,11 @@
     }
 
     function attachShipHelpers(ship) {
-        ship.wakeRibbon = createWakeRibbonMesh();
-        ship.wakeFoam = createWakeFoamMesh();
+        ship.wakeLeft = createWakeLaneMesh();
+        ship.wakeRight = createWakeLaneMesh();
         ship.healthBar = createHealthBar();
-        worldGroup.add(ship.wakeRibbon);
-        worldGroup.add(ship.wakeFoam);
+        worldGroup.add(ship.wakeLeft);
+        worldGroup.add(ship.wakeRight);
         worldGroup.add(ship.healthBar);
     }
 
@@ -1270,39 +1258,6 @@
         state.windAngle += wrapAngle(state.windTargetAngle - state.windAngle) * dt * 0.18;
     }
 
-    function addWakePoint(ship, dt) {
-        var speed = length2(ship.vx, ship.vz);
-        var fx;
-        var fz;
-        var i;
-
-        if (ship.hp <= 0 || speed < 12) {
-            return;
-        }
-
-        ship.wakeTimer -= dt;
-        if (ship.wakeTimer <= 0) {
-            fx = forwardX(ship.heading);
-            fz = forwardZ(ship.heading);
-            ship.wakePoints.unshift({
-                x: ship.x - fx * 32,
-                z: ship.z - fz * 32,
-                age: 0
-            });
-            if (ship.wakePoints.length > WAKE_POINT_COUNT) {
-                ship.wakePoints.length = WAKE_POINT_COUNT;
-            }
-            ship.wakeTimer = 0.10;
-        }
-
-        for (i = ship.wakePoints.length - 1; i >= 0; i -= 1) {
-            ship.wakePoints[i].age += dt;
-            if (ship.wakePoints[i].age > WAKE_LIFE) {
-                ship.wakePoints.splice(i, 1);
-            }
-        }
-    }
-
     function resolveIslandCollision(ship) {
         var radius = ship.isPlayer ? PLAYER_RADIUS : ENEMY_RADIUS;
         var i;
@@ -1448,7 +1403,6 @@
         ship.x += ship.vx * dt;
         ship.z += ship.vz * dt;
         resolveIslandCollision(ship);
-        addWakePoint(ship, dt);
 
         resolveSeaBoundary(ship, dt);
 
@@ -2162,152 +2116,105 @@
         }
     }
 
-    function getWakeTangent(points, index) {
-        var current = points[index];
-        var prev = points[Math.max(0, index - 1)] || current;
-        var next = points[Math.min(points.length - 1, index + 1)] || current;
-        var tx = prev.x - next.x;
-        var tz = prev.z - next.z;
-        var length = Math.sqrt(tx * tx + tz * tz) || 1;
+    function cubicBezierPoint(p0, p1, p2, p3, t) {
+        var it = 1 - t;
+        var a = it * it * it;
+        var b = 3 * it * it * t;
+        var c = 3 * it * t * t;
+        var d = t * t * t;
 
-        return { x: tx / length, z: tz / length };
+        return {
+            x: p0.x * a + p1.x * b + p2.x * c + p3.x * d,
+            z: p0.z * a + p1.z * b + p2.z * c + p3.z * d
+        };
     }
 
-    function syncWakeRibbon(ship) {
-        var mesh = ship.wakeRibbon;
-        var points = ship.wakePoints;
+    function transformWakeLocalToWorld(ship, localPoint) {
+        var fx = forwardX(ship.heading);
+        var fz = forwardZ(ship.heading);
+        var rx = forwardX(ship.heading + Math.PI * 0.5);
+        var rz = forwardZ(ship.heading + Math.PI * 0.5);
+
+        return {
+            x: ship.x + rx * localPoint.x + fx * localPoint.z,
+            z: ship.z + rz * localPoint.x + fz * localPoint.z
+        };
+    }
+
+    function buildWakeLaneLocalPoint(sideSign, t, trailLength) {
+        var p0 = { x: sideSign * 11, z: 18 };
+        var p1 = { x: sideSign * 24, z: 8 };
+        var p2 = { x: sideSign * 30, z: -18 - trailLength * 0.18 };
+        var p3 = { x: sideSign * 18, z: -trailLength };
+        return cubicBezierPoint(p0, p1, p2, p3, t);
+    }
+
+    function syncWakeLane(ship, mesh, sideSign) {
+        var speed;
+        var trailLength;
         var attr;
         var positions;
-        var count;
         var i;
-        var point;
-        var tangent;
+        var t;
+        var pointLocal;
+        var prevLocal;
+        var nextLocal;
+        var pointWorld;
+        var prevWorld;
+        var nextWorld;
+        var tx;
+        var tz;
+        var tangentLength;
         var nx;
         var nz;
-        var t;
         var width;
 
         if (!mesh) {
             return;
         }
 
-        count = points.length;
-        mesh.visible = ship.hp > 0 && count >= 3;
+        speed = length2(ship.vx, ship.vz);
+        mesh.visible = ship.hp > 0 && speed > 10;
         if (!mesh.visible) {
-            mesh.geometry.setDrawRange(0, 0);
             return;
         }
 
+        trailLength = clamp(52 + speed * 0.78, 56, 118);
         attr = mesh.geometry.attributes.position;
         positions = attr.array;
 
-        for (i = 0; i < count; i += 1) {
-            point = points[i];
-            tangent = getWakeTangent(points, i);
-            nx = -tangent.z;
-            nz = tangent.x;
-            t = i / Math.max(1, count - 1);
-            width = 4 + Math.pow(t, 0.82) * 20;
+        for (i = 0; i < WAKE_CURVE_SAMPLES; i += 1) {
+            t = i / Math.max(1, WAKE_CURVE_SAMPLES - 1);
+            pointLocal = buildWakeLaneLocalPoint(sideSign, t, trailLength);
+            prevLocal = buildWakeLaneLocalPoint(sideSign, Math.max(0, t - 0.01), trailLength);
+            nextLocal = buildWakeLaneLocalPoint(sideSign, Math.min(1, t + 0.01), trailLength);
+            pointWorld = transformWakeLocalToWorld(ship, pointLocal);
+            prevWorld = transformWakeLocalToWorld(ship, prevLocal);
+            nextWorld = transformWakeLocalToWorld(ship, nextLocal);
 
-            positions[(i * 2) * 3 + 0] = point.x + nx * width;
+            tx = nextWorld.x - prevWorld.x;
+            tz = nextWorld.z - prevWorld.z;
+            tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
+            nx = -tz / tangentLength;
+            nz = tx / tangentLength;
+
+            width = (1.2 + speed * 0.008) * (0.18 + Math.sin(Math.PI * t) * 0.82);
+
+            positions[(i * 2) * 3 + 0] = pointWorld.x + nx * width;
             positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2) * 3 + 2] = point.z + nz * width;
+            positions[(i * 2) * 3 + 2] = pointWorld.z + nz * width;
 
-            positions[(i * 2 + 1) * 3 + 0] = point.x - nx * width;
+            positions[(i * 2 + 1) * 3 + 0] = pointWorld.x - nx * width;
             positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2 + 1) * 3 + 2] = point.z - nz * width;
-        }
-
-        for (i = count; i < WAKE_POINT_COUNT; i += 1) {
-            positions[(i * 2) * 3 + 0] = points[count - 1].x;
-            positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2) * 3 + 2] = points[count - 1].z;
-            positions[(i * 2 + 1) * 3 + 0] = points[count - 1].x;
-            positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2 + 1) * 3 + 2] = points[count - 1].z;
+            positions[(i * 2 + 1) * 3 + 2] = pointWorld.z - nz * width;
         }
 
         attr.needsUpdate = true;
-        mesh.geometry.setDrawRange(0, Math.max(0, (count - 1) * 6));
-    }
-
-    function syncWakeFoam(ship) {
-        var mesh = ship.wakeFoam;
-        var points = ship.wakePoints;
-        var dummy;
-        var count = 0;
-        var i;
-        var point;
-        var tangent;
-        var nx;
-        var nz;
-        var t;
-        var width;
-        var laneOffset;
-        var yaw;
-        var scaleX;
-        var scaleY;
-
-        if (!mesh) {
-            return;
-        }
-
-        mesh.visible = ship.hp > 0 && points.length >= 3;
-        if (!mesh.visible) {
-            mesh.count = 0;
-            return;
-        }
-
-        dummy = new THREE.Object3D();
-
-        for (i = 1; i < points.length - 1 && count < WAKE_FOAM_INSTANCE_COUNT; i += 1) {
-            point = points[i];
-            tangent = getWakeTangent(points, i);
-            nx = -tangent.z;
-            nz = tangent.x;
-            t = i / Math.max(1, points.length - 1);
-            width = 5 + Math.pow(t, 0.88) * 17;
-            laneOffset = width * 0.42;
-            yaw = Math.atan2(tangent.x, tangent.z);
-
-            scaleX = 4 + (1 - t) * 4.5;
-            scaleY = 1.2 + (1 - t) * 1.2;
-
-            dummy.position.set(point.x + nx * laneOffset, WATER_TRAIL_Y + 0.3, point.z + nz * laneOffset);
-            dummy.rotation.set(-Math.PI * 0.5, 0, yaw + 0.18);
-            dummy.scale.set(scaleX, scaleY, 1);
-            dummy.updateMatrix();
-            mesh.setMatrixAt(count, dummy.matrix);
-            count += 1;
-
-            if (count >= WAKE_FOAM_INSTANCE_COUNT) {
-                break;
-            }
-
-            dummy.position.set(point.x - nx * laneOffset, WATER_TRAIL_Y + 0.3, point.z - nz * laneOffset);
-            dummy.rotation.set(-Math.PI * 0.5, 0, yaw - 0.18);
-            dummy.scale.set(scaleX, scaleY, 1);
-            dummy.updateMatrix();
-            mesh.setMatrixAt(count, dummy.matrix);
-            count += 1;
-
-            if (i < 5 && count < WAKE_FOAM_INSTANCE_COUNT) {
-                dummy.position.set(point.x, WATER_TRAIL_Y + 0.35, point.z);
-                dummy.rotation.set(-Math.PI * 0.5, 0, yaw);
-                dummy.scale.set(scaleX * 0.9, scaleY * 1.4, 1);
-                dummy.updateMatrix();
-                mesh.setMatrixAt(count, dummy.matrix);
-                count += 1;
-            }
-        }
-
-        mesh.count = count;
-        mesh.instanceMatrix.needsUpdate = true;
     }
 
     function syncWake(ship) {
-        syncWakeRibbon(ship);
-        syncWakeFoam(ship);
+        syncWakeLane(ship, ship.wakeLeft, -1);
+        syncWakeLane(ship, ship.wakeRight, 1);
     }
 
     function syncHealthBar(ship) {
