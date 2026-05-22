@@ -38,6 +38,7 @@
     var DEBUG_ENABLED = new URLSearchParams(window.location.search).get('debug') === '1';
     var TAU = Math.PI * 2;
     var FIXED_DT = 1 / 60;
+    var MAX_RENDER_ALPHA = 1;
     var SEA_LIMIT = 3200;
     var SEA_SOFT_LIMIT = 2850;
     var SEA_HARD_LIMIT = 3450;
@@ -118,6 +119,42 @@
         return angle;
     }
 
+    function lerpAngle(a, b, t) {
+        return a + wrapAngle(b - a) * t;
+    }
+
+    function rememberShipTransform(ship) {
+        ship.prevX = ship.x;
+        ship.prevZ = ship.z;
+        ship.prevHeading = ship.heading;
+        ship.prevSailAngle = ship.sailAngle;
+        ship.prevSinkTimer = ship.sinkTimer;
+    }
+
+    function sampleShipTransform(ship, alpha) {
+        var t = clamp(alpha, 0, MAX_RENDER_ALPHA);
+
+        if (typeof ship.prevX !== 'number' || typeof ship.prevZ !== 'number') {
+            rememberShipTransform(ship);
+        }
+
+        return {
+            x: lerp(ship.prevX, ship.x, t),
+            z: lerp(ship.prevZ, ship.z, t),
+            heading: lerpAngle(ship.prevHeading, ship.heading, t),
+            sailAngle: lerpAngle(ship.prevSailAngle, ship.sailAngle, t),
+            sinkTimer: lerp(ship.prevSinkTimer, ship.sinkTimer, t)
+        };
+    }
+
+    function renderSimulationTime(alpha) {
+        if (state.paused || state.dockPanelOpen || state.gameOver || state.time <= 0) {
+            return state.time;
+        }
+
+        return Math.max(0, state.time - FIXED_DT + clamp(alpha, 0, MAX_RENDER_ALPHA) * FIXED_DT);
+    }
+
     function length2(x, z) {
         return Math.sqrt(x * x + z * z);
     }
@@ -183,11 +220,15 @@
         return {
             x: x,
             z: z,
+            prevX: x,
+            prevZ: z,
             vx: 0,
             vz: 0,
             heading: heading,
+            prevHeading: heading,
             sail: isPlayer ? 0.55 : 0.78,
             sailAngle: 0,
+            prevSailAngle: 0,
             hp: isPlayer ? 100 : 78,
             maxHp: isPlayer ? 100 : 78,
             cargo: 0,
@@ -196,6 +237,7 @@
             gold: 0,
             hitFlash: 0,
             sinkTimer: 0,
+            prevSinkTimer: 0,
             fireCooldown: 0,
             fireHintCooldown: 0,
             wakeLeft: null,
@@ -637,8 +679,8 @@
             windTargetAngle: randRange(rng, 0, TAU),
             windSpeed: randRange(rng, 0.78, 1.08),
             windTimer: 5,
-            cameraTargetX: 0,
-            cameraTargetZ: 0,
+            cameraTargetX: -250,
+            cameraTargetZ: -190,
             cameraOrbit: Math.PI * 0.25,
             mouseWorldX: 0,
             mouseWorldZ: 0,
@@ -1220,7 +1262,7 @@
         createWater();
         buildWorld();
         resize();
-        syncMeshes();
+        syncMeshes(MAX_RENDER_ALPHA, state.time);
 
         if (hud.loading) {
             hud.loading.hidden = true;
@@ -1259,8 +1301,8 @@
         }
     }
 
-    function updateCamera(dt) {
-        var p = state.player;
+    function updateCamera(dt, renderAlpha) {
+        var p = sampleShipTransform(state.player, renderAlpha);
         var distance = 740;
         var height = 520;
         var orbitInput = 0;
@@ -1395,6 +1437,8 @@
         var relativeWind;
         var targetSailAngle;
         var smoothing;
+
+        rememberShipTransform(ship);
 
         if (ship.hp <= 0) {
             ship.sinkTimer += dt;
@@ -2399,7 +2443,7 @@
         syncWakeLane(ship, ship.wakeRight, 1);
     }
 
-    function syncHealthBar(ship) {
+    function syncHealthBar(ship, renderState) {
         var bar = ship.healthBar;
         var fill;
         var ratio;
@@ -2409,7 +2453,7 @@
             return;
         }
 
-        bar.position.set(ship.x, ship.hp > 0 ? 78 : -1000, ship.z);
+        bar.position.set(renderState.x, ship.hp > 0 ? 78 : -1000, renderState.z);
         bar.visible = ship.hp > 0;
         bar.lookAt(camera.position);
         fill = bar.userData.fill;
@@ -2421,40 +2465,41 @@
         }
     }
 
-    function syncShipMesh(ship) {
+    function syncShipMesh(ship, renderAlpha, renderTime) {
         var mesh = ship.mesh;
         var sailMesh;
         var sailCurve;
+        var renderState = sampleShipTransform(ship, renderAlpha);
 
         if (!mesh) {
             return;
         }
 
-        mesh.position.set(ship.x, ship.hp > 0 ? 0 : -Math.min(24, ship.sinkTimer * 12), ship.z);
-        mesh.rotation.y = ship.heading;
-        mesh.rotation.z = ship.hp > 0 ? Math.sin(state.time * 2.5 + ship.x * 0.01) * 0.018 : ship.sinkTimer * 0.18;
-        mesh.rotation.x = ship.hp > 0 ? Math.cos(state.time * 2.0 + ship.z * 0.01) * 0.015 : -ship.sinkTimer * 0.10;
+        mesh.position.set(renderState.x, ship.hp > 0 ? 0 : -Math.min(24, renderState.sinkTimer * 12), renderState.z);
+        mesh.rotation.y = renderState.heading;
+        mesh.rotation.z = ship.hp > 0 ? Math.sin(renderTime * 2.5 + renderState.x * 0.01) * 0.018 : renderState.sinkTimer * 0.18;
+        mesh.rotation.x = ship.hp > 0 ? Math.cos(renderTime * 2.0 + renderState.z * 0.01) * 0.015 : -renderState.sinkTimer * 0.10;
 
         sailMesh = mesh.userData.sailMesh;
         if (sailMesh) {
             sailCurve = 0.62 + ship.sail * 0.38;
             sailMesh.scale.set(sailCurve, 1, 1);
-            sailMesh.rotation.z = Math.sin(state.time * 2.2 + ship.x * 0.01) * 0.035;
+            sailMesh.rotation.z = Math.sin(renderTime * 2.2 + renderState.x * 0.01) * 0.035;
         }
         if (mesh.userData.sailPivot) {
-            mesh.userData.sailPivot.rotation.y = ship.sailAngle;
+            mesh.userData.sailPivot.rotation.y = renderState.sailAngle;
         }
 
         if (ship.debugRing) {
-            ship.debugRing.position.set(ship.x, WATER_DEBUG_Y, ship.z);
+            ship.debugRing.position.set(renderState.x, WATER_DEBUG_Y, renderState.z);
             ship.debugRing.visible = DEBUG_ENABLED && ship.hp > 0;
         }
 
         syncWake(ship);
-        syncHealthBar(ship);
+        syncHealthBar(ship, renderState);
     }
 
-    function syncMeshes() {
+    function syncMeshes(renderAlpha, renderTime) {
         var i;
         var p;
         var crate;
@@ -2469,9 +2514,12 @@
         var player;
         var aimStatus;
 
-        syncShipMesh(state.player);
+        renderAlpha = typeof renderAlpha === 'number' ? renderAlpha : MAX_RENDER_ALPHA;
+        renderTime = typeof renderTime === 'number' ? renderTime : state.time;
+
+        syncShipMesh(state.player, renderAlpha, renderTime);
         for (i = 0; i < state.enemies.length; i += 1) {
-            syncShipMesh(state.enemies[i]);
+            syncShipMesh(state.enemies[i], renderAlpha, renderTime);
         }
 
         for (i = 0; i < state.projectiles.length; i += 1) {
@@ -2656,6 +2704,8 @@
 
     function renderFrame(now) {
         var dt;
+        var renderAlpha;
+        var renderTime;
 
         if (!clockStarted) {
             clockStarted = true;
@@ -2671,9 +2721,12 @@
             accumulator -= FIXED_DT;
         }
 
-        updateCamera(dt);
-        updateWater(state.time);
-        syncMeshes();
+        renderAlpha = clamp(accumulator / FIXED_DT, 0, MAX_RENDER_ALPHA);
+        renderTime = renderSimulationTime(renderAlpha);
+
+        updateCamera(dt, renderAlpha);
+        updateWater(renderTime);
+        syncMeshes(renderAlpha, renderTime);
         updateHud();
         renderer.render(scene, camera);
         window.requestAnimationFrame(renderFrame);
@@ -2684,7 +2737,7 @@
         accumulator = 0;
         clockStarted = false;
         buildWorld();
-        syncMeshes();
+        syncMeshes(MAX_RENDER_ALPHA, state.time);
         syncDockPanel();
         setMessage('New run. Catch the wind, fire broadside, and press F inside a pier zone to dock.', 4);
     }
