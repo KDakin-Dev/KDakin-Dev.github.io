@@ -48,15 +48,15 @@
     var TAU = Math.PI * 2;
     var FIXED_DT = 1 / 60;
     var MAX_RENDER_ALPHA = 1;
-    var SEA_SAFE_LIMIT = 3300;
-    var SEA_TIER2_LIMIT = 4650;
-    var SEA_TIER3_LIMIT = 5900;
-    var SEA_FOG_LIMIT = 6900;
+    var SEA_SAFE_LIMIT = 2600;
+    var SEA_TIER2_LIMIT = 3650;
+    var SEA_TIER3_LIMIT = 4700;
+    var SEA_FOG_LIMIT = 5450;
     var SEA_DANGER_LIMIT = SEA_TIER2_LIMIT;
     var SEA_LIMIT = SEA_FOG_LIMIT;
     var SEA_SOFT_LIMIT = SEA_SAFE_LIMIT;
     var SEA_HARD_LIMIT = SEA_FOG_LIMIT;
-    var WATER_SIZE = 16400;
+    var WATER_SIZE = 12800;
     var WATER_OVERLAY_Y = 10;
     var WATER_TRAIL_Y = 6.8;
     var WATER_DEBUG_Y = 11;
@@ -93,12 +93,12 @@
     var ISLAND_SHORE_BUFFER = 230;
     var SHALLOW_WATER_WIDTH = 208;
     var WATER_SEGMENTS = 180;
-    var ISLAND_TOTAL_COUNT = 16;
-    var TRADING_ISLAND_COUNT = 4;
+    var ISLAND_TOTAL_COUNT = 10;
+    var TRADING_ISLAND_COUNT = 1;
     var WILD_ISLAND_COUNT = ISLAND_TOTAL_COUNT - TRADING_ISLAND_COUNT;
     var ISLAND_MIN_GAP = 460;
-    var ISLAND_DOCK_NEAR_GAP = 680;
-    var TRADING_ISLAND_MIN_GAP = 980;
+    var ISLAND_DOCK_NEAR_GAP = 760;
+    var TRADING_ISLAND_MIN_GAP = 1300;
     var ISLAND_PLACEMENT_ATTEMPTS = 180;
     var ENEMY_SHORE_CLEARANCE = 360;
     var ENEMY_TIER1_ZONE_COUNT = 5;
@@ -108,9 +108,9 @@
     var ENEMY_TIER2_SHIP_COUNT = 10;
     var ENEMY_TIER3_ESCORTS_PER_ZONE = 2;
     var ENEMY_TIER3_BOSSES_PER_ZONE = 1;
-    var ENEMY_TIER1_ZONE_RADIUS = 390;
-    var ENEMY_TIER2_ZONE_RADIUS = 540;
-    var ENEMY_TIER3_ZONE_RADIUS = 650;
+    var ENEMY_TIER1_ZONE_RADIUS = 430;
+    var ENEMY_TIER2_ZONE_RADIUS = 610;
+    var ENEMY_TIER3_ZONE_RADIUS = 720;
     var ENEMY_TIER2_HP_MUL = 1.55;
     var ENEMY_TIER2_DAMAGE_MUL = 1.35;
     var ENEMY_TIER2_RELOAD_MUL = 0.82;
@@ -138,6 +138,9 @@
     var aimZoneRight = null;
     var windArrow = null;
     var minimapContext = null;
+    var MINIMAP_SIZE = 220;
+    var MINIMAP_CENTER = MINIMAP_SIZE * 0.5;
+    var MINIMAP_WORLD_RADIUS = 98;
     var clockStarted = false;
     var lastFrameTime = 0;
     var accumulator = 0;
@@ -366,24 +369,24 @@
         for (i = 0; i < TRADING_ISLAND_COUNT; i += 1) {
             zones.push({
                 dock: true,
-                angle: rotation + i * TAU / TRADING_ISLAND_COUNT,
-                minRadius: 1500,
-                maxRadius: 3120,
-                angleJitter: 0.22,
-                minIslandRadius: 58,
-                maxIslandRadius: 94
+                angle: rotation + i * TAU / Math.max(1, TRADING_ISLAND_COUNT),
+                minRadius: 1220,
+                maxRadius: 2180,
+                angleJitter: 0.24,
+                minIslandRadius: 64,
+                maxIslandRadius: 100
             });
         }
 
         for (i = 0; i < WILD_ISLAND_COUNT; i += 1) {
             zones.push({
                 dock: false,
-                angle: rotation + (i + 0.5) * TAU / WILD_ISLAND_COUNT,
-                minRadius: i % 3 === 0 ? 680 : 1120,
-                maxRadius: i % 3 === 0 ? 2200 : 3380,
-                angleJitter: 0.26,
-                minIslandRadius: i % 4 === 0 ? 32 : (i % 4 === 1 ? 52 : (i % 4 === 2 ? 76 : 42)),
-                maxIslandRadius: i % 4 === 0 ? 54 : (i % 4 === 1 ? 90 : (i % 4 === 2 ? 128 : 72))
+                angle: rotation + (i + 0.5) * TAU / Math.max(1, WILD_ISLAND_COUNT),
+                minRadius: i % 3 === 0 ? 580 : 940,
+                maxRadius: i % 3 === 0 ? 1850 : 2600,
+                angleJitter: 0.30,
+                minIslandRadius: i % 4 === 0 ? 36 : (i % 4 === 1 ? 56 : (i % 4 === 2 ? 78 : 44)),
+                maxIslandRadius: i % 4 === 0 ? 60 : (i % 4 === 1 ? 98 : (i % 4 === 2 ? 132 : 78))
             });
         }
 
@@ -445,8 +448,8 @@
     function islandShapeFactor(island, angle) {
         var shape = island.shape || 'round';
         var a = wrapAngle(angle);
-        var wave = 0.035 * Math.sin(a * 3 + (island.shapeSeedA || 0)) + 0.025 * Math.sin(a * 7 + (island.shapeSeedB || 0));
-        var factor = 0.92 + wave;
+        var wave = 0.045 * Math.sin(a * 3 + (island.shapeSeedA || 0)) + 0.032 * Math.sin(a * 7 + (island.shapeSeedB || 0));
+        var factor = 0.96 + wave;
         var xScale;
         var zScale;
         var ellipse;
@@ -458,32 +461,32 @@
         }
 
         if (shape === 'oval') {
-            xScale = 1.0;
-            zScale = 0.66;
+            xScale = 1.34;
+            zScale = 0.70;
             ellipse = 1 / Math.sqrt((Math.sin(a) * Math.sin(a)) / (xScale * xScale) + (Math.cos(a) * Math.cos(a)) / (zScale * zScale));
             factor *= ellipse;
         } else if (shape === 'long') {
-            xScale = 1.0;
-            zScale = 0.43;
+            xScale = 1.78;
+            zScale = 0.46;
             ellipse = 1 / Math.sqrt((Math.sin(a) * Math.sin(a)) / (xScale * xScale) + (Math.cos(a) * Math.cos(a)) / (zScale * zScale));
             factor *= ellipse;
         } else if (shape === 'bay') {
             bite = smoothstep(0.10, 1.0, Math.cos(wrapAngle(a - bayAngle)));
-            factor *= 1.0 - bite * 0.36;
+            factor *= 1.10 - bite * 0.42;
         } else if (shape === 'crescent') {
-            xScale = 1.0;
-            zScale = 0.76;
+            xScale = 1.42;
+            zScale = 0.78;
             ellipse = 1 / Math.sqrt((Math.sin(a) * Math.sin(a)) / (xScale * xScale) + (Math.cos(a) * Math.cos(a)) / (zScale * zScale));
             bite = smoothstep(-0.10, 1.0, Math.cos(wrapAngle(a - bayAngle)));
-            factor *= ellipse * (1.0 - bite * 0.52);
+            factor *= ellipse * (1.04 - bite * 0.58);
         } else if (shape === 'cove') {
             bite = smoothstep(0.00, 1.0, Math.cos(wrapAngle(a - bayAngle)));
-            factor *= 0.88 + 0.10 * Math.sin(a + (island.shapeSeedA || 0));
-            factor *= 1.0 - bite * 0.44;
-            factor *= 0.82 + 0.18 * smoothstep(-0.60, 1.0, Math.sin(a));
+            factor *= 0.98 + 0.14 * Math.sin(a + (island.shapeSeedA || 0));
+            factor *= 1.06 - bite * 0.50;
+            factor *= 0.84 + 0.24 * smoothstep(-0.60, 1.0, Math.sin(a));
         }
 
-        return clamp(factor, 0.28, 1.0);
+        return clamp(factor, 0.24, 1.82);
     }
 
     function makeIslandProfilePoints(island, radiusMul, count) {
@@ -619,22 +622,22 @@
 
     function getEnemyZoneMinRadius(tier) {
         if (tier === 'tier3') {
-            return SEA_TIER2_LIMIT + 360;
+            return SEA_TIER2_LIMIT + 260;
         }
         if (tier === 'tier2') {
-            return SEA_SAFE_LIMIT + 320;
+            return SEA_SAFE_LIMIT + 240;
         }
-        return 900;
+        return 620;
     }
 
     function getEnemyZoneMaxRadius(tier) {
         if (tier === 'tier3') {
-            return SEA_TIER3_LIMIT - 420;
+            return SEA_TIER3_LIMIT - 300;
         }
         if (tier === 'tier2') {
-            return SEA_TIER2_LIMIT - 320;
+            return SEA_TIER2_LIMIT - 240;
         }
-        return SEA_SAFE_LIMIT - 420;
+        return SEA_SAFE_LIMIT - 260;
     }
 
     function makeEnemyZone(rng, islands, index, tier) {
@@ -1604,6 +1607,8 @@
         scene.add(worldGroup);
 
         if (hud.minimap && hud.minimap.getContext) {
+            hud.minimap.width = MINIMAP_SIZE;
+            hud.minimap.height = MINIMAP_SIZE;
             minimapContext = hud.minimap.getContext('2d');
         }
 
@@ -3023,7 +3028,30 @@
     }
 
     function mapToMini(value) {
-        return 90 + (value / SEA_HARD_LIMIT) * 78;
+        return MINIMAP_CENTER + (value / SEA_HARD_LIMIT) * MINIMAP_WORLD_RADIUS;
+    }
+
+    function drawMinimapPlayerMarker(ctx, x, y, heading) {
+        var forwardXValue = Math.sin(heading);
+        var forwardYValue = Math.cos(heading);
+        var sideX = Math.cos(heading);
+        var sideY = -Math.sin(heading);
+        var tipSize = 13;
+        var tailSize = 9;
+        var halfWidth = 6;
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(50, 209, 160, 1)';
+        ctx.strokeStyle = 'rgba(3, 14, 18, 0.76)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + forwardXValue * tipSize, y + forwardYValue * tipSize);
+        ctx.lineTo(x - forwardXValue * tailSize + sideX * halfWidth, y - forwardYValue * tailSize + sideY * halfWidth);
+        ctx.lineTo(x - forwardXValue * tailSize - sideX * halfWidth, y - forwardYValue * tailSize - sideY * halfWidth);
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+        ctx.restore();
     }
 
     function drawMinimap() {
@@ -3040,29 +3068,29 @@
             return;
         }
 
-        ctx.clearRect(0, 0, 180, 180);
+        ctx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
         ctx.fillStyle = 'rgba(5, 16, 24, 0.84)';
-        ctx.fillRect(0, 0, 180, 180);
+        ctx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-        ctx.strokeRect(0.5, 0.5, 179, 179);
+        ctx.strokeRect(0.5, 0.5, MINIMAP_SIZE - 1, MINIMAP_SIZE - 1);
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
         ctx.beginPath();
-        ctx.moveTo(90, 0);
-        ctx.lineTo(90, 180);
-        ctx.moveTo(0, 90);
-        ctx.lineTo(180, 90);
+        ctx.moveTo(MINIMAP_CENTER, 0);
+        ctx.lineTo(MINIMAP_CENTER, MINIMAP_SIZE);
+        ctx.moveTo(0, MINIMAP_CENTER);
+        ctx.lineTo(MINIMAP_SIZE, MINIMAP_CENTER);
         ctx.stroke();
         ctx.strokeStyle = 'rgba(80, 216, 194, 0.18)';
         ctx.beginPath();
-        ctx.arc(90, 90, (SEA_SAFE_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
+        ctx.arc(MINIMAP_CENTER, MINIMAP_CENTER, (SEA_SAFE_LIMIT / SEA_HARD_LIMIT) * MINIMAP_WORLD_RADIUS, 0, TAU);
         ctx.stroke();
         ctx.strokeStyle = 'rgba(74, 120, 132, 0.30)';
         ctx.beginPath();
-        ctx.arc(90, 90, (SEA_TIER2_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
+        ctx.arc(MINIMAP_CENTER, MINIMAP_CENTER, (SEA_TIER2_LIMIT / SEA_HARD_LIMIT) * MINIMAP_WORLD_RADIUS, 0, TAU);
         ctx.stroke();
         ctx.strokeStyle = 'rgba(18, 35, 48, 0.58)';
         ctx.beginPath();
-        ctx.arc(90, 90, (SEA_TIER3_LIMIT / SEA_HARD_LIMIT) * 78, 0, TAU);
+        ctx.arc(MINIMAP_CENTER, MINIMAP_CENTER, (SEA_TIER3_LIMIT / SEA_HARD_LIMIT) * MINIMAP_WORLD_RADIUS, 0, TAU);
         ctx.stroke();
 
         for (i = 0; i < state.islands.length; i += 1) {
@@ -3071,7 +3099,7 @@
             y = mapToMini(island.z);
             ctx.fillStyle = island.dock ? 'rgba(255, 209, 102, 0.85)' : 'rgba(83, 158, 90, 0.70)';
             ctx.beginPath();
-            ctx.arc(x, y, clamp(island.r / 24, 2.5, 5.5), 0, TAU);
+            ctx.arc(x, y, clamp(island.r / 22, 2.8, 6.4), 0, TAU);
             ctx.fill();
         }
 
@@ -3094,21 +3122,11 @@
                 ctx.fillStyle = 'rgba(255, 108, 95, 0.95)';
             }
             ctx.beginPath();
-            ctx.arc(mapToMini(enemy.x), mapToMini(enemy.z), enemy.zoneTier === 'tier3' ? 4.7 : (enemy.zoneTier === 'tier2' ? 3.6 : 3), 0, TAU);
+            ctx.arc(mapToMini(enemy.x), mapToMini(enemy.z), enemy.zoneTier === 'tier3' ? 5.6 : (enemy.zoneTier === 'tier2' ? 4.1 : 3.3), 0, TAU);
             ctx.fill();
         }
 
-        ctx.save();
-        ctx.translate(mapToMini(p.x), mapToMini(p.z));
-        ctx.rotate(-p.heading);
-        ctx.fillStyle = 'rgba(50, 209, 160, 1)';
-        ctx.beginPath();
-        ctx.moveTo(0, -5);
-        ctx.lineTo(4, 5);
-        ctx.lineTo(-4, 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        drawMinimapPlayerMarker(ctx, mapToMini(p.x), mapToMini(p.z), p.heading);
     }
 
     function getSeaFogVignetteAlpha() {

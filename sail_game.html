@@ -121,6 +121,12 @@
             transition: opacity 180ms linear;
         }
 
+
+        .sail-minimap {
+            width: 220px;
+            height: 220px;
+        }
+
         @media (max-width: 720px) {
             .sail-bottom-status {
                 bottom: 12px;
@@ -168,7 +174,7 @@
                     <div><span>Dock</span><strong data-hud="dock">NO</strong></div>
                     <div><span>Upg</span><strong data-hud="upgrade">1/2/3</strong></div>
                 </div>
-                <canvas class="sail-minimap" width="180" height="180" data-sail-minimap aria-label="Tactical minimap"></canvas>
+                <canvas class="sail-minimap" width="220" height="220" data-sail-minimap aria-label="Tactical minimap"></canvas>
                 <div class="sail-bottom-status" data-sail-status aria-label="Ship status">
                     <div class="sail-status-card sail-status-card-sail" aria-label="Sail stage">
                         <span class="sail-status-icon">S</span>
@@ -236,6 +242,6 @@
             </footer>
         </section>
     </main>
-    <script src="./sail_game.js?v=32" defer></script>
+    <script src="./sail_game.js?v=33" defer></script>
 </body>
 </html>
