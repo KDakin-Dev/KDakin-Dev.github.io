@@ -2,9 +2,9 @@
     "use strict";
 
     var CONFIG = {
-        canvasDprMax: 1.25,
+        canvasDprMax: 1.0,
         targetGameFps: 60,
-        buildVersion: "0.12.25-performance-pass",
+        buildVersion: "0.12.26-fusion-vfx-optimized",
 
         game: {
             playAreaLeft: 18,
@@ -129,6 +129,16 @@
             masterGain: 0.28,
             absorbGain: 0.055,
             supernovaGain: 0.08
+        },
+
+        render: {
+            fusionHotLinkDrawMax: 18,
+            fusionInvalidLinkDrawMax: 12,
+            pointerFieldVisualScale: 0.58,
+            pointerFieldIdleScale: 0.42,
+            nodeGlowMax: 7,
+            absorbGlowMax: 6,
+            coreShadowBlurMax: 24
         },
 
         nuclei: {
@@ -3709,7 +3719,8 @@
             var collapseGlowPulse = isCollapsePhase() ? getIronCoreGlowPulse(time || 0) : 0;
             ctx.fillStyle = "rgba(" + coreColor + ", " + (isCollapsePhase() ? "0.76" : "0.68") + ")";
             ctx.shadowColor = "rgba(" + coreColor + ", " + (isCollapsePhase() ? (0.58 + collapseGlowPulse * 0.26).toFixed(4) : "0.58") + ")";
-            ctx.shadowBlur = isEndingPhase() ? 34 : (isCollapsePhase() ? 22 + getIronCoreRisk01() * 10 + collapseGlowPulse * 16 : 16 + level * 2);
+            var coreBlur = isEndingPhase() ? 26 : (isCollapsePhase() ? 18 + getIronCoreRisk01() * 6 + collapseGlowPulse * 9 : 14 + level * 0.85);
+            ctx.shadowBlur = Math.min(CONFIG.render.coreShadowBlurMax || 24, coreBlur);
         }
 
         ctx.fill();
@@ -3740,29 +3751,40 @@
     }
 
     function drawFusionLinks() {
-        ctx.save();
+        var invalidMax = CONFIG.render.fusionInvalidLinkDrawMax || 12;
+        var hotMax = CONFIG.render.fusionHotLinkDrawMax || 18;
+        var invalidStep = state.invalidPairs.length > invalidMax ? Math.ceil(state.invalidPairs.length / invalidMax) : 1;
+        var hotStep = state.hotPairs.length > hotMax ? Math.ceil(state.hotPairs.length / hotMax) : 1;
 
-        for (var r = 0; r < state.invalidPairs.length; r += 1) {
+        ctx.save();
+        ctx.lineCap = "round";
+
+        for (var r = 0; r < state.invalidPairs.length; r += invalidStep) {
             var pair = state.invalidPairs[r];
-            ctx.lineWidth = 1.2;
-            ctx.strokeStyle = "rgba(255, 107, 139, " + (0.15 + pair.alpha * 0.32).toFixed(4) + ")";
+            ctx.lineWidth = 1.1;
+            ctx.strokeStyle = "rgba(255, 107, 139, " + (0.12 + pair.alpha * 0.22).toFixed(4) + ")";
             ctx.beginPath();
             ctx.moveTo(pair.a.x, pair.a.y);
             ctx.lineTo(pair.b.x, pair.b.y);
             ctx.stroke();
         }
 
-        ctx.lineWidth = 1.7;
-        for (var i = 0; i < state.hotPairs.length; i += 1) {
+        for (var i = 0; i < state.hotPairs.length; i += hotStep) {
             var hot = state.hotPairs[i];
             var a = hot.a;
             var b = hot.b;
             var alpha = CONFIG.game.previewAlpha + hot.heat01 * CONFIG.game.hotLinkAlpha;
             var color = hot.inZone ? "255, 209, 102" : "99, 166, 255";
 
+            ctx.lineWidth = 4.0 + hot.heat01 * 3.0;
+            ctx.strokeStyle = "rgba(" + color + ", " + (alpha * 0.18).toFixed(4) + ")";
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+
+            ctx.lineWidth = 1.35 + hot.heat01 * 0.65;
             ctx.strokeStyle = "rgba(" + color + ", " + alpha.toFixed(4) + ")";
-            ctx.shadowColor = "rgba(" + color + ", 0.35)";
-            ctx.shadowBlur = 3 + hot.heat01 * 8;
             ctx.beginPath();
             ctx.moveTo(a.x, a.y);
             ctx.lineTo(b.x, b.y);
@@ -3783,6 +3805,8 @@
 
     function drawNodes(time) {
         ctx.save();
+        ctx.textAlign = "center";
+        ctx.font = "11px SFMono-Regular, Consolas, monospace";
 
         for (var i = 0; i < state.nodes.length; i += 1) {
             var n = state.nodes[i];
@@ -3803,14 +3827,13 @@
             if (absorbable) {
                 var primaryGlow = isPrimaryAbsorbTarget(n);
                 var glowPulse = primaryGlow ? blink : 0.25 + blink * 0.22;
-                var glowAlpha = primaryGlow ? (0.045 + glowPulse * 0.075) : (0.025 + glowPulse * 0.035);
+                var glowAlpha = primaryGlow ? (0.06 + glowPulse * 0.10) : (0.035 + glowPulse * 0.045);
                 var ringAlpha = primaryGlow ? (0.24 + glowPulse * 0.26) : (0.16 + glowPulse * 0.10);
+                var absorbGlow = Math.min(CONFIG.render.absorbGlowMax || 6, primaryGlow ? 9 : 6);
 
                 ctx.beginPath();
-                ctx.arc(n.x, n.y, size + (primaryGlow ? 14 : 10) + glowPulse * 4, 0, Math.PI * 2);
+                ctx.arc(n.x, n.y, size + absorbGlow + glowPulse * 3, 0, Math.PI * 2);
                 ctx.fillStyle = "rgba(255, 209, 102, " + glowAlpha.toFixed(4) + ")";
-                ctx.shadowColor = "rgba(255, 209, 102, " + (primaryGlow ? "0.38" : "0.18") + ")";
-                ctx.shadowBlur = primaryGlow ? 8 + glowPulse * 5 : 4 + glowPulse * 3;
                 ctx.fill();
 
                 ctx.beginPath();
@@ -3820,14 +3843,17 @@
                 ctx.stroke();
             }
 
+            var nodeGlow = CONFIG.render.nodeGlowMax || 7;
+            ctx.beginPath();
+            ctx.arc(n.x, n.y, size + nodeGlow, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(" + nucleusColor + ", " + (state.gameMode ? 0.055 : 0.035).toFixed(4) + ")";
+            ctx.fill();
+
             ctx.beginPath();
             ctx.arc(n.x, n.y, size, 0, Math.PI * 2);
             ctx.fillStyle = "rgba(" + nucleusColor + ", " + alpha.toFixed(4) + ")";
-            ctx.shadowColor = "rgba(" + nucleusColor + ", 0.48)";
-            ctx.shadowBlur = state.gameMode ? 8 : 4;
             ctx.fill();
 
-            ctx.shadowBlur = 0;
             ctx.beginPath();
             ctx.arc(n.x, n.y, size + 4, 0, Math.PI * 2);
             ctx.strokeStyle = "rgba(" + nucleusColor + ", " + (state.gameMode ? 0.28 : 0.08).toFixed(4) + ")";
@@ -3836,8 +3862,6 @@
 
             if (state.gameMode) {
                 ctx.fillStyle = "rgba(235, 245, 255, 0.90)";
-                ctx.font = "11px SFMono-Regular, Consolas, monospace";
-                ctx.textAlign = "center";
                 ctx.fillText(n.nucleus.name, n.x, n.y - size - 10);
             }
         }
@@ -3878,22 +3902,25 @@
             r = state.pointer.down ? CONFIG.game.pointerPushRadius : CONFIG.game.pointerRadius;
         }
 
+        var visualScale = isCollapsePhase() ? 0.72 : (state.pointer.down ? CONFIG.render.pointerFieldVisualScale : CONFIG.render.pointerFieldIdleScale);
+        var vr = Math.max(42, r * visualScale);
+
         ctx.save();
-        var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, r);
+        var gradient = ctx.createRadialGradient(state.pointer.x, state.pointer.y, 0, state.pointer.x, state.pointer.y, vr);
         if (isCollapsePhase()) {
-            gradient.addColorStop(0, "rgba(255, 209, 102, 0.36)");
-            gradient.addColorStop(0.22, "rgba(255, 160, 82, 0.20)");
-            gradient.addColorStop(0.58, "rgba(255, 107, 139, 0.060)");
+            gradient.addColorStop(0, "rgba(255, 209, 102, 0.30)");
+            gradient.addColorStop(0.30, "rgba(255, 160, 82, 0.14)");
+            gradient.addColorStop(0.70, "rgba(255, 107, 139, 0.040)");
             gradient.addColorStop(1, "rgba(255, 107, 139, 0)");
         } else {
-            gradient.addColorStop(0, "rgba(99, 166, 255, 0.25)");
-            gradient.addColorStop(0.20, "rgba(99, 166, 255, 0.15)");
-            gradient.addColorStop(0.55, "rgba(99, 166, 255, 0.045)");
+            gradient.addColorStop(0, "rgba(99, 166, 255, " + (state.pointer.down ? "0.22" : "0.14") + ")");
+            gradient.addColorStop(0.30, "rgba(99, 166, 255, " + (state.pointer.down ? "0.12" : "0.070") + ")");
+            gradient.addColorStop(0.70, "rgba(99, 166, 255, " + (state.pointer.down ? "0.040" : "0.020") + ")");
             gradient.addColorStop(1, "rgba(99, 166, 255, 0)");
         }
         ctx.fillStyle = gradient;
         ctx.beginPath();
-        ctx.arc(state.pointer.x, state.pointer.y, r, 0, Math.PI * 2);
+        ctx.arc(state.pointer.x, state.pointer.y, vr, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.beginPath();

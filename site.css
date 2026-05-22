@@ -132,14 +132,96 @@ body.game-mode .site-page {
     content: "";
     position: absolute;
     inset: 0;
+    z-index: 0;
     background-image:
-        radial-gradient(circle at 12% 18%, rgba(255,255,255,0.52) 0 1px, transparent 1.8px),
-        radial-gradient(circle at 72% 34%, rgba(180,226,255,0.44) 0 1px, transparent 1.9px),
-        radial-gradient(circle at 42% 68%, rgba(255,255,255,0.34) 0 1px, transparent 1.7px),
-        radial-gradient(circle at 88% 82%, rgba(143,214,255,0.32) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 9% 24%, rgba(255,255,255,0.42) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 32% 74%, rgba(154,218,255,0.34) 0 1px, transparent 1.8px),
+        radial-gradient(circle at 64% 30%, rgba(255,255,255,0.38) 0 1px, transparent 1.7px),
+        radial-gradient(circle at 86% 68%, rgba(143,214,255,0.30) 0 1px, transparent 1.8px),
         linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.20));
-    background-size: 280px 160px, 360px 220px, 420px 260px, 520px 300px, 100% 100%;
-    opacity: 0.74;
+    background-size: 260px 170px, 340px 220px, 430px 260px, 560px 320px, 100% 100%;
+    opacity: 0.66;
+}
+
+.site-sparkle-field {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.site-sparkle {
+    --spark-x: 50%;
+    --spark-y: 50%;
+    --spark-size: 14px;
+    --spark-scale: 1;
+    --spark-opacity: 0.72;
+    --spark-delay: 0s;
+    --spark-duration: 4.4s;
+    position: absolute;
+    left: var(--spark-x);
+    top: var(--spark-y);
+    width: var(--spark-size);
+    height: var(--spark-size);
+    border-radius: 50%;
+    opacity: 0.14;
+    transform: translate(-50%, -50%) scale(0.58);
+    background:
+        radial-gradient(circle, rgba(255,255,255,0.98) 0 9%, rgba(203,235,255,0.82) 10% 18%, transparent 44%),
+        linear-gradient(90deg, transparent 0 41%, rgba(180,226,255,0.54) 42% 58%, transparent 59% 100%),
+        linear-gradient(0deg, transparent 0 43%, rgba(255,255,255,0.42) 44% 56%, transparent 57% 100%);
+    filter: drop-shadow(0 0 5px rgba(118, 196, 255, 0.28));
+    animation: siteSparkleTwinkle var(--spark-duration) ease-in-out var(--spark-delay) infinite;
+}
+
+.site-sparkle:before,
+.site-sparkle:after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 190%;
+    height: 1px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, rgba(179, 224, 255, 0.0), rgba(224, 245, 255, 0.62), rgba(179, 224, 255, 0.0), transparent);
+    transform: translate(-50%, -50%);
+}
+
+.site-sparkle:after {
+    width: 1px;
+    height: 190%;
+    background: linear-gradient(0deg, transparent, rgba(179, 224, 255, 0.0), rgba(224, 245, 255, 0.50), rgba(179, 224, 255, 0.0), transparent);
+}
+
+.site-sparkle-a { --spark-x: 11%; --spark-y: 30%; --spark-size: 15px; --spark-scale: 0.95; --spark-opacity: 0.64; --spark-delay: -0.8s; --spark-duration: 4.8s; }
+.site-sparkle-b { --spark-x: 23%; --spark-y: 61%; --spark-size: 10px; --spark-scale: 0.82; --spark-opacity: 0.50; --spark-delay: -2.1s; --spark-duration: 5.6s; }
+.site-sparkle-c { --spark-x: 36%; --spark-y: 28%; --spark-size: 18px; --spark-scale: 1.08; --spark-opacity: 0.78; --spark-delay: -1.4s; --spark-duration: 4.1s; }
+.site-sparkle-d { --spark-x: 48%; --spark-y: 76%; --spark-size: 12px; --spark-scale: 0.86; --spark-opacity: 0.56; --spark-delay: -3.0s; --spark-duration: 6.0s; }
+.site-sparkle-e { --spark-x: 59%; --spark-y: 42%; --spark-size: 14px; --spark-scale: 0.92; --spark-opacity: 0.62; --spark-delay: -2.6s; --spark-duration: 4.9s; }
+.site-sparkle-f { --spark-x: 71%; --spark-y: 22%; --spark-size: 11px; --spark-scale: 0.76; --spark-opacity: 0.52; --spark-delay: -0.2s; --spark-duration: 5.3s; }
+.site-sparkle-g { --spark-x: 80%; --spark-y: 69%; --spark-size: 17px; --spark-scale: 1.0; --spark-opacity: 0.72; --spark-delay: -3.8s; --spark-duration: 4.6s; }
+.site-sparkle-h { --spark-x: 91%; --spark-y: 36%; --spark-size: 13px; --spark-scale: 0.84; --spark-opacity: 0.58; --spark-delay: -1.9s; --spark-duration: 5.8s; }
+.site-sparkle-i { --spark-x: 16%; --spark-y: 82%; --spark-size: 9px; --spark-scale: 0.74; --spark-opacity: 0.46; --spark-delay: -4.0s; --spark-duration: 6.4s; }
+.site-sparkle-j { --spark-x: 66%; --spark-y: 84%; --spark-size: 10px; --spark-scale: 0.78; --spark-opacity: 0.48; --spark-delay: -1.0s; --spark-duration: 5.1s; }
+
+@keyframes siteSparkleTwinkle {
+    0%, 100% {
+        opacity: 0.12;
+        transform: translate(-50%, -50%) scale(0.56) rotate(0deg);
+    }
+    42% {
+        opacity: 0.30;
+        transform: translate(-50%, -50%) scale(0.82) rotate(12deg);
+    }
+    56% {
+        opacity: var(--spark-opacity);
+        transform: translate(-50%, -50%) scale(var(--spark-scale)) rotate(18deg);
+    }
+    72% {
+        opacity: 0.20;
+        transform: translate(-50%, -50%) scale(0.70) rotate(24deg);
+    }
 }
 
 .site-hero-sky:after {
@@ -150,11 +232,12 @@ body.game-mode .site-page {
         radial-gradient(circle at 58% 40%, rgba(99, 166, 255, 0.10), transparent 24%),
         linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.62));
     pointer-events: none;
+    z-index: 2;
 }
 
 .site-hero-sky-inner {
     position: relative;
-    z-index: 1;
+    z-index: 3;
     min-height: 220px;
     display: flex;
     align-items: center;
