@@ -31,9 +31,11 @@
     var FIXED_DT = 1 / 60;
     var SEA_LIMIT = 1750;
     var GRAVITY = 160;
-    var PROJECTILE_SPEED = 280;
     var PROJECTILE_MAX_LIFE = 3.2;
     var BROADSIDE_HALF_ARC = 0.82;
+    var AIM_DOT_COUNT = 30;
+    var AIM_MAX_FLIGHT_TIME = 3.0;
+    var AIM_MAX_RANGE = 720;
     var WAKE_POINT_COUNT = 34;
     var WAKE_LIFE = 3.2;
     var PLAYER_RADIUS = 24;
@@ -49,7 +51,8 @@
     var waterMesh = null;
     var waterPositions = null;
     var waterBasePositions = null;
-    var aimLine = null;
+    var aimDots = null;
+    var aimDotMatrix = null;
     var aimMarker = null;
     var windArrow = null;
     var minimapContext = null;
@@ -145,6 +148,7 @@
             vz: 0,
             heading: heading,
             sail: isPlayer ? 0.55 : 0.78,
+            sailAngle: 0,
             hp: isPlayer ? 100 : 78,
             maxHp: isPlayer ? 100 : 78,
             cargo: 0,
@@ -288,8 +292,8 @@
             hullEnemy: makeMaterial(0x5a2530, 0.88, 0.02),
             deck: makeMaterial(0xc58b52, 0.78, 0.02),
             mast: makeMaterial(0x3a2418, 0.82, 0.02),
-            sailPlayer: makeMaterial(0xe8eef4, 0.70, 0.0),
-            sailEnemy: makeMaterial(0xd3b4aa, 0.78, 0.0),
+            sailPlayer: makeMaterial(0xf1ead8, 0.70, 0.0),
+            sailEnemy: makeMaterial(0xd8b9a8, 0.78, 0.0),
             cannon: makeMaterial(0x191b1f, 0.55, 0.18),
             cannonball: makeMaterial(0x101113, 0.48, 0.42),
             sand: makeMaterial(0xb58d4d, 0.90, 0.0),
@@ -300,16 +304,20 @@
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
             debugGreen: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 }),
             debugRed: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 }),
-            aim: new THREE.LineBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.86 }),
-            wind: new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.85 }),
+            wind: new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.44 }),
             wake: new THREE.LineBasicMaterial({ color: 0xd8f5ff, transparent: true, opacity: 0.38 }),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
-            aimGood: new THREE.LineBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.90 }),
-            aimBad: new THREE.LineBasicMaterial({ color: 0xff6c5f, transparent: true, opacity: 0.85 }),
+            aimGood: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 }),
+            aimBad: new THREE.MeshBasicMaterial({ color: 0xff6c5f, transparent: true, opacity: 0.84 }),
             aimMarkerGood: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 }),
             aimMarkerBad: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.58 })
         };
+
+        materials.hullPlayer.side = THREE.DoubleSide;
+        materials.hullEnemy.side = THREE.DoubleSide;
+        materials.sailPlayer.side = THREE.DoubleSide;
+        materials.sailEnemy.side = THREE.DoubleSide;
     }
 
     function createWater() {
@@ -350,40 +358,83 @@
         waterMesh.geometry.computeVertexNormals();
     }
 
+    function createHullGeometry() {
+        var geometry = new THREE.BufferGeometry();
+        var vertices = [
+            -15, 14, -34,
+            15, 14, -34,
+            -16, 14, 8,
+            16, 14, 8,
+            0, 14, 44,
+            -13, 5, -34,
+            13, 5, -34,
+            -15, 4, 8,
+            15, 4, 8,
+            0, 5, 40,
+            0, -2, -28,
+            0, -3, 8,
+            0, 1, 37
+        ];
+        var indices = [
+            0, 2, 3, 0, 3, 1,
+            2, 4, 3,
+            0, 5, 7, 0, 7, 2,
+            2, 7, 9, 2, 9, 4,
+            1, 3, 8, 1, 8, 6,
+            3, 4, 9, 3, 9, 8,
+            0, 1, 6, 0, 6, 5,
+            5, 10, 11, 5, 11, 7,
+            7, 11, 12, 7, 12, 9,
+            6, 8, 11, 6, 11, 10,
+            8, 9, 12, 8, 12, 11,
+            4, 12, 9,
+            4, 3, 12,
+            4, 12, 2
+        ];
+
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
     function createShipMesh(isPlayer) {
         var group = new THREE.Group();
         var hullMat = isPlayer ? materials.hullPlayer : materials.hullEnemy;
         var sailMat = isPlayer ? materials.sailPlayer : materials.sailEnemy;
-        var hull = new THREE.Mesh(new THREE.BoxGeometry(24, 10, 54), hullMat);
-        var deck = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 38), materials.deck);
-        var bow = new THREE.Mesh(new THREE.ConeGeometry(13, 22, 4), hullMat);
-        var stern = new THREE.Mesh(new THREE.BoxGeometry(26, 12, 10), hullMat);
+        var hull = new THREE.Mesh(createHullGeometry(), hullMat);
+        var deck = new THREE.Mesh(new THREE.BoxGeometry(21, 4, 34), materials.deck);
+        var sternBlock = new THREE.Mesh(new THREE.BoxGeometry(24, 8, 12), hullMat);
         var mast = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, 58, 8), materials.mast);
-        var sail = new THREE.Mesh(new THREE.PlaneGeometry(28, 35, 3, 3), sailMat);
-        var cannonL = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 18), materials.cannon);
-        var cannonR = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 18), materials.cannon);
+        var sailPivot = new THREE.Group();
+        var boom = new THREE.Mesh(new THREE.BoxGeometry(33, 2.2, 2.2), materials.mast);
+        var sail = new THREE.Mesh(new THREE.BoxGeometry(30, 36, 1.1, 1, 4, 1), sailMat);
+        var cannonL = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 5), materials.cannon);
+        var cannonR = new THREE.Mesh(new THREE.BoxGeometry(18, 4, 5), materials.cannon);
 
-        hull.position.y = 8;
-        deck.position.y = 15;
-        bow.rotation.x = Math.PI * 0.5;
-        bow.rotation.z = Math.PI * 0.25;
-        bow.position.set(0, 8, 36);
-        stern.position.set(0, 10, -31);
-        mast.position.y = 38;
-        sail.position.set(0, 39, 4);
+        hull.position.y = 6;
+        deck.position.set(0, 20, -6);
+        sternBlock.position.set(0, 13, -35);
+        mast.position.set(0, 42, 0);
+        sailPivot.position.set(0, 43, 1);
+        boom.position.set(0, -5, 0);
+        sail.position.set(0, 8, 0.35);
         sail.userData.isSail = true;
-        cannonL.position.set(-15, 16, 6);
-        cannonR.position.set(15, 16, 6);
+        cannonL.position.set(-17, 19, 2);
+        cannonR.position.set(17, 19, 2);
 
+        sailPivot.add(boom);
+        sailPivot.add(sail);
         group.add(hull);
         group.add(deck);
-        group.add(bow);
-        group.add(stern);
+        group.add(sternBlock);
         group.add(mast);
-        group.add(sail);
+        group.add(sailPivot);
         group.add(cannonL);
         group.add(cannonR);
         group.userData.sailMesh = sail;
+        group.userData.sailPivot = sailPivot;
+        group.userData.boomMesh = boom;
         group.userData.hullMesh = hull;
         group.scale.setScalar(isPlayer ? 1.0 : 0.95);
         return group;
@@ -511,28 +562,26 @@
     }
 
     function createAimObjects() {
-        var lineGeometry = new THREE.BufferGeometry();
-        var points = [];
-        var i;
-        for (i = 0; i < 30; i += 1) {
-            points.push(new THREE.Vector3(0, 0, 0));
-        }
-        lineGeometry.setFromPoints(points);
-        aimLine = new THREE.Line(lineGeometry, materials.aim);
-        aimLine.frustumCulled = false;
-        worldGroup.add(aimLine);
+        var dotGeometry = new THREE.SphereGeometry(3.2, 8, 6);
+        var windGeometry;
+
+        aimDots = new THREE.InstancedMesh(dotGeometry, materials.aimGood, AIM_DOT_COUNT);
+        aimDots.frustumCulled = false;
+        aimDotMatrix = new THREE.Matrix4();
+        worldGroup.add(aimDots);
 
         aimMarker = new THREE.Mesh(new THREE.RingGeometry(13, 16, 32), materials.aimMarkerGood);
         aimMarker.rotation.x = -Math.PI * 0.5;
         aimMarker.position.y = 1;
         worldGroup.add(aimMarker);
 
-        var windGeometry = new THREE.BufferGeometry().setFromPoints([
+        windGeometry = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(0, 0, 0),
             new THREE.Vector3(0, 0, 0)
         ]);
         windArrow = new THREE.Line(windGeometry, materials.wind);
         windArrow.frustumCulled = false;
+        windArrow.visible = DEBUG_ENABLED;
         worldGroup.add(windArrow);
     }
 
@@ -769,10 +818,18 @@
         var wx;
         var wz;
         var windDot;
+        var beamFactor;
+        var tailFactor;
+        var headFactor;
+        var sailEfficiency;
         var thrust;
+        var crossWind;
         var speed;
         var turnPower;
         var damping;
+        var relativeWind;
+        var targetSailAngle;
+        var smoothing;
 
         if (ship.hp <= 0) {
             ship.sinkTimer += dt;
@@ -789,15 +846,29 @@
         wx = Math.sin(state.windAngle);
         wz = Math.cos(state.windAngle);
         windDot = fx * wx + fz * wz;
-        thrust = Math.max(0, windDot) * ship.sail * state.windSpeed * 54 * ship.sailPowerMul;
+        relativeWind = wrapAngle(state.windAngle - ship.heading);
+        targetSailAngle = clamp(-relativeWind * 0.56, -0.98, 0.98);
+        smoothing = 1 - Math.pow(0.001, dt);
+        ship.sailAngle = lerp(ship.sailAngle, targetSailAngle, smoothing);
+
+        beamFactor = Math.sqrt(Math.max(0, 1 - windDot * windDot));
+        tailFactor = Math.max(0, windDot);
+        headFactor = Math.max(0, -windDot);
+        sailEfficiency = 0.30 + beamFactor * 0.58 + tailFactor * 0.42 + headFactor * 0.16;
+        sailEfficiency = clamp(sailEfficiency, 0.34, 1.22);
+        thrust = sailEfficiency * ship.sail * state.windSpeed * 82 * ship.sailPowerMul;
+        crossWind = beamFactor * state.windSpeed * ship.sail * 4.2;
+
         ship.vx += fx * thrust * dt;
         ship.vz += fz * thrust * dt;
+        ship.vx += wx * crossWind * dt;
+        ship.vz += wz * crossWind * dt;
 
         speed = length2(ship.vx, ship.vz);
-        turnPower = (0.48 + clamp(speed / 90, 0, 0.75)) * (0.22 + ship.sail * 0.92);
+        turnPower = (0.44 + clamp(speed / 120, 0, 0.78)) * (0.36 + ship.sail * 0.82);
         ship.heading += rudder * turnPower * dt;
 
-        damping = Math.pow(0.986, dt * 60);
+        damping = Math.pow(0.989, dt * 60);
         ship.vx *= damping;
         ship.vz *= damping;
         ship.x += ship.vx * dt;
@@ -971,11 +1042,12 @@
 
     function getPlayerAimStatus() {
         var p = state.player;
-        var info = getBroadsideInfo(p, state.mouseWorldX, state.mouseWorldZ);
+        var shot = getShotPlan(p, state.mouseWorldX, state.mouseWorldZ);
         return {
-            info: info,
-            canFire: info.inArc && p.fireCooldown <= 0 && p.hp > 0 && !state.gameOver,
-            inArc: info.inArc,
+            info: shot.info,
+            shot: shot,
+            canFire: shot.info.inArc && shot.rangeOk && p.fireCooldown <= 0 && p.hp > 0 && !state.gameOver,
+            inArc: shot.info.inArc,
             reloading: p.fireCooldown > 0
         };
     }
@@ -989,10 +1061,41 @@
         return leftError < rightError ? leftHeading : rightHeading;
     }
 
+    function getShotPlan(ship, targetX, targetZ) {
+        var info = getBroadsideInfo(ship, targetX, targetZ);
+        var startX = ship.x + info.rightX * info.side * 21 + forwardX(ship.heading) * 5;
+        var startY = 20;
+        var startZ = ship.z + info.rightZ * info.side * 21 + forwardZ(ship.heading) * 5;
+        var dx = targetX - startX;
+        var dz = targetZ - startZ;
+        var rawDist = Math.max(1, length2(dx, dz));
+        var rangeScale = rawDist > AIM_MAX_RANGE ? AIM_MAX_RANGE / rawDist : 1;
+        var endX = startX + dx * rangeScale;
+        var endZ = startZ + dz * rangeScale;
+        var dist = Math.max(1, length2(endX - startX, endZ - startZ));
+        var flightTime = clamp(0.50 + dist / 230, 0.68, AIM_MAX_FLIGHT_TIME);
+        var targetY = 1.5;
+        var vx = (endX - startX) / flightTime + ship.vx * 0.12;
+        var vz = (endZ - startZ) / flightTime + ship.vz * 0.12;
+        var vy = (targetY - startY + 0.5 * GRAVITY * flightTime * flightTime) / flightTime;
+
+        return {
+            info: info,
+            startX: startX,
+            startY: startY,
+            startZ: startZ,
+            endX: endX,
+            endZ: endZ,
+            vx: vx,
+            vy: clamp(vy, 48, 245),
+            vz: vz,
+            flightTime: flightTime,
+            rangeOk: rawDist <= AIM_MAX_RANGE
+        };
+    }
+
     function fireFromShip(ship, targetX, targetZ) {
-        var info;
-        var startX;
-        var startZ;
+        var shot;
         var projectile;
         var mesh;
         var cooldown;
@@ -1001,28 +1104,32 @@
             return false;
         }
 
-        info = getBroadsideInfo(ship, targetX, targetZ);
-        if (!info.inArc) {
+        shot = getShotPlan(ship, targetX, targetZ);
+        if (!shot.info.inArc) {
             if (ship.isPlayer && ship.fireHintCooldown <= 0) {
                 setMessage('Target outside broadside arc. Turn the ship side-on before firing.', 1.8);
                 ship.fireHintCooldown = 0.8;
             }
             return false;
         }
+        if (!shot.rangeOk) {
+            if (ship.isPlayer && ship.fireHintCooldown <= 0) {
+                setMessage('Target is out of cannon range.', 1.6);
+                ship.fireHintCooldown = 0.8;
+            }
+            return false;
+        }
 
-        startX = ship.x + info.rightX * info.side * 20 + forwardX(ship.heading) * 6;
-        startZ = ship.z + info.rightZ * info.side * 20 + forwardZ(ship.heading) * 6;
         mesh = createProjectileMesh();
-
         projectile = {
             owner: ship.isPlayer ? 'player' : 'enemy',
             damage: ship.damage,
-            x: startX,
-            y: 19,
-            z: startZ,
-            vx: info.dirX * PROJECTILE_SPEED + ship.vx * 0.22,
-            vy: 72,
-            vz: info.dirZ * PROJECTILE_SPEED + ship.vz * 0.22,
+            x: shot.startX,
+            y: shot.startY,
+            z: shot.startZ,
+            vx: shot.vx,
+            vy: shot.vy,
+            vz: shot.vz,
             life: PROJECTILE_MAX_LIFE,
             mesh: mesh,
             active: true
@@ -1088,7 +1195,7 @@
 
         if (length2(p.x - player.x, p.z - player.z) <= PLAYER_RADIUS) {
             applyDamage(player, p.damage);
-            setMessage('Hit taken. Use wind angle and keep moving.', 2.2);
+            setMessage('Hit taken. Hit taken. Keep moving and turn for a better broadside.', 2.2);
             return true;
         }
         return false;
@@ -1301,7 +1408,7 @@
             }
             p.gold -= cost;
             p.sailPowerMul += 0.14;
-            setMessage('Sail upgraded. Wind thrust increased.', 2.3);
+            setMessage('Sail upgraded. Wind handling improved.', 2.3);
         } else if (slot === 3) {
             cost = upgradeCost('cannon');
             if (p.gold < cost) {
@@ -1408,9 +1515,12 @@
 
         sailMesh = mesh.userData.sailMesh;
         if (sailMesh) {
-            sailCurve = 0.44 + ship.sail * 0.66;
+            sailCurve = 0.62 + ship.sail * 0.38;
             sailMesh.scale.set(sailCurve, 1, 1);
-            sailMesh.rotation.y = Math.sin(state.time * 2.2) * 0.055;
+            sailMesh.rotation.z = Math.sin(state.time * 2.2 + ship.x * 0.01) * 0.035;
+        }
+        if (mesh.userData.sailPivot) {
+            mesh.userData.sailPivot.rotation.y = ship.sailAngle;
         }
 
         if (ship.debugRing) {
@@ -1426,21 +1536,14 @@
         var i;
         var p;
         var crate;
-        var points;
-        var attr;
         var t;
         var simX;
         var simY;
         var simZ;
-        var dirX;
-        var dirZ;
-        var len;
         var vx;
         var vy;
         var vz;
         var windAttr;
-        var windStart;
-        var windEnd;
         var player;
         var aimStatus;
 
@@ -1462,41 +1565,39 @@
 
         player = state.player;
         aimStatus = getPlayerAimStatus();
-        aimLine.material = aimStatus.canFire ? materials.aimGood : materials.aimBad;
+        aimDots.material = aimStatus.canFire ? materials.aimGood : materials.aimBad;
+        aimDots.visible = state.mouseInside && player.hp > 0;
         aimMarker.material = aimStatus.canFire ? materials.aimMarkerGood : materials.aimMarkerBad;
-        aimMarker.position.set(state.mouseWorldX, 1.2, state.mouseWorldZ);
-        dirX = aimStatus.info.dirX;
-        dirZ = aimStatus.info.dirZ;
-        len = aimStatus.info.len;
-        vx = dirX * PROJECTILE_SPEED + player.vx * 0.22;
-        vy = 72;
-        vz = dirZ * PROJECTILE_SPEED + player.vz * 0.22;
-        simX = player.x + aimStatus.info.rightX * aimStatus.info.side * 20 + forwardX(player.heading) * 6;
-        simY = 19;
-        simZ = player.z + aimStatus.info.rightZ * aimStatus.info.side * 20 + forwardZ(player.heading) * 6;
-        attr = aimLine.geometry.attributes.position;
+        aimMarker.visible = state.mouseInside && player.hp > 0;
+        aimMarker.position.set(aimStatus.shot.endX, 1.2, aimStatus.shot.endZ);
+        vx = aimStatus.shot.vx;
+        vy = aimStatus.shot.vy;
+        vz = aimStatus.shot.vz;
+        simX = aimStatus.shot.startX;
+        simY = aimStatus.shot.startY;
+        simZ = aimStatus.shot.startZ;
 
-        for (i = 0; i < attr.count; i += 1) {
-            t = i / (attr.count - 1) * 1.8;
-            points = {
-                x: simX + vx * t,
-                y: simY + vy * t - GRAVITY * t * t * 0.5,
-                z: simZ + vz * t
-            };
-            attr.setXYZ(i, points.x, Math.max(1.5, points.y), points.z);
+        for (i = 0; i < AIM_DOT_COUNT; i += 1) {
+            t = (i / Math.max(1, AIM_DOT_COUNT - 1)) * aimStatus.shot.flightTime;
+            var dotX = simX + vx * t;
+            var dotY = Math.max(1.5, simY + vy * t - GRAVITY * t * t * 0.5);
+            var dotZ = simZ + vz * t;
+            var dotScale = 0.62 + i / AIM_DOT_COUNT * 0.42;
+            aimDotMatrix.makeScale(dotScale, dotScale, dotScale);
+            aimDotMatrix.setPosition(dotX, dotY, dotZ);
+            aimDots.setMatrixAt(i, aimDotMatrix);
         }
-        attr.needsUpdate = true;
+        aimDots.instanceMatrix.needsUpdate = true;
 
-        windStart = new THREE.Vector3(player.x, 70, player.z);
-        windEnd = new THREE.Vector3(
-            player.x + Math.sin(state.windAngle) * 140,
-            70,
-            player.z + Math.cos(state.windAngle) * 140
-        );
-        windAttr = windArrow.geometry.attributes.position;
-        windAttr.setXYZ(0, windStart.x, windStart.y, windStart.z);
-        windAttr.setXYZ(1, windEnd.x, windEnd.y, windEnd.z);
-        windAttr.needsUpdate = true;
+        if (windArrow) {
+            windArrow.visible = DEBUG_ENABLED;
+            if (DEBUG_ENABLED) {
+                windAttr = windArrow.geometry.attributes.position;
+                windAttr.setXYZ(0, player.x, 70, player.z);
+                windAttr.setXYZ(1, player.x + Math.sin(state.windAngle) * 140, 70, player.z + Math.cos(state.windAngle) * 140);
+                windAttr.needsUpdate = true;
+            }
+        }
     }
 
     function mapToMini(value) {
@@ -1657,7 +1758,7 @@
         clockStarted = false;
         buildWorld();
         syncMeshes();
-        setMessage('New run. Use wind angle, broadside arcs, and dock upgrades.', 4);
+        setMessage('New run. Catch the wind, fire broadside, and dock for upgrades.', 4);
     }
 
     function togglePause() {
@@ -1750,7 +1851,7 @@
             THREE = await import(THREE_URL);
             initThree();
             installEvents();
-            setMessage('Isometric 3D prototype loaded. W/S sail, A/D rudder, Q/E camera, LMB broadside fire.', 5);
+            setMessage('Sail and Fire loaded. W/S sail, A/D rudder, Q/E camera, LMB broadside fire.', 5);
             window.requestAnimationFrame(renderFrame);
         } catch (error) {
             if (hud.loading) {
