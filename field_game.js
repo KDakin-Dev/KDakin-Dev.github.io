@@ -3,7 +3,7 @@
 
     var CONFIG = {
         canvasDprMax: 2,
-        buildVersion: "0.12.20-iron-core-cooling-shorter",
+        buildVersion: "0.12.21-web-audio-sfx",
 
         game: {
             playAreaLeft: 18,
@@ -121,6 +121,18 @@
             ironCoreBottomSpawnChance: 0.05,
             ironCoreActiveLimit: 10,
             ironCoreActiveMin: 4
+        },
+
+        audio: {
+            enabled: true,
+            masterGain: 0.42,
+            ambientGain: 0.055,
+            ironCoreAmbientGain: 0.082,
+            supernovaGain: 0.18,
+            absorbGain: 0.095,
+            fusionGain: 0.085,
+            gateGain: 0.11,
+            uiGain: 0.052
         },
 
         nuclei: {
@@ -292,7 +304,8 @@
             closeRects: []
         },
         unlockTimer: 0,
-        unlockName: ""
+        unlockName: "",
+        audioGateInitialized: false
     };
 
     function clamp(value, min, max) {
@@ -315,6 +328,260 @@
         var dx = a.x - b.x;
         var dy = a.y - b.y;
         return dx * dx + dy * dy;
+    }
+
+    var audio = {
+        context: null,
+        master: null,
+        ambient: null,
+        ambientOscA: null,
+        ambientOscB: null,
+        ambientFilter: null,
+        noiseBuffer: null,
+        unlocked: false,
+        started: false,
+        lastCueAt: Object.create(null)
+    };
+
+    function getAudioContextClass() {
+        return window.AudioContext || window.webkitAudioContext || null;
+    }
+
+    function canUseAudio() {
+        return !!CONFIG.audio.enabled && !!getAudioContextClass();
+    }
+
+    function createAudioNoiseBuffer(context) {
+        var sampleRate = context.sampleRate || 44100;
+        var length = Math.floor(sampleRate * 1.0);
+        var buffer = context.createBuffer(1, length, sampleRate);
+        var data = buffer.getChannelData(0);
+        for (var i = 0; i < length; i += 1) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        return buffer;
+    }
+
+    function ensureAudioGraph() {
+        if (!canUseAudio()) return false;
+        if (audio.context) return true;
+
+        var AudioContextClass = getAudioContextClass();
+        var context = new AudioContextClass();
+        var master = context.createGain();
+        master.gain.value = 0.0;
+        master.connect(context.destination);
+
+        var ambient = context.createGain();
+        ambient.gain.value = 0.0;
+
+        var filter = context.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = 180;
+        filter.Q.value = 0.75;
+
+        var oscA = context.createOscillator();
+        oscA.type = "sine";
+        oscA.frequency.value = 48;
+
+        var oscB = context.createOscillator();
+        oscB.type = "triangle";
+        oscB.frequency.value = 72;
+
+        var gainA = context.createGain();
+        var gainB = context.createGain();
+        gainA.gain.value = 0.54;
+        gainB.gain.value = 0.22;
+
+        oscA.connect(gainA);
+        oscB.connect(gainB);
+        gainA.connect(filter);
+        gainB.connect(filter);
+        filter.connect(ambient);
+        ambient.connect(master);
+
+        oscA.start();
+        oscB.start();
+
+        audio.context = context;
+        audio.master = master;
+        audio.ambient = ambient;
+        audio.ambientOscA = oscA;
+        audio.ambientOscB = oscB;
+        audio.ambientFilter = filter;
+        audio.noiseBuffer = createAudioNoiseBuffer(context);
+        return true;
+    }
+
+    function unlockAudio() {
+        if (!ensureAudioGraph()) return;
+        if (audio.context.state === "suspended") {
+            audio.context.resume().catch(function () {});
+        }
+        audio.unlocked = true;
+        audio.started = true;
+        setAudioTarget(audio.master.gain, CONFIG.audio.masterGain, 0.03);
+    }
+
+    function setAudioTarget(param, value, timeConstant) {
+        if (!audio.context || !param || typeof param.setTargetAtTime !== "function") return;
+        param.setTargetAtTime(value, audio.context.currentTime, timeConstant || 0.04);
+    }
+
+    function stopAudioBed() {
+        if (!audio.context || !audio.ambient || !audio.master) return;
+        setAudioTarget(audio.ambient.gain, 0.0, 0.12);
+        setAudioTarget(audio.master.gain, 0.0, 0.18);
+    }
+
+    function updateAudioBed() {
+        if (!audio.unlocked || !audio.context || !state.gameMode) return;
+
+        var temp01 = clamp(state.starProfileTemp / 100, 0, 1);
+        var mass01 = clamp(state.coreMass / Math.max(1, CONFIG.game.ironCoreMassThreshold), 0, 1);
+        var collapse01 = clamp(state.collapseMass / Math.max(1, CONFIG.game.collapseCriticalMass), 0, 1);
+        var phaseBoost = isCollapsePhase() ? 1.0 : (isSupernovaPhase() ? 1.35 : 0.0);
+        var baseGain = CONFIG.audio.ambientGain;
+
+        if (isCollapsePhase()) {
+            baseGain = CONFIG.audio.ironCoreAmbientGain;
+        } else if (isSupernovaPhase()) {
+            baseGain = CONFIG.audio.supernovaGain;
+        } else if (isEndingPhase()) {
+            baseGain = CONFIG.audio.ambientGain * 0.28;
+        }
+
+        var pulse = 0.5 + Math.sin(audio.context.currentTime * (0.55 + mass01 * 0.65)) * 0.5;
+        var targetGain = baseGain * (0.72 + pulse * 0.28);
+        var freqA = 38 + temp01 * 18 + mass01 * 14 + phaseBoost * 18;
+        var freqB = 57 + mass01 * 26 + collapse01 * 34 + phaseBoost * 22;
+        var filterFreq = 135 + temp01 * 230 + collapse01 * 380 + phaseBoost * 90;
+
+        setAudioTarget(audio.ambient.gain, targetGain, 0.22);
+        setAudioTarget(audio.ambientOscA.frequency, freqA, 0.20);
+        setAudioTarget(audio.ambientOscB.frequency, freqB, 0.20);
+        setAudioTarget(audio.ambientFilter.frequency, filterFreq, 0.20);
+        setAudioTarget(audio.master.gain, CONFIG.audio.masterGain, 0.08);
+    }
+
+    function audioNow() {
+        return audio.context ? audio.context.currentTime : 0;
+    }
+
+    function canPlayCue(name, cooldown) {
+        if (!audio.unlocked || !audio.context) return false;
+        var now = audioNow();
+        var last = audio.lastCueAt[name] || -999;
+        if (now - last < (cooldown || 0.02)) return false;
+        audio.lastCueAt[name] = now;
+        return true;
+    }
+
+    function playTone(freq, duration, gain, type, startOffset) {
+        if (!audio.unlocked || !audio.context) return;
+        var context = audio.context;
+        var start = context.currentTime + (startOffset || 0);
+        var osc = context.createOscillator();
+        var amp = context.createGain();
+        var filter = context.createBiquadFilter();
+
+        osc.type = type || "sine";
+        osc.frequency.setValueAtTime(Math.max(20, freq), start);
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(Math.max(120, freq * 5), start);
+        filter.Q.setValueAtTime(0.35, start);
+        amp.gain.setValueAtTime(0.0001, start);
+        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + 0.014);
+        amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+        osc.connect(filter);
+        filter.connect(amp);
+        amp.connect(audio.master);
+        osc.start(start);
+        osc.stop(start + duration + 0.025);
+    }
+
+    function playNoise(duration, gain, filterFreq, startOffset) {
+        if (!audio.unlocked || !audio.context || !audio.noiseBuffer) return;
+        var context = audio.context;
+        var start = context.currentTime + (startOffset || 0);
+        var source = context.createBufferSource();
+        var amp = context.createGain();
+        var filter = context.createBiquadFilter();
+
+        source.buffer = audio.noiseBuffer;
+        source.loop = true;
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(filterFreq || 420, start);
+        filter.Q.setValueAtTime(0.85, start);
+        amp.gain.setValueAtTime(0.0001, start);
+        amp.gain.exponentialRampToValueAtTime(Math.max(0.0002, gain), start + 0.025);
+        amp.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+
+        source.connect(filter);
+        filter.connect(amp);
+        amp.connect(audio.master);
+        source.start(start);
+        source.stop(start + duration + 0.04);
+    }
+
+    function playAbsorbSound(typeName, collapseMode) {
+        if (!canPlayCue("absorb", 0.035)) return;
+        var nucleus = getNucleus(typeName);
+        var mass = nucleus.mass || 1;
+        var heavy01 = clamp((mass - 4) / 52, 0, 1);
+        var freq = collapseMode ? 165 - heavy01 * 60 : 540 - heavy01 * 330;
+        var gain = CONFIG.audio.absorbGain * (collapseMode ? 1.16 : 1.0);
+        var dur = collapseMode ? 0.20 : 0.135;
+
+        playTone(freq, dur, gain, heavy01 > 0.45 ? "triangle" : "sine", 0);
+        playTone(freq * 1.52, dur * 0.72, gain * 0.34, "sine", 0.018);
+        if (mass >= 28 || collapseMode) {
+            playNoise(0.13, gain * 0.16, 260 + heavy01 * 360, 0.0);
+        }
+    }
+
+    function playFusionSound(productName) {
+        if (!canPlayCue("fusion", 0.08)) return;
+        var nucleus = getNucleus(productName);
+        var mass = nucleus.mass || 1;
+        var heavy01 = clamp((mass - 2) / 54, 0, 1);
+        var root = 660 - heavy01 * 310;
+        var gain = CONFIG.audio.fusionGain;
+
+        playTone(root, 0.17, gain, "sine", 0);
+        playTone(root * 1.5, 0.18, gain * 0.54, "triangle", 0.045);
+        playTone(root * 2.0, 0.20, gain * 0.35, "sine", 0.090);
+    }
+
+    function playGateEnterSound() {
+        if (!canPlayCue("gate-enter", 0.30)) return;
+        var gain = CONFIG.audio.gateGain;
+        playTone(196, 0.25, gain * 0.72, "triangle", 0);
+        playTone(132, 0.38, gain * 0.66, "sine", 0.065);
+    }
+
+    function playGateCompleteSound() {
+        if (!canPlayCue("gate-complete", 0.30)) return;
+        var gain = CONFIG.audio.gateGain;
+        playTone(330, 0.16, gain * 0.70, "sine", 0);
+        playTone(495, 0.18, gain * 0.58, "sine", 0.055);
+        playTone(660, 0.22, gain * 0.48, "sine", 0.105);
+    }
+
+    function playIronCoreSound() {
+        if (!canPlayCue("iron-core", 0.80)) return;
+        playTone(74, 0.60, CONFIG.audio.gateGain * 1.0, "sawtooth", 0);
+        playTone(111, 0.54, CONFIG.audio.gateGain * 0.58, "triangle", 0.04);
+        playNoise(0.55, CONFIG.audio.gateGain * 0.18, 520, 0.02);
+    }
+
+    function playSupernovaSound() {
+        if (!canPlayCue("supernova", 1.20)) return;
+        playTone(72, 1.15, CONFIG.audio.supernovaGain * 0.88, "sawtooth", 0);
+        playTone(39, 1.55, CONFIG.audio.supernovaGain * 0.70, "triangle", 0.11);
+        playNoise(1.20, CONFIG.audio.supernovaGain * 0.48, 680, 0.08);
+        playTone(210, 0.40, CONFIG.audio.supernovaGain * 0.28, "sine", 0.42);
     }
 
     function getNucleus(name) {
@@ -420,8 +687,20 @@
 
     function syncMassGateState() {
         var gate = getActiveMassGate();
+        var wasActive = state.massGateActive;
         state.massGateActive = gate.active;
         state.nextGateMass = gate.threshold;
+
+        if (!state.audioGateInitialized) {
+            state.audioGateInitialized = true;
+        } else if (state.gameMode && wasActive !== state.massGateActive) {
+            if (state.massGateActive) {
+                playGateEnterSound();
+            } else if (wasActive) {
+                playGateCompleteSound();
+            }
+        }
+
         return gate;
     }
 
@@ -765,6 +1044,7 @@
         state.tutorial.closeRects = [];
         state.unlockTimer = 0;
         state.unlockName = "";
+        state.audioGateInitialized = false;
         hideFinalUi();
         updateTutorialUiVisibility();
 
@@ -1227,6 +1507,7 @@
     }
 
     function enterGameMode() {
+        unlockAudio();
         state.gameMode = true;
         document.body.classList.add("game-mode");
         resetCoreGame();
@@ -1262,6 +1543,7 @@
         hideFinalUi();
         hideTutorialUi();
         configureLegacyGameHud(false);
+        stopAudioBed();
         updateGameStats();
 
         if (document.fullscreenElement && document.exitFullscreen) {
@@ -1872,6 +2154,7 @@
         state.hotPairs = [];
         state.lastReaction = reaction.label;
         addPulse(x, y, 170);
+        playFusionSound(reaction.product);
         updateAbsorbButtons(true);
     }
 
@@ -1884,6 +2167,7 @@
         }
 
         applyStarProfileAbsorb(node);
+        playAbsorbSound(node.nucleusName, false);
         state.tutorial.absorbDone = true;
         if (state.massGateActive) {
             state.tutorial.massGateDone = true;
@@ -1939,6 +2223,7 @@
             state.lastReaction = nucleus.name + " drove the collapse";
         }
 
+        playAbsorbSound(node.nucleusName, true);
         removeNode(node);
         addPulse(node.x, node.y, 170 + Math.min(260, effect.collapse * 6));
 
@@ -2971,6 +3256,7 @@
 
         prepareIronCoreField();
         showUnlock("IRON CORE");
+        playIronCoreSound();
         addPulse(getCore().x, getCore().y, 300);
     }
 
@@ -3193,6 +3479,7 @@
         state.lastReaction = "SUPERNOVA";
 
         showUnlock("SUPERNOVA");
+        playSupernovaSound();
         addPulse(getCore().x, getCore().y, 520);
     }
 
@@ -4351,6 +4638,7 @@
         updateMetrics();
         updateMiniOrbitProbe(time);
         updateVisualCoreState(dt);
+        updateAudioBed();
 
         if (!state.gameMode) {
             ctx.clearRect(0, 0, state.width, state.height);
@@ -4423,6 +4711,7 @@
     }, { passive: true });
 
     window.addEventListener("pointerdown", function (event) {
+        unlockAudio();
         setPointer(event.clientX, event.clientY, true);
 
         if (state.gameMode && handleTutorialPointerDown(event.clientX, event.clientY)) {
@@ -4460,6 +4749,7 @@
     }, { passive: true });
 
     window.addEventListener("keydown", function (event) {
+        unlockAudio();
         if (event.key === "Escape" && state.gameMode) {
             exitGameMode();
         }
