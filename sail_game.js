@@ -55,7 +55,8 @@
     var ENEMY_RADIUS = 23;
     var DOCK_INTERACT_RADIUS = 72;
     var ISLAND_SHORE_BUFFER = 230;
-    var SHALLOW_WATER_WIDTH = 210;
+    var SHALLOW_WATER_WIDTH = 160;
+    var WATER_SEGMENTS = 144;
     var ISLAND_TOTAL_COUNT = 16;
     var TRADING_ISLAND_COUNT = 4;
     var WILD_ISLAND_COUNT = ISLAND_TOTAL_COUNT - TRADING_ISLAND_COUNT;
@@ -721,30 +722,38 @@
         materials.sailEnemy.side = THREE.DoubleSide;
     }
 
-    function computeWaterColorAt(x, z) {
+    function islandShallowWaterWidth(island) {
+        return clamp(island.r * 0.9, 76, SHALLOW_WATER_WIDTH);
+    }
+
+    function computeWaterColorAt(worldX, worldZ) {
         var color = new THREE.Color(0x1d5a78);
         var deep = new THREE.Color(0x061725);
         var shallow = new THREE.Color(0x58c6bd);
-        var deepFactor = smoothstep(SEA_SOFT_LIMIT * 0.55, SEA_HARD_LIMIT, length2(x, z));
+        var deepFactor = smoothstep(SEA_SOFT_LIMIT * 0.55, SEA_HARD_LIMIT, length2(worldX, worldZ));
         var shallowFactor = 0;
         var i;
         var island;
-        var d;
+        var distanceToCenter;
+        var distanceFromCoast;
+        var shallowWidth;
 
         color.lerp(deep, deepFactor * 0.88);
 
         for (i = 0; i < state.islands.length; i += 1) {
             island = state.islands[i];
-            d = length2(x - island.x, z - island.z);
-            shallowFactor = Math.max(shallowFactor, 1 - smoothstep(10, SHALLOW_WATER_WIDTH, d - islandCoastRadiusAtPoint(island, x, z)));
+            distanceToCenter = length2(worldX - island.x, worldZ - island.z);
+            distanceFromCoast = distanceToCenter - islandCoastRadiusAtPoint(island, worldX, worldZ);
+            shallowWidth = islandShallowWaterWidth(island);
+            shallowFactor = Math.max(shallowFactor, 1 - smoothstep(8, shallowWidth, distanceFromCoast));
         }
 
-        color.lerp(shallow, clamp(shallowFactor * 0.82, 0, 0.82));
+        color.lerp(shallow, clamp(shallowFactor * 0.78, 0, 0.78));
         return color;
     }
 
     function createWater() {
-        var geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, 108, 108);
+        var geometry = new THREE.PlaneGeometry(WATER_SIZE, WATER_SIZE, WATER_SEGMENTS, WATER_SEGMENTS);
         var mesh = new THREE.Mesh(geometry, materials.water);
         var colors = [];
         var position = geometry.attributes.position;
@@ -755,7 +764,7 @@
 
         for (i = 0; i < position.count; i += 1) {
             x = position.getX(i);
-            z = position.getY(i);
+            z = -position.getY(i);
             color = computeWaterColorAt(x, z);
             colors.push(color.r, color.g, color.b);
         }
