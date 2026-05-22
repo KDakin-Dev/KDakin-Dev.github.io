@@ -43,7 +43,7 @@
     var SEA_HARD_LIMIT = 3450;
     var WATER_SIZE = 7600;
     var WATER_OVERLAY_Y = 10;
-    var WATER_TRAIL_Y = 9;
+    var WATER_TRAIL_Y = 6.8;
     var WATER_DEBUG_Y = 11;
     var GRAVITY = 160;
     var PROJECTILE_MAX_LIFE = 3.2;
@@ -684,6 +684,35 @@
         return material;
     }
 
+    function makeWakeLaneMaterial() {
+        return new THREE.ShaderMaterial({
+            transparent: true,
+            depthTest: true,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            uniforms: {
+                uColor: { value: new THREE.Color(0xeaf8ff) },
+                uOpacity: { value: 0.48 }
+            },
+            vertexShader: [
+                'attribute float aAlpha;',
+                'varying float vAlpha;',
+                'void main() {',
+                '    vAlpha = aAlpha;',
+                '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 uColor;',
+                'uniform float uOpacity;',
+                'varying float vAlpha;',
+                'void main() {',
+                '    gl_FragColor = vec4(uColor, uOpacity * vAlpha);',
+                '}'
+            ].join('\n')
+        });
+    }
+
     function setOverlayObject(object, renderOrder) {
         object.renderOrder = renderOrder || 20;
         object.frustumCulled = false;
@@ -720,7 +749,7 @@
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
-            wakeLane: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xf6fbff, transparent: true, opacity: 0.52, side: THREE.DoubleSide })),
+            wakeLane: makeWakeLaneMaterial(),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
@@ -1013,6 +1042,7 @@
     function createWakeLaneMesh() {
         var geometry = new THREE.BufferGeometry();
         var positions = new Float32Array(WAKE_CURVE_SAMPLES * 2 * 3);
+        var alphas = new Float32Array(WAKE_CURVE_SAMPLES * 2);
         var indices = [];
         var i;
 
@@ -1022,6 +1052,7 @@
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
         geometry.setIndex(indices);
         geometry.setDrawRange(0, (WAKE_CURVE_SAMPLES - 1) * 6);
 
@@ -2142,18 +2173,27 @@
     }
 
     function buildWakeLaneLocalPoint(sideSign, t, trailLength) {
-        var p0 = { x: sideSign * 11, z: 18 };
-        var p1 = { x: sideSign * 24, z: 8 };
-        var p2 = { x: sideSign * 30, z: -18 - trailLength * 0.18 };
-        var p3 = { x: sideSign * 18, z: -trailLength };
+        var p0 = { x: sideSign * 24, z: 33 };
+        var p1 = { x: sideSign * 35, z: 20 };
+        var p2 = { x: sideSign * 36, z: -18 - trailLength * 0.16 };
+        var p3 = { x: sideSign * 20, z: -trailLength };
         return cubicBezierPoint(p0, p1, p2, p3, t);
+    }
+
+    function wakeLaneAlpha(t, speedRatio) {
+        var middle = Math.sin(Math.PI * t);
+        var tailFade = 1 - smoothstep(0.72, 1.0, t) * 0.72;
+        return clamp(Math.pow(middle, 0.72) * tailFade * (0.54 + speedRatio * 0.46), 0, 1);
     }
 
     function syncWakeLane(ship, mesh, sideSign) {
         var speed;
+        var speedRatio;
         var trailLength;
         var attr;
+        var alphaAttr;
         var positions;
+        var alphas;
         var i;
         var t;
         var pointLocal;
@@ -2168,6 +2208,7 @@
         var nx;
         var nz;
         var width;
+        var alpha;
 
         if (!mesh) {
             return;
@@ -2179,9 +2220,12 @@
             return;
         }
 
-        trailLength = clamp(52 + speed * 0.78, 56, 118);
+        speedRatio = clamp(speed / 145, 0, 1);
+        trailLength = clamp(52 + speed * 0.70, 58, 112);
         attr = mesh.geometry.attributes.position;
+        alphaAttr = mesh.geometry.attributes.aAlpha;
         positions = attr.array;
+        alphas = alphaAttr.array;
 
         for (i = 0; i < WAKE_CURVE_SAMPLES; i += 1) {
             t = i / Math.max(1, WAKE_CURVE_SAMPLES - 1);
@@ -2198,7 +2242,8 @@
             nx = -tz / tangentLength;
             nz = tx / tangentLength;
 
-            width = (1.2 + speed * 0.008) * (0.18 + Math.sin(Math.PI * t) * 0.82);
+            width = (0.85 + speedRatio * 0.75) * (0.28 + Math.sin(Math.PI * t) * 0.72);
+            alpha = wakeLaneAlpha(t, speedRatio);
 
             positions[(i * 2) * 3 + 0] = pointWorld.x + nx * width;
             positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
@@ -2207,9 +2252,13 @@
             positions[(i * 2 + 1) * 3 + 0] = pointWorld.x - nx * width;
             positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
             positions[(i * 2 + 1) * 3 + 2] = pointWorld.z - nz * width;
+
+            alphas[i * 2] = alpha;
+            alphas[i * 2 + 1] = alpha;
         }
 
         attr.needsUpdate = true;
+        alphaAttr.needsUpdate = true;
     }
 
     function syncWake(ship) {
