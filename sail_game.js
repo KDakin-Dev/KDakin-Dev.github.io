@@ -51,9 +51,9 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_POINT_COUNT = 28;
-    var WAKE_FOAM_DOT_COUNT = 96;
-    var WAKE_LIFE = 3.6;
+    var WAKE_POINT_COUNT = 34;
+    var WAKE_FOAM_INSTANCE_COUNT = 56;
+    var WAKE_LIFE = 3.2;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -83,10 +83,6 @@
     var waterBasePositions = null;
     var aimDots = null;
     var aimDotMatrix = null;
-    var wakeFoamMatrix = null;
-    var wakeFoamPosition = null;
-    var wakeFoamQuaternion = null;
-    var wakeFoamScale = null;
     var aimMarker = null;
     var windArrow = null;
     var minimapContext = null;
@@ -201,7 +197,7 @@
             fireHintCooldown: 0,
             wakeTimer: 0,
             wakePoints: [],
-            wakeMesh: null,
+            wakeRibbon: null,
             wakeFoam: null,
             healthBar: null,
             aiTimer: 0,
@@ -728,8 +724,8 @@
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
-            wake: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xeafcff, transparent: true, opacity: 0.26, side: THREE.DoubleSide })),
-            wakeFoam: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xf7ffff, transparent: true, opacity: 0.66, side: THREE.DoubleSide })),
+            wakeRibbon: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xe7f6ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide })),
+            wakeFoam: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.58, side: THREE.DoubleSide })),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
@@ -1023,47 +1019,25 @@
         var geometry = new THREE.BufferGeometry();
         var positions = new Float32Array(WAKE_POINT_COUNT * 2 * 3);
         var indices = [];
-        var material = materials.wake.clone();
         var i;
-        var leftA;
-        var rightA;
-        var leftB;
-        var rightB;
-
-        for (i = 0; i < positions.length; i += 3) {
-            positions[i] = 0;
-            positions[i + 1] = WATER_TRAIL_Y;
-            positions[i + 2] = 0;
-        }
 
         for (i = 0; i < WAKE_POINT_COUNT - 1; i += 1) {
-            leftA = i * 2;
-            rightA = leftA + 1;
-            leftB = (i + 1) * 2;
-            rightB = leftB + 1;
-            indices.push(leftA, rightA, leftB);
-            indices.push(rightA, rightB, leftB);
+            indices.push(i * 2, i * 2 + 1, i * 2 + 2);
+            indices.push(i * 2 + 1, i * 2 + 3, i * 2 + 2);
         }
 
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setIndex(indices);
         geometry.setDrawRange(0, 0);
-        return setOverlayObject(new THREE.Mesh(geometry, material), 18);
+
+        return setOverlayObject(new THREE.Mesh(geometry, materials.wakeRibbon.clone()), 18);
     }
 
     function createWakeFoamMesh() {
-        var geometry = new THREE.CircleGeometry(1, 9);
-        var material = materials.wakeFoam.clone();
-        var foam = new THREE.InstancedMesh(geometry, material, WAKE_FOAM_DOT_COUNT);
-        var matrix = new THREE.Matrix4();
-        var i;
-
-        matrix.makeScale(0, 0, 0);
-        for (i = 0; i < WAKE_FOAM_DOT_COUNT; i += 1) {
-            foam.setMatrixAt(i, matrix);
-        }
-        foam.instanceMatrix.needsUpdate = true;
-        return setOverlayObject(foam, 19);
+        var geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+        var mesh = new THREE.InstancedMesh(geometry, materials.wakeFoam.clone(), WAKE_FOAM_INSTANCE_COUNT);
+        mesh.frustumCulled = false;
+        return setOverlayObject(mesh, 19);
     }
 
     function createHealthBar() {
@@ -1081,10 +1055,10 @@
     }
 
     function attachShipHelpers(ship) {
-        ship.wakeMesh = createWakeRibbonMesh();
+        ship.wakeRibbon = createWakeRibbonMesh();
         ship.wakeFoam = createWakeFoamMesh();
         ship.healthBar = createHealthBar();
-        worldGroup.add(ship.wakeMesh);
+        worldGroup.add(ship.wakeRibbon);
         worldGroup.add(ship.wakeFoam);
         worldGroup.add(ship.healthBar);
     }
@@ -2188,153 +2162,147 @@
         }
     }
 
-    function wakeNoise(value) {
-        var n = Math.sin(value * 12.9898) * 43758.5453;
-        return n - Math.floor(n);
-    }
+    function getWakeTangent(points, index) {
+        var current = points[index];
+        var prev = points[Math.max(0, index - 1)] || current;
+        var next = points[Math.min(points.length - 1, index + 1)] || current;
+        var tx = prev.x - next.x;
+        var tz = prev.z - next.z;
+        var length = Math.sqrt(tx * tx + tz * tz) || 1;
 
-    function wakeWidthAtProgress(progress) {
-        return lerp(16, 82, smoothstep(0, 1, progress));
+        return { x: tx / length, z: tz / length };
     }
 
     function syncWakeRibbon(ship) {
-        var mesh = ship.wakeMesh;
+        var mesh = ship.wakeRibbon;
         var points = ship.wakePoints;
-        var count = Math.min(points.length, WAKE_POINT_COUNT);
         var attr;
+        var positions;
+        var count;
+        var i;
         var point;
-        var next;
-        var prev;
-        var tx;
-        var tz;
-        var len;
+        var tangent;
         var nx;
         var nz;
+        var t;
         var width;
-        var progress;
-        var i;
 
         if (!mesh) {
             return;
         }
 
-        mesh.visible = count > 1 && ship.hp > 0;
+        count = points.length;
+        mesh.visible = ship.hp > 0 && count >= 3;
         if (!mesh.visible) {
             mesh.geometry.setDrawRange(0, 0);
             return;
         }
 
         attr = mesh.geometry.attributes.position;
+        positions = attr.array;
+
         for (i = 0; i < count; i += 1) {
             point = points[i];
-            next = points[Math.min(i + 1, count - 1)];
-            prev = points[Math.max(i - 1, 0)];
+            tangent = getWakeTangent(points, i);
+            nx = -tangent.z;
+            nz = tangent.x;
+            t = i / Math.max(1, count - 1);
+            width = 4 + Math.pow(t, 0.82) * 20;
 
-            if (i < count - 1) {
-                tx = next.x - point.x;
-                tz = next.z - point.z;
-            } else {
-                tx = point.x - prev.x;
-                tz = point.z - prev.z;
-            }
+            positions[(i * 2) * 3 + 0] = point.x + nx * width;
+            positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2) * 3 + 2] = point.z + nz * width;
 
-            len = Math.max(0.001, length2(tx, tz));
-            tx /= len;
-            tz /= len;
-            nx = -tz;
-            nz = tx;
-            progress = count <= 1 ? 0 : i / (count - 1);
-            width = wakeWidthAtProgress(progress);
-            if (i === count - 1) {
-                width *= 0.55;
-            }
+            positions[(i * 2 + 1) * 3 + 0] = point.x - nx * width;
+            positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2 + 1) * 3 + 2] = point.z - nz * width;
+        }
 
-            attr.setXYZ(i * 2, point.x + nx * width * 0.5, WATER_TRAIL_Y, point.z + nz * width * 0.5);
-            attr.setXYZ(i * 2 + 1, point.x - nx * width * 0.5, WATER_TRAIL_Y, point.z - nz * width * 0.5);
+        for (i = count; i < WAKE_POINT_COUNT; i += 1) {
+            positions[(i * 2) * 3 + 0] = points[count - 1].x;
+            positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2) * 3 + 2] = points[count - 1].z;
+            positions[(i * 2 + 1) * 3 + 0] = points[count - 1].x;
+            positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2 + 1) * 3 + 2] = points[count - 1].z;
         }
 
         attr.needsUpdate = true;
-        mesh.geometry.setDrawRange(0, Math.max(0, count - 1) * 6);
+        mesh.geometry.setDrawRange(0, Math.max(0, (count - 1) * 6));
     }
 
     function syncWakeFoam(ship) {
-        var foam = ship.wakeFoam;
+        var mesh = ship.wakeFoam;
         var points = ship.wakePoints;
-        var count = Math.min(points.length, WAKE_POINT_COUNT);
-        var matrix;
-        var position;
-        var quaternion;
-        var scale;
+        var dummy;
+        var count = 0;
+        var i;
         var point;
-        var next;
-        var tx;
-        var tz;
-        var len;
+        var tangent;
         var nx;
         var nz;
-        var progress;
+        var t;
         var width;
-        var offset;
-        var along;
-        var size;
-        var dotIndex = 0;
-        var i;
-        var k;
-        var base;
+        var laneOffset;
+        var yaw;
+        var scaleX;
+        var scaleY;
 
-        if (!foam) {
+        if (!mesh) {
             return;
         }
 
-        foam.visible = count > 2 && ship.hp > 0;
-        if (!wakeFoamMatrix) {
-            wakeFoamMatrix = new THREE.Matrix4();
-            wakeFoamPosition = new THREE.Vector3();
-            wakeFoamQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI * 0.5, 0, 0));
-            wakeFoamScale = new THREE.Vector3();
+        mesh.visible = ship.hp > 0 && points.length >= 3;
+        if (!mesh.visible) {
+            mesh.count = 0;
+            return;
         }
-        matrix = wakeFoamMatrix;
-        position = wakeFoamPosition;
-        quaternion = wakeFoamQuaternion;
-        scale = wakeFoamScale;
 
-        for (i = 0; i < count - 1 && dotIndex < WAKE_FOAM_DOT_COUNT; i += 1) {
+        dummy = new THREE.Object3D();
+
+        for (i = 1; i < points.length - 1 && count < WAKE_FOAM_INSTANCE_COUNT; i += 1) {
             point = points[i];
-            next = points[i + 1];
-            tx = next.x - point.x;
-            tz = next.z - point.z;
-            len = Math.max(0.001, length2(tx, tz));
-            tx /= len;
-            tz /= len;
-            nx = -tz;
-            nz = tx;
-            progress = count <= 1 ? 0 : i / (count - 1);
-            width = wakeWidthAtProgress(progress);
+            tangent = getWakeTangent(points, i);
+            nx = -tangent.z;
+            nz = tangent.x;
+            t = i / Math.max(1, points.length - 1);
+            width = 5 + Math.pow(t, 0.88) * 17;
+            laneOffset = width * 0.42;
+            yaw = Math.atan2(tangent.x, tangent.z);
 
-            for (k = 0; k < 3 && dotIndex < WAKE_FOAM_DOT_COUNT; k += 1) {
-                base = i * 11 + k * 37 + (ship.isPlayer ? 3 : 19);
-                if (wakeNoise(base + 1) < 0.18) {
-                    continue;
-                }
-                offset = (wakeNoise(base + 2) * 2 - 1) * width * 0.38;
-                along = wakeNoise(base + 3) * len;
-                size = lerp(2.0, 5.8, wakeNoise(base + 4)) * lerp(1.0, 0.55, progress);
-                position.set(point.x + tx * along + nx * offset, WATER_TRAIL_Y + 0.08, point.z + tz * along + nz * offset);
-                scale.set(size * lerp(1.2, 2.1, wakeNoise(base + 5)), size * 0.72, 1);
-                matrix.compose(position, quaternion, scale);
-                foam.setMatrixAt(dotIndex, matrix);
-                dotIndex += 1;
+            scaleX = 4 + (1 - t) * 4.5;
+            scaleY = 1.2 + (1 - t) * 1.2;
+
+            dummy.position.set(point.x + nx * laneOffset, WATER_TRAIL_Y + 0.3, point.z + nz * laneOffset);
+            dummy.rotation.set(-Math.PI * 0.5, 0, yaw + 0.18);
+            dummy.scale.set(scaleX, scaleY, 1);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(count, dummy.matrix);
+            count += 1;
+
+            if (count >= WAKE_FOAM_INSTANCE_COUNT) {
+                break;
+            }
+
+            dummy.position.set(point.x - nx * laneOffset, WATER_TRAIL_Y + 0.3, point.z - nz * laneOffset);
+            dummy.rotation.set(-Math.PI * 0.5, 0, yaw - 0.18);
+            dummy.scale.set(scaleX, scaleY, 1);
+            dummy.updateMatrix();
+            mesh.setMatrixAt(count, dummy.matrix);
+            count += 1;
+
+            if (i < 5 && count < WAKE_FOAM_INSTANCE_COUNT) {
+                dummy.position.set(point.x, WATER_TRAIL_Y + 0.35, point.z);
+                dummy.rotation.set(-Math.PI * 0.5, 0, yaw);
+                dummy.scale.set(scaleX * 0.9, scaleY * 1.4, 1);
+                dummy.updateMatrix();
+                mesh.setMatrixAt(count, dummy.matrix);
+                count += 1;
             }
         }
 
-        scale.set(0, 0, 0);
-        position.set(0, WATER_TRAIL_Y, 0);
-        matrix.compose(position, quaternion, scale);
-        while (dotIndex < WAKE_FOAM_DOT_COUNT) {
-            foam.setMatrixAt(dotIndex, matrix);
-            dotIndex += 1;
-        }
-        foam.instanceMatrix.needsUpdate = true;
+        mesh.count = count;
+        mesh.instanceMatrix.needsUpdate = true;
     }
 
     function syncWake(ship) {
