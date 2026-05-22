@@ -51,8 +51,9 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_POINT_COUNT = 34;
-    var WAKE_LIFE = 3.2;
+    var WAKE_POINT_COUNT = 28;
+    var WAKE_FOAM_DOT_COUNT = 96;
+    var WAKE_LIFE = 3.6;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -82,6 +83,10 @@
     var waterBasePositions = null;
     var aimDots = null;
     var aimDotMatrix = null;
+    var wakeFoamMatrix = null;
+    var wakeFoamPosition = null;
+    var wakeFoamQuaternion = null;
+    var wakeFoamScale = null;
     var aimMarker = null;
     var windArrow = null;
     var minimapContext = null;
@@ -196,7 +201,8 @@
             fireHintCooldown: 0,
             wakeTimer: 0,
             wakePoints: [],
-            wakeLine: null,
+            wakeMesh: null,
+            wakeFoam: null,
             healthBar: null,
             aiTimer: 0,
             aiState: 'patrol',
@@ -722,7 +728,8 @@
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
-            wake: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0xd8f5ff, transparent: true, opacity: 0.30 })),
+            wake: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xeafcff, transparent: true, opacity: 0.26, side: THREE.DoubleSide })),
+            wakeFoam: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xf7ffff, transparent: true, opacity: 0.66, side: THREE.DoubleSide })),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
@@ -1012,20 +1019,51 @@
         return ring;
     }
 
-    function createWakeLine() {
+    function createWakeRibbonMesh() {
         var geometry = new THREE.BufferGeometry();
-        var values = new Float32Array(WAKE_POINT_COUNT * 3);
+        var positions = new Float32Array(WAKE_POINT_COUNT * 2 * 3);
+        var indices = [];
         var material = materials.wake.clone();
         var i;
+        var leftA;
+        var rightA;
+        var leftB;
+        var rightB;
 
-        for (i = 0; i < values.length; i += 3) {
-            values[i] = 0;
-            values[i + 1] = -1000;
-            values[i + 2] = 0;
+        for (i = 0; i < positions.length; i += 3) {
+            positions[i] = 0;
+            positions[i + 1] = WATER_TRAIL_Y;
+            positions[i + 2] = 0;
         }
 
-        geometry.setAttribute('position', new THREE.BufferAttribute(values, 3));
-        return setOverlayObject(new THREE.Line(geometry, material), 18);
+        for (i = 0; i < WAKE_POINT_COUNT - 1; i += 1) {
+            leftA = i * 2;
+            rightA = leftA + 1;
+            leftB = (i + 1) * 2;
+            rightB = leftB + 1;
+            indices.push(leftA, rightA, leftB);
+            indices.push(rightA, rightB, leftB);
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
+        geometry.setDrawRange(0, 0);
+        return setOverlayObject(new THREE.Mesh(geometry, material), 18);
+    }
+
+    function createWakeFoamMesh() {
+        var geometry = new THREE.CircleGeometry(1, 9);
+        var material = materials.wakeFoam.clone();
+        var foam = new THREE.InstancedMesh(geometry, material, WAKE_FOAM_DOT_COUNT);
+        var matrix = new THREE.Matrix4();
+        var i;
+
+        matrix.makeScale(0, 0, 0);
+        for (i = 0; i < WAKE_FOAM_DOT_COUNT; i += 1) {
+            foam.setMatrixAt(i, matrix);
+        }
+        foam.instanceMatrix.needsUpdate = true;
+        return setOverlayObject(foam, 19);
     }
 
     function createHealthBar() {
@@ -1043,9 +1081,11 @@
     }
 
     function attachShipHelpers(ship) {
-        ship.wakeLine = createWakeLine();
+        ship.wakeMesh = createWakeRibbonMesh();
+        ship.wakeFoam = createWakeFoamMesh();
         ship.healthBar = createHealthBar();
-        worldGroup.add(ship.wakeLine);
+        worldGroup.add(ship.wakeMesh);
+        worldGroup.add(ship.wakeFoam);
         worldGroup.add(ship.healthBar);
     }
 
@@ -2148,31 +2188,158 @@
         }
     }
 
-    function syncWakeLine(ship) {
-        var line = ship.wakeLine;
+    function wakeNoise(value) {
+        var n = Math.sin(value * 12.9898) * 43758.5453;
+        return n - Math.floor(n);
+    }
+
+    function wakeWidthAtProgress(progress) {
+        return lerp(16, 82, smoothstep(0, 1, progress));
+    }
+
+    function syncWakeRibbon(ship) {
+        var mesh = ship.wakeMesh;
+        var points = ship.wakePoints;
+        var count = Math.min(points.length, WAKE_POINT_COUNT);
         var attr;
         var point;
-        var lastX = ship.x;
-        var lastZ = ship.z;
+        var next;
+        var prev;
+        var tx;
+        var tz;
+        var len;
+        var nx;
+        var nz;
+        var width;
+        var progress;
         var i;
 
-        if (!line) {
+        if (!mesh) {
             return;
         }
 
-        attr = line.geometry.attributes.position;
-        for (i = 0; i < WAKE_POINT_COUNT; i += 1) {
-            point = ship.wakePoints[i];
-            if (point) {
-                lastX = point.x;
-                lastZ = point.z;
-                attr.setXYZ(i, point.x, WATER_TRAIL_Y, point.z);
+        mesh.visible = count > 1 && ship.hp > 0;
+        if (!mesh.visible) {
+            mesh.geometry.setDrawRange(0, 0);
+            return;
+        }
+
+        attr = mesh.geometry.attributes.position;
+        for (i = 0; i < count; i += 1) {
+            point = points[i];
+            next = points[Math.min(i + 1, count - 1)];
+            prev = points[Math.max(i - 1, 0)];
+
+            if (i < count - 1) {
+                tx = next.x - point.x;
+                tz = next.z - point.z;
             } else {
-                attr.setXYZ(i, lastX, -1000, lastZ);
+                tx = point.x - prev.x;
+                tz = point.z - prev.z;
+            }
+
+            len = Math.max(0.001, length2(tx, tz));
+            tx /= len;
+            tz /= len;
+            nx = -tz;
+            nz = tx;
+            progress = count <= 1 ? 0 : i / (count - 1);
+            width = wakeWidthAtProgress(progress);
+            if (i === count - 1) {
+                width *= 0.55;
+            }
+
+            attr.setXYZ(i * 2, point.x + nx * width * 0.5, WATER_TRAIL_Y, point.z + nz * width * 0.5);
+            attr.setXYZ(i * 2 + 1, point.x - nx * width * 0.5, WATER_TRAIL_Y, point.z - nz * width * 0.5);
+        }
+
+        attr.needsUpdate = true;
+        mesh.geometry.setDrawRange(0, Math.max(0, count - 1) * 6);
+    }
+
+    function syncWakeFoam(ship) {
+        var foam = ship.wakeFoam;
+        var points = ship.wakePoints;
+        var count = Math.min(points.length, WAKE_POINT_COUNT);
+        var matrix;
+        var position;
+        var quaternion;
+        var scale;
+        var point;
+        var next;
+        var tx;
+        var tz;
+        var len;
+        var nx;
+        var nz;
+        var progress;
+        var width;
+        var offset;
+        var along;
+        var size;
+        var dotIndex = 0;
+        var i;
+        var k;
+        var base;
+
+        if (!foam) {
+            return;
+        }
+
+        foam.visible = count > 2 && ship.hp > 0;
+        if (!wakeFoamMatrix) {
+            wakeFoamMatrix = new THREE.Matrix4();
+            wakeFoamPosition = new THREE.Vector3();
+            wakeFoamQuaternion = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI * 0.5, 0, 0));
+            wakeFoamScale = new THREE.Vector3();
+        }
+        matrix = wakeFoamMatrix;
+        position = wakeFoamPosition;
+        quaternion = wakeFoamQuaternion;
+        scale = wakeFoamScale;
+
+        for (i = 0; i < count - 1 && dotIndex < WAKE_FOAM_DOT_COUNT; i += 1) {
+            point = points[i];
+            next = points[i + 1];
+            tx = next.x - point.x;
+            tz = next.z - point.z;
+            len = Math.max(0.001, length2(tx, tz));
+            tx /= len;
+            tz /= len;
+            nx = -tz;
+            nz = tx;
+            progress = count <= 1 ? 0 : i / (count - 1);
+            width = wakeWidthAtProgress(progress);
+
+            for (k = 0; k < 3 && dotIndex < WAKE_FOAM_DOT_COUNT; k += 1) {
+                base = i * 11 + k * 37 + (ship.isPlayer ? 3 : 19);
+                if (wakeNoise(base + 1) < 0.18) {
+                    continue;
+                }
+                offset = (wakeNoise(base + 2) * 2 - 1) * width * 0.38;
+                along = wakeNoise(base + 3) * len;
+                size = lerp(2.0, 5.8, wakeNoise(base + 4)) * lerp(1.0, 0.55, progress);
+                position.set(point.x + tx * along + nx * offset, WATER_TRAIL_Y + 0.08, point.z + tz * along + nz * offset);
+                scale.set(size * lerp(1.2, 2.1, wakeNoise(base + 5)), size * 0.72, 1);
+                matrix.compose(position, quaternion, scale);
+                foam.setMatrixAt(dotIndex, matrix);
+                dotIndex += 1;
             }
         }
-        attr.needsUpdate = true;
-        line.visible = ship.wakePoints.length > 1 && ship.hp > 0;
+
+        scale.set(0, 0, 0);
+        position.set(0, WATER_TRAIL_Y, 0);
+        matrix.compose(position, quaternion, scale);
+        while (dotIndex < WAKE_FOAM_DOT_COUNT) {
+            foam.setMatrixAt(dotIndex, matrix);
+            dotIndex += 1;
+        }
+        foam.instanceMatrix.needsUpdate = true;
+    }
+
+    function syncWake(ship) {
+        syncWakeRibbon(ship);
+        syncWakeFoam(ship);
     }
 
     function syncHealthBar(ship) {
@@ -2226,7 +2393,7 @@
             ship.debugRing.visible = DEBUG_ENABLED && ship.hp > 0;
         }
 
-        syncWakeLine(ship);
+        syncWake(ship);
         syncHealthBar(ship);
     }
 
