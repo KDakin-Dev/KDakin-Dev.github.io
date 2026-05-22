@@ -64,7 +64,13 @@
     var AIM_MAX_RANGE = 520;
     var AIM_ZONE_INNER_RANGE = 42;
     var AIM_ZONE_SEGMENTS = 40;
-    var PLAYER_CANNON_RELOAD_BASE = 0.39;
+    var AIM_ZONE_ALPHA_IDLE = 0.115;
+    var AIM_ZONE_ALPHA_ACTIVE = 0.225;
+    var AIM_ZONE_ALPHA_BAD = 0.205;
+    var AIM_ZONE_ALPHA_COOLDOWN = 0.135;
+    var AIM_ZONE_EDGE_ALPHA_MIN = 0.48;
+    var AIM_ZONE_RADIUS_ALPHA_MIN = 0.42;
+    var PLAYER_CANNON_RELOAD_BASE = 0.50;
     var ENEMY_CANNON_RELOAD_BASE = 1.15;
     var WAKE_CURVE_SAMPLES = 96;
     var WAKE_MIN_SPEED = 8;
@@ -846,10 +852,10 @@
             aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 })),
             aimMarkerBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff5d55, wireframe: true, transparent: true, opacity: 0.72 })),
             aimMarkerCooldown: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xc8d3dc, wireframe: true, transparent: true, opacity: 0.52 })),
-            aimZoneFill: makeAimZoneMaterial(0x32d1a0, 0.034),
-            aimZoneFillActive: makeAimZoneMaterial(0x32d1a0, 0.068),
-            aimZoneFillBad: makeAimZoneMaterial(0xff5d55, 0.060),
-            aimZoneFillCooldown: makeAimZoneMaterial(0xc8d3dc, 0.042)
+            aimZoneFill: makeAimZoneMaterial(0x32d1a0, AIM_ZONE_ALPHA_IDLE),
+            aimZoneFillActive: makeAimZoneMaterial(0x32d1a0, AIM_ZONE_ALPHA_ACTIVE),
+            aimZoneFillBad: makeAimZoneMaterial(0xff5d55, AIM_ZONE_ALPHA_BAD),
+            aimZoneFillCooldown: makeAimZoneMaterial(0xc8d3dc, AIM_ZONE_ALPHA_COOLDOWN)
         };
 
         materials.hullPlayer.side = THREE.DoubleSide;
@@ -1174,8 +1180,8 @@
     function getAimZoneVertexAlpha(angleT, radiusT) {
         var angleEdge = clamp(Math.min(angleT, 1 - angleT) / 0.18, 0, 1);
         var radiusEdge = clamp(Math.min(radiusT, 1 - radiusT) / 0.25, 0, 1);
-        var angleAlpha = lerp(0.32, 1.0, angleEdge);
-        var radiusAlpha = lerp(0.26, 1.0, radiusEdge);
+        var angleAlpha = lerp(AIM_ZONE_EDGE_ALPHA_MIN, 1.0, angleEdge);
+        var radiusAlpha = lerp(AIM_ZONE_RADIUS_ALPHA_MIN, 1.0, radiusEdge);
         return angleAlpha * radiusAlpha;
     }
 
