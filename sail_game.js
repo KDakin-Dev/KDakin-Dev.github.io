@@ -1,12 +1,13 @@
 (function () {
     'use strict';
 
+    var THREE_URL = 'https://unpkg.com/three@0.165.0/build/three.module.js';
     var canvas = document.getElementById('sail-canvas');
+
     if (!canvas) {
         return;
     }
 
-    var ctx = canvas.getContext('2d', { alpha: false });
     var hud = {
         hp: document.querySelector('[data-hud="hp"]'),
         sail: document.querySelector('[data-hud="sail"]'),
@@ -14,22 +15,41 @@
         cargo: document.querySelector('[data-hud="cargo"]'),
         gold: document.querySelector('[data-hud="gold"]'),
         enemies: document.querySelector('[data-hud="enemies"]'),
+        dock: document.querySelector('[data-hud="dock"]'),
+        upgrade: document.querySelector('[data-hud="upgrade"]'),
         message: document.querySelector('[data-sail-message]'),
         pauseCard: document.querySelector('[data-sail-pause-card]'),
         pauseButton: document.querySelector('[data-sail-pause]'),
-        resetButton: document.querySelector('[data-sail-reset]')
+        resetButton: document.querySelector('[data-sail-reset]'),
+        loading: document.querySelector('[data-sail-loading]')
     };
 
+    var DEBUG_ENABLED = new URLSearchParams(window.location.search).get('debug') === '1';
     var TAU = Math.PI * 2;
     var FIXED_DT = 1 / 60;
-    var PROJECTILE_SPEED = 250;
-    var PROJECTILE_LIFE = 1.85;
-    var PLAYER_RADIUS = 20;
-    var ENEMY_RADIUS = 20;
-    var ISLAND_DOCK_RADIUS = 104;
-    var MAX_PROJECTILES = 80;
-    var MAX_PARTICLES = 180;
-    var DEBUG_ENABLED = new URLSearchParams(window.location.search).get('debug') === '1';
+    var SEA_LIMIT = 1750;
+    var GRAVITY = 160;
+    var PROJECTILE_SPEED = 280;
+    var PROJECTILE_MAX_LIFE = 3.2;
+    var PLAYER_RADIUS = 24;
+    var ENEMY_RADIUS = 23;
+    var ISLAND_DOCK_RADIUS = 118;
+    var THREE = null;
+    var renderer = null;
+    var scene = null;
+    var camera = null;
+    var raycaster = null;
+    var groundPlane = null;
+    var worldGroup = null;
+    var waterMesh = null;
+    var waterPositions = null;
+    var waterBasePositions = null;
+    var aimLine = null;
+    var aimMarker = null;
+    var windArrow = null;
+    var clockStarted = false;
+    var lastFrameTime = 0;
+    var accumulator = 0;
 
     function clamp(value, min, max) {
         return Math.max(min, Math.min(max, value));
@@ -49,14 +69,14 @@
         return angle;
     }
 
-    function dist(a, b) {
-        var dx = a.x - b.x;
-        var dy = a.y - b.y;
-        return Math.sqrt(dx * dx + dy * dy);
+    function length2(x, z) {
+        return Math.sqrt(x * x + z * z);
     }
 
-    function length(x, y) {
-        return Math.sqrt(x * x + y * y);
+    function dist2(a, b) {
+        var dx = a.x - b.x;
+        var dz = a.z - b.z;
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     function pad(value, count) {
@@ -78,9 +98,11 @@
         var params = new URLSearchParams(window.location.search);
         var raw = params.get('seed') || '42';
         var numeric = Number(raw);
+
         if (Number.isFinite(numeric)) {
             return numeric >>> 0;
         }
+
         var hash = 2166136261;
         for (var i = 0; i < raw.length; i += 1) {
             hash ^= raw.charCodeAt(i);
@@ -94,33 +116,50 @@
     }
 
     function angleName(angle) {
-        var names = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+        var names = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
         var normalized = (angle % TAU + TAU) % TAU;
         var index = Math.round(normalized / (TAU / 8)) % 8;
         return names[index];
     }
 
-    function makeShip(x, y, heading, isPlayer) {
+    function forwardX(heading) {
+        return Math.sin(heading);
+    }
+
+    function forwardZ(heading) {
+        return Math.cos(heading);
+    }
+
+    function makeShip(x, z, heading, isPlayer) {
         return {
             x: x,
-            y: y,
+            z: z,
+            y: 0,
             vx: 0,
-            vy: 0,
+            vz: 0,
             heading: heading,
             sail: isPlayer ? 0.55 : 0.78,
-            hp: isPlayer ? 100 : 72,
-            maxHp: isPlayer ? 100 : 72,
-            fireCooldown: 0,
+            hp: isPlayer ? 100 : 78,
+            maxHp: isPlayer ? 100 : 78,
+            cargo: 0,
+            cargoValue: 0,
+            cargoCapacity: isPlayer ? 6 : 2,
+            gold: 0,
+            kills: 0,
             hitFlash: 0,
             sinkTimer: 0,
-            isPlayer: isPlayer,
+            fireCooldown: 0,
             aiTimer: 0,
             aiState: 'patrol',
             targetX: x,
-            targetY: y,
-            gold: 0,
-            cargo: 0,
-            kills: 0
+            targetZ: z,
+            patrolIndex: 0,
+            isPlayer: isPlayer,
+            mesh: null,
+            debugRing: null,
+            damage: isPlayer ? 35 : 18,
+            cannonCooldownMul: 1,
+            sailPowerMul: 1
         };
     }
 
@@ -128,67 +167,80 @@
         var seed = seedFromUrl();
         var rng = makeRng(seed);
         var islands = [];
-        islands.push({ x: 0, y: 0, r: 74, dock: true, name: 'Harbor' });
-        for (var i = 0; i < 5; i += 1) {
-            var angle = randRange(rng, 0, TAU);
-            var radius = randRange(rng, 360, 880);
+        var enemies = [];
+        var i;
+        var angle;
+        var radius;
+
+        islands.push({
+            x: -110,
+            z: -80,
+            r: 86,
+            dock: true,
+            name: 'Harbor',
+            mesh: null,
+            debugRing: null
+        });
+
+        for (i = 0; i < 6; i += 1) {
+            angle = randRange(rng, 0, TAU);
+            radius = randRange(rng, 430, 1200);
             islands.push({
-                x: Math.cos(angle) * radius,
-                y: Math.sin(angle) * radius,
-                r: randRange(rng, 42, 86),
+                x: Math.sin(angle) * radius,
+                z: Math.cos(angle) * radius,
+                r: randRange(rng, 48, 95),
                 dock: i % 2 === 0,
-                name: 'Island ' + (i + 1)
+                name: 'Island ' + (i + 1),
+                mesh: null,
+                debugRing: null
             });
         }
 
-        var enemies = [];
-        for (var e = 0; e < 4; e += 1) {
-            var enemyAngle = randRange(rng, 0, TAU);
-            var enemyRadius = randRange(rng, 450, 920);
-            enemies.push(makeShip(Math.cos(enemyAngle) * enemyRadius, Math.sin(enemyAngle) * enemyRadius, randRange(rng, 0, TAU), false));
+        for (i = 0; i < 5; i += 1) {
+            angle = randRange(rng, 0, TAU);
+            radius = randRange(rng, 520, 1300);
+            enemies.push(makeShip(Math.sin(angle) * radius, Math.cos(angle) * radius, randRange(rng, 0, TAU), false));
         }
 
         return {
             seed: seed,
             rng: rng,
             time: 0,
-            running: true,
             paused: false,
             gameOver: false,
-            width: 1,
-            height: 1,
-            dpr: 1,
-            lastFrameTime: 0,
-            accumulator: 0,
-            cameraX: 0,
-            cameraY: 0,
-            player: makeShip(-125, -40, 0.15, true),
+            routeClear: false,
+            docked: false,
+            dockTimer: 0,
+            sellCooldown: 0,
+            player: makeShip(-250, -190, 0.35, true),
             enemies: enemies,
             islands: islands,
             crates: [],
             projectiles: [],
-            particles: [],
+            splashes: [],
             windAngle: randRange(rng, 0, TAU),
-            windSpeed: randRange(rng, 0.78, 1.05),
             windTargetAngle: randRange(rng, 0, TAU),
-            windTimer: 4,
+            windSpeed: randRange(rng, 0.78, 1.08),
+            windTimer: 5,
+            cameraTargetX: 0,
+            cameraTargetZ: 0,
+            cameraOrbit: Math.PI * 0.25,
+            mouseNdcX: 0,
+            mouseNdcY: 0,
+            mouseWorldX: 0,
+            mouseWorldZ: 0,
+            mouseInside: false,
+            messageText: 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire.',
             messageTimer: 0,
-            messageText: 'W/S sail. A/D rudder. Mouse to aim. Click or Space to fire.',
             input: {
                 sailUp: false,
                 sailDown: false,
                 left: false,
                 right: false,
+                camLeft: false,
+                camRight: false,
                 fire: false
-            },
-            mouse: {
-                x: 0,
-                y: 0,
-                worldX: 0,
-                worldY: 0,
-                inside: false
-            },
-            lastRenderTime: 0
+            }
         };
     }
 
@@ -196,684 +248,1026 @@
 
     function setMessage(text, seconds) {
         state.messageText = text;
-        state.messageTimer = seconds || 3.0;
+        state.messageTimer = seconds || 3;
         if (hud.message) {
             hud.message.textContent = text;
         }
     }
 
-    function resize() {
-        var rect = canvas.getBoundingClientRect();
-        var dpr = Math.min(window.devicePixelRatio || 1, 1.25);
-        state.width = Math.max(320, rect.width);
-        state.height = Math.max(320, rect.height);
-        state.dpr = dpr;
-        canvas.width = Math.floor(state.width * dpr);
-        canvas.height = Math.floor(state.height * dpr);
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    function makeMaterial(color, roughness, metalness) {
+        return new THREE.MeshStandardMaterial({
+            color: color,
+            roughness: roughness,
+            metalness: metalness,
+            flatShading: true
+        });
     }
 
-    function screenToWorld(x, y) {
-        return {
-            x: state.cameraX + x - state.width * 0.5,
-            y: state.cameraY + y - state.height * 0.5
+    var materials = null;
+
+    function initMaterials() {
+        materials = {
+            water: new THREE.MeshStandardMaterial({
+                color: 0x174b6e,
+                roughness: 0.82,
+                metalness: 0.03,
+                flatShading: true
+            }),
+            hullPlayer: makeMaterial(0x7a4a2e, 0.86, 0.02),
+            hullEnemy: makeMaterial(0x5a2530, 0.88, 0.02),
+            deck: makeMaterial(0xc58b52, 0.78, 0.02),
+            mast: makeMaterial(0x3a2418, 0.82, 0.02),
+            sailPlayer: makeMaterial(0xe8eef4, 0.70, 0.0),
+            sailEnemy: makeMaterial(0xd3b4aa, 0.78, 0.0),
+            cannon: makeMaterial(0x191b1f, 0.55, 0.18),
+            cannonball: makeMaterial(0x101113, 0.48, 0.42),
+            sand: makeMaterial(0xb58d4d, 0.90, 0.0),
+            grass: makeMaterial(0x4e8c50, 0.92, 0.0),
+            palm: makeMaterial(0x5d3c21, 0.90, 0.0),
+            leaf: makeMaterial(0x2f7f54, 0.92, 0.0),
+            crate: makeMaterial(0xb57231, 0.88, 0.0),
+            dock: makeMaterial(0x6b472a, 0.88, 0.0),
+            debugGreen: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 }),
+            debugRed: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 }),
+            aim: new THREE.LineBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.86 }),
+            wind: new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.85 })
         };
     }
 
-    function worldToScreen(x, y) {
-        return {
-            x: x - state.cameraX + state.width * 0.5,
-            y: y - state.cameraY + state.height * 0.5
-        };
+    function createWater() {
+        var geometry = new THREE.PlaneGeometry(4200, 4200, 72, 72);
+        var mesh = new THREE.Mesh(geometry, materials.water);
+        mesh.rotation.x = -Math.PI * 0.5;
+        mesh.position.y = -2;
+        mesh.receiveShadow = false;
+        waterPositions = geometry.attributes.position;
+        waterBasePositions = new Float32Array(waterPositions.array.length);
+        waterBasePositions.set(waterPositions.array);
+        scene.add(mesh);
+        waterMesh = mesh;
     }
 
-    function addParticle(x, y, vx, vy, life, size, color) {
-        if (state.particles.length >= MAX_PARTICLES) {
-            state.particles.shift();
-        }
-        state.particles.push({ x: x, y: y, vx: vx, vy: vy, life: life, maxLife: life, size: size, color: color });
-    }
-
-    function addProjectile(owner, x, y, vx, vy) {
-        if (state.projectiles.length >= MAX_PROJECTILES) {
-            state.projectiles.shift();
-        }
-        state.projectiles.push({ owner: owner, x: x, y: y, vx: vx, vy: vy, life: PROJECTILE_LIFE, active: true });
-    }
-
-    function fireFromShip(ship, targetX, targetY) {
-        if (ship.fireCooldown > 0 || ship.hp <= 0) {
-            return false;
-        }
-        var toX = targetX - ship.x;
-        var toY = targetY - ship.y;
-        var len = length(toX, toY);
-        if (len < 1) {
-            return false;
-        }
-        var dirX = toX / len;
-        var dirY = toY / len;
-        var forwardX = Math.cos(ship.heading);
-        var forwardY = Math.sin(ship.heading);
-        var rightX = -forwardY;
-        var rightY = forwardX;
-        var side = (dirX * rightX + dirY * rightY) >= 0 ? 1 : -1;
-        var muzzleX = ship.x + rightX * side * 22 + forwardX * 7;
-        var muzzleY = ship.y + rightY * side * 22 + forwardY * 7;
-        var baseSpeedX = ship.vx * 0.34;
-        var baseSpeedY = ship.vy * 0.34;
-        addProjectile(ship.isPlayer ? 'player' : 'enemy', muzzleX, muzzleY, dirX * PROJECTILE_SPEED + baseSpeedX, dirY * PROJECTILE_SPEED + baseSpeedY);
-        ship.fireCooldown = ship.isPlayer ? 0.58 : 1.18;
-        for (var i = 0; i < 8; i += 1) {
-            addParticle(muzzleX, muzzleY, dirX * randRange(state.rng, 25, 70) + randRange(state.rng, -22, 22), dirY * randRange(state.rng, 25, 70) + randRange(state.rng, -22, 22), randRange(state.rng, 0.24, 0.46), randRange(state.rng, 2, 5), 'rgba(230, 238, 245, 0.70)');
-        }
-        return true;
-    }
-
-    function applyShipPhysics(ship, dt, rudderInput, desiredSail) {
-        if (ship.hp <= 0) {
-            ship.vx *= Math.pow(0.992, dt * 60);
-            ship.vy *= Math.pow(0.992, dt * 60);
-            ship.sinkTimer += dt;
+    function updateWater(time) {
+        if (!waterPositions || !waterBasePositions) {
             return;
         }
 
-        ship.sail = clamp(lerp(ship.sail, desiredSail, 0.055), 0, 1);
-        var forwardX = Math.cos(ship.heading);
-        var forwardY = Math.sin(ship.heading);
-        var windX = Math.cos(state.windAngle);
-        var windY = Math.sin(state.windAngle);
-        var downwind = Math.max(0, forwardX * windX + forwardY * windY);
-        var crosswind = Math.abs(forwardX * windY - forwardY * windX);
-        var sailForce = (downwind * 46 + crosswind * 14) * state.windSpeed * ship.sail;
-        ship.vx += forwardX * sailForce * dt;
-        ship.vy += forwardY * sailForce * dt;
+        var arr = waterPositions.array;
+        var base = waterBasePositions;
+        var i;
+        var x;
+        var y;
+        var wave;
 
-        var speed = length(ship.vx, ship.vy);
-        var steerPower = (0.58 + clamp(speed / 115, 0, 1) * 1.18) * (0.30 + ship.sail * 0.70);
-        ship.heading = wrapAngle(ship.heading + rudderInput * steerPower * dt);
+        for (i = 0; i < arr.length; i += 3) {
+            x = base[i];
+            y = base[i + 1];
+            wave = Math.sin(x * 0.010 + time * 1.25) * 3.0;
+            wave += Math.cos(y * 0.012 - time * 1.05) * 2.2;
+            wave += Math.sin((x + y) * 0.006 + time * 0.85) * 1.4;
+            arr[i + 2] = wave;
+        }
 
-        var drag = Math.pow(0.988 - ship.sail * 0.004, dt * 60);
-        ship.vx *= drag;
-        ship.vy *= drag;
+        waterPositions.needsUpdate = true;
+        waterMesh.geometry.computeVertexNormals();
+    }
 
-        var lateralX = -forwardY;
-        var lateralY = forwardX;
-        var lateralSpeed = ship.vx * lateralX + ship.vy * lateralY;
-        ship.vx -= lateralX * lateralSpeed * 0.020;
-        ship.vy -= lateralY * lateralSpeed * 0.020;
+    function createShipMesh(isPlayer) {
+        var group = new THREE.Group();
+        var hullMat = isPlayer ? materials.hullPlayer : materials.hullEnemy;
+        var sailMat = isPlayer ? materials.sailPlayer : materials.sailEnemy;
+        var hull = new THREE.Mesh(new THREE.BoxGeometry(24, 10, 54), hullMat);
+        var deck = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 38), materials.deck);
+        var bow = new THREE.Mesh(new THREE.ConeGeometry(13, 22, 4), hullMat);
+        var stern = new THREE.Mesh(new THREE.BoxGeometry(26, 12, 10), hullMat);
+        var mast = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.8, 58, 8), materials.mast);
+        var sail = new THREE.Mesh(new THREE.PlaneGeometry(28, 35, 3, 3), sailMat);
+        var cannonL = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 18), materials.cannon);
+        var cannonR = new THREE.Mesh(new THREE.BoxGeometry(7, 4, 18), materials.cannon);
 
-        ship.x += ship.vx * dt;
-        ship.y += ship.vy * dt;
-        ship.fireCooldown = Math.max(0, ship.fireCooldown - dt);
-        ship.hitFlash = Math.max(0, ship.hitFlash - dt * 4.0);
+        hull.position.y = 8;
+        deck.position.y = 15;
+        bow.rotation.x = Math.PI * 0.5;
+        bow.rotation.z = Math.PI * 0.25;
+        bow.position.set(0, 8, 36);
+        stern.position.set(0, 10, -31);
+        mast.position.y = 38;
+        sail.position.set(0, 39, 4);
+        sail.userData.isSail = true;
+        cannonL.position.set(-15, 16, 6);
+        cannonR.position.set(15, 16, 6);
 
-        if (speed > 18 && state.time % 0.09 < dt) {
-            addParticle(ship.x - forwardX * 22, ship.y - forwardY * 22, -forwardX * randRange(state.rng, 8, 20), -forwardY * randRange(state.rng, 8, 20), randRange(state.rng, 0.55, 0.95), randRange(state.rng, 2, 6), 'rgba(180, 226, 255, 0.30)');
+        group.add(hull);
+        group.add(deck);
+        group.add(bow);
+        group.add(stern);
+        group.add(mast);
+        group.add(sail);
+        group.add(cannonL);
+        group.add(cannonR);
+        group.userData.sailMesh = sail;
+        group.userData.hullMesh = hull;
+        group.scale.setScalar(isPlayer ? 1.0 : 0.95);
+        return group;
+    }
+
+    function createIslandMesh(island, rng) {
+        var group = new THREE.Group();
+        var base = new THREE.Mesh(new THREE.CylinderGeometry(island.r, island.r * 1.12, 18, 13), materials.sand);
+        var grass = new THREE.Mesh(new THREE.CylinderGeometry(island.r * 0.72, island.r * 0.84, 8, 11), materials.grass);
+        var palmCount = island.dock ? 4 : 2;
+        var i;
+
+        base.position.y = 3;
+        grass.position.y = 16;
+        group.add(base);
+        group.add(grass);
+
+        for (i = 0; i < palmCount; i += 1) {
+            group.add(createPalm(randRange(rng, -island.r * 0.42, island.r * 0.42), randRange(rng, -island.r * 0.42, island.r * 0.42), rng));
+        }
+
+        if (island.dock) {
+            var dock = new THREE.Mesh(new THREE.BoxGeometry(24, 7, 95), materials.dock);
+            dock.position.set(0, 8, island.r + 34);
+            group.add(dock);
+        }
+
+        group.position.set(island.x, 0, island.z);
+        island.mesh = group;
+        worldGroup.add(group);
+
+        if (DEBUG_ENABLED) {
+            island.debugRing = createDebugRing(island.dock ? ISLAND_DOCK_RADIUS : island.r, materials.debugGreen);
+            island.debugRing.position.set(island.x, 1, island.z);
+            worldGroup.add(island.debugRing);
         }
     }
 
-    function solveIslandCollision(ship) {
-        for (var i = 0; i < state.islands.length; i += 1) {
-            var island = state.islands[i];
-            var dx = ship.x - island.x;
-            var dy = ship.y - island.y;
-            var radius = island.r + (ship.isPlayer ? PLAYER_RADIUS : ENEMY_RADIUS) + 5;
-            var d = Math.sqrt(dx * dx + dy * dy) || 1;
-            if (d < radius) {
-                var nx = dx / d;
-                var ny = dy / d;
-                var push = radius - d;
-                ship.x += nx * push;
-                ship.y += ny * push;
-                var into = ship.vx * nx + ship.vy * ny;
-                if (into < 0) {
-                    ship.vx -= nx * into * 1.35;
-                    ship.vy -= ny * into * 1.35;
-                }
+    function createPalm(x, z, rng) {
+        var group = new THREE.Group();
+        var trunk = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 3.5, 34, 7), materials.palm);
+        var leafA = new THREE.Mesh(new THREE.ConeGeometry(13, 28, 6), materials.leaf);
+        var leafB = new THREE.Mesh(new THREE.ConeGeometry(11, 24, 6), materials.leaf);
+        var leafC = new THREE.Mesh(new THREE.ConeGeometry(10, 22, 6), materials.leaf);
+
+        trunk.position.y = 24;
+        trunk.rotation.z = randRange(rng, -0.10, 0.10);
+        leafA.position.y = 46;
+        leafB.position.y = 45;
+        leafC.position.y = 44;
+        leafA.rotation.z = 0.55;
+        leafB.rotation.z = -0.45;
+        leafB.rotation.y = 1.7;
+        leafC.rotation.z = 0.25;
+        leafC.rotation.y = -1.6;
+
+        group.add(trunk);
+        group.add(leafA);
+        group.add(leafB);
+        group.add(leafC);
+        group.position.set(x, 0, z);
+        return group;
+    }
+
+    function createProjectileMesh() {
+        return new THREE.Mesh(new THREE.SphereGeometry(5, 10, 8), materials.cannonball);
+    }
+
+    function createCrateMesh() {
+        var group = new THREE.Group();
+        var box = new THREE.Mesh(new THREE.BoxGeometry(18, 14, 18), materials.crate);
+        var bandA = new THREE.Mesh(new THREE.BoxGeometry(20, 16, 3), materials.dock);
+        var bandB = new THREE.Mesh(new THREE.BoxGeometry(3, 16, 20), materials.dock);
+        box.position.y = 8;
+        bandA.position.y = 8.5;
+        bandB.position.y = 8.6;
+        group.add(box);
+        group.add(bandA);
+        group.add(bandB);
+        return group;
+    }
+
+    function createDebugRing(radius, material) {
+        var mat = material && material.clone ? material.clone() : material;
+        var ring = new THREE.Mesh(new THREE.RingGeometry(radius - 1.5, radius + 1.5, 64), mat);
+        ring.rotation.x = -Math.PI * 0.5;
+        return ring;
+    }
+
+    function createAimObjects() {
+        var lineGeometry = new THREE.BufferGeometry();
+        var points = [];
+        var i;
+        for (i = 0; i < 30; i += 1) {
+            points.push(new THREE.Vector3(0, 0, 0));
+        }
+        lineGeometry.setFromPoints(points);
+        aimLine = new THREE.Line(lineGeometry, materials.aim);
+        aimLine.frustumCulled = false;
+        worldGroup.add(aimLine);
+
+        aimMarker = new THREE.Mesh(new THREE.RingGeometry(13, 16, 32), materials.debugGreen);
+        aimMarker.rotation.x = -Math.PI * 0.5;
+        aimMarker.position.y = 1;
+        worldGroup.add(aimMarker);
+
+        var windGeometry = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, 0, 0),
+            new THREE.Vector3(0, 0, 0)
+        ]);
+        windArrow = new THREE.Line(windGeometry, materials.wind);
+        windArrow.frustumCulled = false;
+        worldGroup.add(windArrow);
+    }
+
+    function clearWorldGroup() {
+        if (!worldGroup) {
+            return;
+        }
+
+        while (worldGroup.children.length > 0) {
+            worldGroup.remove(worldGroup.children[0]);
+        }
+    }
+
+    function buildWorld() {
+        var i;
+        var rng = makeRng(state.seed ^ 0x9E3779B9);
+
+        clearWorldGroup();
+
+        for (i = 0; i < state.islands.length; i += 1) {
+            createIslandMesh(state.islands[i], rng);
+        }
+
+        state.player.mesh = createShipMesh(true);
+        state.player.debugRing = DEBUG_ENABLED ? createDebugRing(PLAYER_RADIUS, materials.debugGreen) : null;
+        worldGroup.add(state.player.mesh);
+        if (state.player.debugRing) {
+            worldGroup.add(state.player.debugRing);
+        }
+
+        for (i = 0; i < state.enemies.length; i += 1) {
+            state.enemies[i].mesh = createShipMesh(false);
+            state.enemies[i].debugRing = DEBUG_ENABLED ? createDebugRing(ENEMY_RADIUS, materials.debugRed) : null;
+            worldGroup.add(state.enemies[i].mesh);
+            if (state.enemies[i].debugRing) {
+                worldGroup.add(state.enemies[i].debugRing);
             }
         }
+
+        createAimObjects();
+    }
+
+    function initThree() {
+        initMaterials();
+
+        renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: true,
+            alpha: false,
+            powerPreference: 'high-performance'
+        });
+        renderer.setClearColor(0x08151e, 1);
+        renderer.shadowMap.enabled = false;
+
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x08151e);
+        scene.fog = new THREE.Fog(0x08151e, 1200, 3600);
+
+        camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 6000);
+        raycaster = new THREE.Raycaster();
+        groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+        var ambient = new THREE.AmbientLight(0xa8c4e8, 1.8);
+        var sun = new THREE.DirectionalLight(0xfff2d4, 2.6);
+        sun.position.set(340, 600, 260);
+        scene.add(ambient);
+        scene.add(sun);
+
+        worldGroup = new THREE.Group();
+        scene.add(worldGroup);
+
+        createWater();
+        buildWorld();
+        resize();
+        syncMeshes();
+
+        if (hud.loading) {
+            hud.loading.hidden = true;
+        }
+    }
+
+    function resize() {
+        var rect = canvas.getBoundingClientRect();
+        var width = Math.max(320, rect.width);
+        var height = Math.max(320, rect.height);
+        var aspect = width / height;
+        var viewSize = 720;
+        var pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+        renderer.setPixelRatio(pixelRatio);
+        renderer.setSize(width, height, false);
+        camera.left = -viewSize * aspect * 0.5;
+        camera.right = viewSize * aspect * 0.5;
+        camera.top = viewSize * 0.5;
+        camera.bottom = -viewSize * 0.5;
+        camera.updateProjectionMatrix();
+    }
+
+    function updateMouseWorld(clientX, clientY) {
+        var rect = canvas.getBoundingClientRect();
+        var x = ((clientX - rect.left) / rect.width) * 2 - 1;
+        var y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+        var hit = new THREE.Vector3();
+
+        state.mouseNdcX = x;
+        state.mouseNdcY = y;
+        raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
+
+        if (raycaster.ray.intersectPlane(groundPlane, hit)) {
+            state.mouseWorldX = hit.x;
+            state.mouseWorldZ = hit.z;
+            state.mouseInside = true;
+        }
+    }
+
+    function updateCamera(dt) {
+        var p = state.player;
+        var distance = 740;
+        var height = 520;
+        var orbitInput = 0;
+
+        if (state.input.camLeft) {
+            orbitInput -= 1;
+        }
+        if (state.input.camRight) {
+            orbitInput += 1;
+        }
+        state.cameraOrbit += orbitInput * dt * 1.15;
+
+        state.cameraTargetX = lerp(state.cameraTargetX, p.x, 1 - Math.pow(0.001, dt));
+        state.cameraTargetZ = lerp(state.cameraTargetZ, p.z, 1 - Math.pow(0.001, dt));
+
+        camera.position.set(
+            state.cameraTargetX + Math.sin(state.cameraOrbit) * distance,
+            height,
+            state.cameraTargetZ + Math.cos(state.cameraOrbit) * distance
+        );
+        camera.lookAt(state.cameraTargetX, 0, state.cameraTargetZ);
     }
 
     function updateWind(dt) {
         state.windTimer -= dt;
         if (state.windTimer <= 0) {
-            state.windTimer = randRange(state.rng, 6, 12);
-            state.windTargetAngle = state.windAngle + randRange(state.rng, -1.15, 1.15);
-            state.windSpeed = randRange(state.rng, 0.72, 1.12);
+            state.windTargetAngle = randRange(state.rng, 0, TAU);
+            state.windSpeed = randRange(state.rng, 0.74, 1.16);
+            state.windTimer = randRange(state.rng, 7, 12);
         }
-        state.windAngle = wrapAngle(lerp(state.windAngle, state.windTargetAngle, 0.006));
+        state.windAngle += wrapAngle(state.windTargetAngle - state.windAngle) * dt * 0.18;
     }
 
-    function updateEnemies(dt) {
-        var player = state.player;
-        for (var i = 0; i < state.enemies.length; i += 1) {
-            var enemy = state.enemies[i];
-            if (enemy.hp <= 0) {
-                applyShipPhysics(enemy, dt, 0, 0);
-                continue;
-            }
+    function updateShipPhysics(ship, rudder, sailDelta, dt) {
+        var fx;
+        var fz;
+        var wx;
+        var wz;
+        var windDot;
+        var thrust;
+        var speed;
+        var turnPower;
+        var damping;
 
-            var dx = player.x - enemy.x;
-            var dy = player.y - enemy.y;
-            var d = Math.sqrt(dx * dx + dy * dy) || 1;
-            var desiredAngle = Math.atan2(dy, dx);
-            var toPlayer = wrapAngle(desiredAngle - enemy.heading);
-            var rudder = clamp(toPlayer * 1.6, -1, 1);
-            var desiredSail = d > 240 ? 0.88 : 0.40;
-            if (d < 145) {
-                desiredSail = 0.15;
-                rudder *= -0.4;
-            }
-            applyShipPhysics(enemy, dt, rudder, desiredSail);
-            solveIslandCollision(enemy);
-
-            if (d < 470 && player.hp > 0) {
-                var lead = clamp(d / PROJECTILE_SPEED, 0.25, 1.55);
-                var aimX = player.x + player.vx * lead + randRange(state.rng, -22, 22);
-                var aimY = player.y + player.vy * lead + randRange(state.rng, -22, 22);
-                fireFromShip(enemy, aimX, aimY);
-            }
-        }
-    }
-
-    function spawnCrates(enemy) {
-        var count = 2 + Math.floor(state.rng() * 3);
-        for (var i = 0; i < count; i += 1) {
-            var a = randRange(state.rng, 0, TAU);
-            var r = randRange(state.rng, 10, 48);
-            state.crates.push({
-                x: enemy.x + Math.cos(a) * r,
-                y: enemy.y + Math.sin(a) * r,
-                vx: Math.cos(a) * randRange(state.rng, 5, 22),
-                vy: Math.sin(a) * randRange(state.rng, 5, 22),
-                value: 18 + Math.floor(state.rng() * 26),
-                bob: randRange(state.rng, 0, TAU),
-                collected: false
-            });
-        }
-    }
-
-    function damageShip(ship, amount) {
-        ship.hp = Math.max(0, ship.hp - amount);
-        ship.hitFlash = 1;
-        for (var i = 0; i < 12; i += 1) {
-            addParticle(ship.x, ship.y, randRange(state.rng, -72, 72), randRange(state.rng, -72, 72), randRange(state.rng, 0.32, 0.78), randRange(state.rng, 2, 6), 'rgba(255, 209, 102, 0.62)');
-        }
-    }
-
-    function updateProjectiles(dt) {
-        for (var i = state.projectiles.length - 1; i >= 0; i -= 1) {
-            var p = state.projectiles[i];
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.vx *= Math.pow(0.998, dt * 60);
-            p.vy *= Math.pow(0.998, dt * 60);
-            p.life -= dt;
-
-            if (state.time % 0.04 < dt) {
-                addParticle(p.x, p.y, 0, 0, 0.22, 2.2, 'rgba(255, 255, 255, 0.28)');
-            }
-
-            var hit = false;
-            if (p.owner === 'player') {
-                for (var e = 0; e < state.enemies.length; e += 1) {
-                    var enemy = state.enemies[e];
-                    if (enemy.hp > 0 && length(p.x - enemy.x, p.y - enemy.y) < ENEMY_RADIUS + 5) {
-                        damageShip(enemy, 26);
-                        if (enemy.hp <= 0) {
-                            state.player.kills += 1;
-                            spawnCrates(enemy);
-                            setMessage('Enemy ship sunk. Collect floating cargo.', 3.2);
-                        }
-                        hit = true;
-                        break;
-                    }
-                }
-            } else if (state.player.hp > 0 && length(p.x - state.player.x, p.y - state.player.y) < PLAYER_RADIUS + 5) {
-                damageShip(state.player, 16);
-                setMessage('Hull hit. Keep distance or use the wind angle.', 2.5);
-                hit = true;
-            }
-
-            if (!hit) {
-                for (var s = 0; s < state.islands.length; s += 1) {
-                    var island = state.islands[s];
-                    if (length(p.x - island.x, p.y - island.y) < island.r) {
-                        hit = true;
-                        break;
-                    }
-                }
-            }
-
-            if (hit || p.life <= 0) {
-                for (var fx = 0; fx < 7; fx += 1) {
-                    addParticle(p.x, p.y, randRange(state.rng, -36, 36), randRange(state.rng, -36, 36), randRange(state.rng, 0.18, 0.45), randRange(state.rng, 2, 5), 'rgba(218, 237, 255, 0.50)');
-                }
-                state.projectiles.splice(i, 1);
-            }
-        }
-    }
-
-    function updateCrates(dt) {
-        var player = state.player;
-        for (var i = state.crates.length - 1; i >= 0; i -= 1) {
-            var crate = state.crates[i];
-            crate.x += crate.vx * dt;
-            crate.y += crate.vy * dt;
-            crate.vx *= Math.pow(0.986, dt * 60);
-            crate.vy *= Math.pow(0.986, dt * 60);
-            crate.bob += dt * 2.2;
-            if (length(crate.x - player.x, crate.y - player.y) < 34) {
-                player.cargo += 1;
-                player.gold += Math.floor(crate.value * 0.25);
-                state.crates.splice(i, 1);
-                setMessage('Cargo recovered. Dock near a marked island to sell it.', 3.0);
-            }
-        }
-    }
-
-    function updateDocking() {
-        var player = state.player;
-        for (var i = 0; i < state.islands.length; i += 1) {
-            var island = state.islands[i];
-            if (!island.dock) {
-                continue;
-            }
-            var d = length(player.x - island.x, player.y - island.y);
-            if (d < island.r + ISLAND_DOCK_RADIUS && player.cargo > 0) {
-                var sold = player.cargo;
-                player.gold += sold * 32;
-                player.cargo = 0;
-                player.hp = Math.min(player.maxHp, player.hp + 12);
-                setMessage('Docked at ' + island.name + '. Cargo sold and hull repaired.', 3.4);
-                break;
-            }
-        }
-    }
-
-    function updateParticles(dt) {
-        for (var i = state.particles.length - 1; i >= 0; i -= 1) {
-            var p = state.particles[i];
-            p.x += p.vx * dt;
-            p.y += p.vy * dt;
-            p.vx *= Math.pow(0.986, dt * 60);
-            p.vy *= Math.pow(0.986, dt * 60);
-            p.life -= dt;
-            if (p.life <= 0) {
-                state.particles.splice(i, 1);
-            }
-        }
-    }
-
-    function respawnWaveIfNeeded() {
-        var alive = 0;
-        for (var i = 0; i < state.enemies.length; i += 1) {
-            if (state.enemies[i].hp > 0) {
-                alive += 1;
-            }
-        }
-        if (alive > 0 || state.gameOver) {
+        if (ship.hp <= 0) {
+            ship.sinkTimer += dt;
+            ship.vx *= Math.pow(0.96, dt * 60);
+            ship.vz *= Math.pow(0.96, dt * 60);
+            ship.x += ship.vx * dt;
+            ship.z += ship.vz * dt;
             return;
         }
-        if (state.player.kills > 0 && state.player.kills % 4 === 0) {
-            setMessage('Sea route cleared. New patrols spotted beyond the islands.', 4.0);
+
+        ship.sail = clamp(ship.sail + sailDelta * dt * 0.82, 0, 1);
+        fx = forwardX(ship.heading);
+        fz = forwardZ(ship.heading);
+        wx = Math.sin(state.windAngle);
+        wz = Math.cos(state.windAngle);
+        windDot = fx * wx + fz * wz;
+        thrust = Math.max(0, windDot) * ship.sail * state.windSpeed * 54 * ship.sailPowerMul;
+        ship.vx += fx * thrust * dt;
+        ship.vz += fz * thrust * dt;
+
+        speed = length2(ship.vx, ship.vz);
+        turnPower = (0.48 + clamp(speed / 90, 0, 0.75)) * (0.22 + ship.sail * 0.92);
+        ship.heading += rudder * turnPower * dt;
+
+        damping = Math.pow(0.986, dt * 60);
+        ship.vx *= damping;
+        ship.vz *= damping;
+        ship.x += ship.vx * dt;
+        ship.z += ship.vz * dt;
+
+        if (ship.x < -SEA_LIMIT || ship.x > SEA_LIMIT) {
+            ship.x = clamp(ship.x, -SEA_LIMIT, SEA_LIMIT);
+            ship.vx *= -0.25;
         }
-        state.enemies.length = 0;
-        for (var e = 0; e < 4; e += 1) {
-            var a = randRange(state.rng, 0, TAU);
-            var r = randRange(state.rng, 620, 980);
-            state.enemies.push(makeShip(state.player.x + Math.cos(a) * r, state.player.y + Math.sin(a) * r, randRange(state.rng, 0, TAU), false));
+        if (ship.z < -SEA_LIMIT || ship.z > SEA_LIMIT) {
+            ship.z = clamp(ship.z, -SEA_LIMIT, SEA_LIMIT);
+            ship.vz *= -0.25;
+        }
+
+        if (ship.fireCooldown > 0) {
+            ship.fireCooldown -= dt;
+        }
+        if (ship.hitFlash > 0) {
+            ship.hitFlash -= dt;
         }
     }
 
-    function step(dt) {
-        state.time += dt;
-        updateWind(dt);
+    function updatePlayer(dt) {
+        var sailDelta = 0;
+        var rudder = 0;
 
-        var player = state.player;
         if (state.input.sailUp) {
-            player.sail = clamp(player.sail + dt * 0.95, 0, 1);
+            sailDelta += 1;
         }
         if (state.input.sailDown) {
-            player.sail = clamp(player.sail - dt * 1.15, 0, 1);
+            sailDelta -= 1;
         }
-        var rudder = 0;
         if (state.input.left) {
             rudder -= 1;
         }
         if (state.input.right) {
             rudder += 1;
         }
-        applyShipPhysics(player, dt, rudder, player.sail);
-        solveIslandCollision(player);
+
+        updateShipPhysics(state.player, rudder, sailDelta, dt);
+
         if (state.input.fire) {
-            fireFromShip(player, state.mouse.worldX, state.mouse.worldY);
+            fireFromShip(state.player, state.mouseWorldX, state.mouseWorldZ);
             state.input.fire = false;
         }
+    }
 
+    function updateEnemies(dt) {
+        var i;
+        for (i = 0; i < state.enemies.length; i += 1) {
+            updateEnemy(state.enemies[i], dt);
+        }
+    }
+
+    function updateEnemy(enemy, dt) {
+        var player = state.player;
+        var distanceToPlayer = dist2(enemy, player);
+        var desiredX = enemy.targetX;
+        var desiredZ = enemy.targetZ;
+        var dx;
+        var dz;
+        var desiredHeading;
+        var turnError;
+        var rudder;
+        var sailDelta;
+
+        if (enemy.hp <= 0) {
+            updateShipPhysics(enemy, 0, -1, dt);
+            return;
+        }
+
+        enemy.aiTimer -= dt;
+
+        if (enemy.hp < enemy.maxHp * 0.28) {
+            enemy.aiState = 'retreat';
+        } else if (distanceToPlayer < 260) {
+            enemy.aiState = 'attack';
+        } else if (distanceToPlayer < 720) {
+            enemy.aiState = 'chase';
+        } else {
+            enemy.aiState = 'patrol';
+        }
+
+        if (enemy.aiState === 'patrol') {
+            if (enemy.aiTimer <= 0 || length2(enemy.targetX - enemy.x, enemy.targetZ - enemy.z) < 90) {
+                enemy.targetX += randRange(state.rng, -260, 260);
+                enemy.targetZ += randRange(state.rng, -260, 260);
+                enemy.targetX = clamp(enemy.targetX, -SEA_LIMIT * 0.8, SEA_LIMIT * 0.8);
+                enemy.targetZ = clamp(enemy.targetZ, -SEA_LIMIT * 0.8, SEA_LIMIT * 0.8);
+                enemy.aiTimer = randRange(state.rng, 3.5, 6.0);
+            }
+            desiredX = enemy.targetX;
+            desiredZ = enemy.targetZ;
+        } else if (enemy.aiState === 'chase') {
+            desiredX = player.x + player.vx * 1.2;
+            desiredZ = player.z + player.vz * 1.2;
+        } else if (enemy.aiState === 'attack') {
+            desiredX = player.x - (player.x - enemy.x) * 0.18;
+            desiredZ = player.z - (player.z - enemy.z) * 0.18;
+            if (enemy.fireCooldown <= 0) {
+                fireFromShip(enemy, player.x + player.vx * 0.9, player.z + player.vz * 0.9);
+            }
+        } else if (enemy.aiState === 'retreat') {
+            desiredX = enemy.x + (enemy.x - player.x);
+            desiredZ = enemy.z + (enemy.z - player.z);
+        }
+
+        dx = desiredX - enemy.x;
+        dz = desiredZ - enemy.z;
+        desiredHeading = Math.atan2(dx, dz);
+        turnError = wrapAngle(desiredHeading - enemy.heading);
+        rudder = clamp(turnError * 1.75, -1, 1);
+        sailDelta = enemy.sail < 0.84 ? 0.5 : 0;
+
+        updateShipPhysics(enemy, rudder, sailDelta, dt);
+    }
+
+    function fireFromShip(ship, targetX, targetZ) {
+        var toX;
+        var toZ;
+        var len;
+        var dirX;
+        var dirZ;
+        var fx;
+        var fz;
+        var rightX;
+        var rightZ;
+        var side;
+        var startX;
+        var startZ;
+        var projectile;
+        var mesh;
+        var cooldown;
+
+        if (ship.fireCooldown > 0 || ship.hp <= 0 || state.gameOver) {
+            return false;
+        }
+
+        toX = targetX - ship.x;
+        toZ = targetZ - ship.z;
+        len = length2(toX, toZ);
+        if (len < 1) {
+            return false;
+        }
+
+        dirX = toX / len;
+        dirZ = toZ / len;
+        fx = forwardX(ship.heading);
+        fz = forwardZ(ship.heading);
+        rightX = fz;
+        rightZ = -fx;
+        side = (dirX * rightX + dirZ * rightZ) >= 0 ? 1 : -1;
+        startX = ship.x + rightX * side * 19 + fx * 8;
+        startZ = ship.z + rightZ * side * 19 + fz * 8;
+        mesh = createProjectileMesh();
+
+        projectile = {
+            owner: ship.isPlayer ? 'player' : 'enemy',
+            damage: ship.damage,
+            x: startX,
+            y: 19,
+            z: startZ,
+            vx: dirX * PROJECTILE_SPEED + ship.vx * 0.22,
+            vy: 72,
+            vz: dirZ * PROJECTILE_SPEED + ship.vz * 0.22,
+            life: PROJECTILE_MAX_LIFE,
+            mesh: mesh,
+            active: true
+        };
+
+        worldGroup.add(mesh);
+        state.projectiles.push(projectile);
+        cooldown = ship.isPlayer ? 0.58 * ship.cannonCooldownMul : 1.15;
+        ship.fireCooldown = cooldown;
+        return true;
+    }
+
+    function updateProjectiles(dt) {
+        var i;
+        var p;
+        var hit;
+
+        for (i = state.projectiles.length - 1; i >= 0; i -= 1) {
+            p = state.projectiles[i];
+            if (!p.active) {
+                continue;
+            }
+
+            p.life -= dt;
+            p.vy -= GRAVITY * dt;
+            p.x += p.vx * dt;
+            p.y += p.vy * dt;
+            p.z += p.vz * dt;
+
+            hit = false;
+            if (p.owner === 'player') {
+                hit = checkProjectileAgainstEnemies(p);
+            } else {
+                hit = checkProjectileAgainstPlayer(p);
+            }
+
+            if (p.y <= 0) {
+                makeSplash(p.x, p.z);
+                hit = true;
+            }
+
+            if (p.life <= 0) {
+                hit = true;
+            }
+
+            if (hit) {
+                p.active = false;
+                worldGroup.remove(p.mesh);
+                state.projectiles.splice(i, 1);
+            }
+        }
+    }
+
+    function checkProjectileAgainstPlayer(p) {
+        var player = state.player;
+        if (player.hp <= 0 || p.y > 28) {
+            return false;
+        }
+
+        if (length2(p.x - player.x, p.z - player.z) <= PLAYER_RADIUS) {
+            applyDamage(player, p.damage);
+            setMessage('Hit taken. Use wind angle and keep moving.', 2.2);
+            return true;
+        }
+        return false;
+    }
+
+    function checkProjectileAgainstEnemies(p) {
+        var i;
+        var enemy;
+        for (i = 0; i < state.enemies.length; i += 1) {
+            enemy = state.enemies[i];
+            if (enemy.hp <= 0 || p.y > 28) {
+                continue;
+            }
+
+            if (length2(p.x - enemy.x, p.z - enemy.z) <= ENEMY_RADIUS) {
+                applyDamage(enemy, p.damage);
+                if (enemy.hp <= 0) {
+                    sinkEnemy(enemy);
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function applyDamage(ship, amount) {
+        ship.hp = Math.max(0, ship.hp - amount);
+        ship.hitFlash = 0.22;
+        if (ship.isPlayer && ship.hp <= 0) {
+            state.gameOver = true;
+            setMessage('Ship lost. Press New run to restart.', 10);
+        }
+    }
+
+    function sinkEnemy(enemy) {
+        var crateCount = 2 + Math.floor(state.rng() * 3);
+        var i;
+        state.player.kills += 1;
+        enemy.sinkTimer = 0.01;
+        setMessage('Enemy ship disabled. Cargo crates in the water.', 2.4);
+
+        for (i = 0; i < crateCount; i += 1) {
+            spawnCrate(
+                enemy.x + randRange(state.rng, -42, 42),
+                enemy.z + randRange(state.rng, -42, 42),
+                24 + Math.floor(randRange(state.rng, 0, 42))
+            );
+        }
+    }
+
+    function spawnCrate(x, z, value) {
+        var mesh = createCrateMesh();
+        var crate = {
+            x: x,
+            z: z,
+            value: value,
+            mesh: mesh,
+            bob: randRange(state.rng, 0, TAU),
+            active: true
+        };
+        mesh.position.set(x, 8, z);
+        worldGroup.add(mesh);
+        state.crates.push(crate);
+    }
+
+    function updateCrates(dt) {
+        var i;
+        var crate;
+        var p = state.player;
+
+        for (i = state.crates.length - 1; i >= 0; i -= 1) {
+            crate = state.crates[i];
+            crate.bob += dt * 1.8;
+            if (dist2(crate, p) < 44 && p.cargo < p.cargoCapacity) {
+                p.cargo += 1;
+                p.cargoValue += crate.value;
+                worldGroup.remove(crate.mesh);
+                state.crates.splice(i, 1);
+                setMessage('Cargo recovered. Dock near an island to sell it.', 2.0);
+            }
+        }
+    }
+
+    function makeSplash(x, z) {
+        var ring = createDebugRing(10, materials.debugGreen);
+        var splash = {
+            x: x,
+            z: z,
+            life: 0.55,
+            mesh: ring
+        };
+        ring.position.set(x, 1.3, z);
+        ring.scale.setScalar(0.25);
+        worldGroup.add(ring);
+        state.splashes.push(splash);
+    }
+
+    function updateSplashes(dt) {
+        var i;
+        var splash;
+        var t;
+
+        for (i = state.splashes.length - 1; i >= 0; i -= 1) {
+            splash = state.splashes[i];
+            splash.life -= dt;
+            t = 1 - clamp(splash.life / 0.55, 0, 1);
+            splash.mesh.scale.setScalar(0.25 + t * 2.6);
+            if (splash.mesh.material) {
+                splash.mesh.material.opacity = Math.max(0, 0.45 * (1 - t));
+            }
+            if (splash.life <= 0) {
+                worldGroup.remove(splash.mesh);
+                state.splashes.splice(i, 1);
+            }
+        }
+    }
+
+    function updateDock(dt) {
+        var p = state.player;
+        var docked = false;
+        var i;
+        var island;
+        var hullCost;
+        var sailCost;
+        var cannonCost;
+
+        for (i = 0; i < state.islands.length; i += 1) {
+            island = state.islands[i];
+            if (!island.dock) {
+                continue;
+            }
+            if (dist2(p, island) <= ISLAND_DOCK_RADIUS) {
+                docked = true;
+                break;
+            }
+        }
+
+        state.docked = docked;
+        state.sellCooldown = Math.max(0, state.sellCooldown - dt);
+
+        if (docked && p.cargo > 0 && state.sellCooldown <= 0) {
+            p.gold += p.cargoValue;
+            setMessage('Cargo sold for ' + p.cargoValue + ' gold. Upgrades: 1 hull, 2 sail, 3 cannon.', 3.5);
+            p.cargo = 0;
+            p.cargoValue = 0;
+            state.sellCooldown = 2.0;
+        }
+
+        hullCost = upgradeCost('hull');
+        sailCost = upgradeCost('sail');
+        cannonCost = upgradeCost('cannon');
+        if (hud.upgrade) {
+            hud.upgrade.textContent = hullCost + '/' + sailCost + '/' + cannonCost;
+        }
+    }
+
+    function upgradeCost(type) {
+        if (type === 'hull') {
+            return 70 + (state.player.maxHp - 100) * 3;
+        }
+        if (type === 'sail') {
+            return 90 + Math.round((state.player.sailPowerMul - 1) * 260);
+        }
+        return 110 + Math.round((1 - state.player.cannonCooldownMul) * 280);
+    }
+
+    function buyUpgrade(slot) {
+        var p = state.player;
+        var cost;
+
+        if (!state.docked || state.gameOver) {
+            setMessage('Dock near an island before buying upgrades.', 1.7);
+            return;
+        }
+
+        if (slot === 1) {
+            cost = upgradeCost('hull');
+            if (p.gold < cost) {
+                setMessage('Not enough gold for hull upgrade.', 1.7);
+                return;
+            }
+            p.gold -= cost;
+            p.maxHp += 20;
+            p.hp = p.maxHp;
+            p.cargoCapacity += 2;
+            setMessage('Hull upgraded. HP and cargo capacity increased.', 2.3);
+        } else if (slot === 2) {
+            cost = upgradeCost('sail');
+            if (p.gold < cost) {
+                setMessage('Not enough gold for sail upgrade.', 1.7);
+                return;
+            }
+            p.gold -= cost;
+            p.sailPowerMul += 0.14;
+            setMessage('Sail upgraded. Wind thrust increased.', 2.3);
+        } else if (slot === 3) {
+            cost = upgradeCost('cannon');
+            if (p.gold < cost) {
+                setMessage('Not enough gold for cannon upgrade.', 1.7);
+                return;
+            }
+            p.gold -= cost;
+            p.damage += 10;
+            p.cannonCooldownMul = Math.max(0.55, p.cannonCooldownMul - 0.08);
+            setMessage('Cannon upgraded. Damage and reload improved.', 2.3);
+        }
+    }
+
+    function updateGame(dt) {
+        if (state.paused || state.gameOver) {
+            return;
+        }
+
+        state.time += dt;
+        state.messageTimer = Math.max(0, state.messageTimer - dt);
+        updateWind(dt);
+        updatePlayer(dt);
         updateEnemies(dt);
         updateProjectiles(dt);
         updateCrates(dt);
-        updateDocking();
-        updateParticles(dt);
-        respawnWaveIfNeeded();
+        updateSplashes(dt);
+        updateDock(dt);
+        updateRouteClear();
+    }
 
-        state.cameraX = lerp(state.cameraX, player.x, 0.06);
-        state.cameraY = lerp(state.cameraY, player.y, 0.06);
+    function updateRouteClear() {
+        var alive = state.enemies.filter(function (enemy) {
+            return enemy.hp > 0;
+        }).length;
 
-        if (state.messageTimer > 0) {
-            state.messageTimer -= dt;
-        } else if (hud.message && hud.message.textContent !== state.messageText) {
-            hud.message.textContent = state.messageText;
-        }
-
-        if (player.hp <= 0 && !state.gameOver) {
-            state.gameOver = true;
-            setMessage('Ship lost. Press New run to restart.', 999);
+        if (!state.routeClear && alive === 0) {
+            state.routeClear = true;
+            setMessage('Route clear. The harbor is safe for now.', 8);
         }
     }
 
-    function drawWater() {
-        var w = state.width;
-        var h = state.height;
-        var grd = ctx.createLinearGradient(0, 0, 0, h);
-        grd.addColorStop(0, '#0a2534');
-        grd.addColorStop(0.55, '#071923');
-        grd.addColorStop(1, '#041018');
-        ctx.fillStyle = grd;
-        ctx.fillRect(0, 0, w, h);
+    function syncShipMesh(ship) {
+        var mesh = ship.mesh;
+        var sailMesh;
+        var sailCurve;
 
-        ctx.save();
-        ctx.globalAlpha = 0.42;
-        ctx.strokeStyle = 'rgba(118, 189, 238, 0.14)';
-        ctx.lineWidth = 1;
-        var spacing = 54;
-        var offsetX = ((-state.cameraX * 0.25 + state.time * 10) % spacing + spacing) % spacing;
-        var offsetY = ((-state.cameraY * 0.25 + state.time * 6) % spacing + spacing) % spacing;
-        for (var x = -spacing + offsetX; x < w + spacing; x += spacing) {
-            ctx.beginPath();
-            ctx.moveTo(x, 0);
-            ctx.lineTo(x + Math.sin(state.time + x * 0.01) * 18, h);
-            ctx.stroke();
-        }
-        for (var y = -spacing + offsetY; y < h + spacing; y += spacing) {
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(w, y + Math.cos(state.time + y * 0.01) * 18);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-
-    function drawIsland(island) {
-        var p = worldToScreen(island.x, island.y);
-        var wave = Math.sin(state.time * 1.3 + island.x * 0.01) * 3;
-        ctx.save();
-        ctx.translate(p.x, p.y + wave);
-        ctx.fillStyle = island.dock ? 'rgba(160, 132, 74, 1)' : 'rgba(118, 111, 72, 1)';
-        ctx.strokeStyle = 'rgba(255, 231, 170, 0.25)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, island.r * 1.22, island.r * 0.78, 0.18, 0, TAU);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = 'rgba(45, 88, 54, 0.92)';
-        ctx.beginPath();
-        ctx.ellipse(-island.r * 0.24, -island.r * 0.14, island.r * 0.34, island.r * 0.18, -0.4, 0, TAU);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(island.r * 0.26, island.r * 0.12, island.r * 0.26, island.r * 0.14, 0.25, 0, TAU);
-        ctx.fill();
-
-        if (island.dock) {
-            ctx.strokeStyle = 'rgba(255, 209, 102, 0.55)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(0, 0, island.r + ISLAND_DOCK_RADIUS, 0, TAU);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(255, 209, 102, 0.92)';
-            ctx.fillRect(island.r * 0.62, -5, 58, 10);
-        }
-
-        if (DEBUG_ENABLED) {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.22)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(0, 0, island.r, 0, TAU);
-            ctx.stroke();
-        }
-        ctx.restore();
-    }
-
-    function drawShip(ship) {
-        var p = worldToScreen(ship.x, ship.y);
-        var isPlayer = ship.isPlayer;
-        var sink = ship.hp <= 0 ? clamp(ship.sinkTimer / 3.0, 0, 1) : 0;
-        ctx.save();
-        ctx.translate(p.x, p.y + sink * 18);
-        ctx.rotate(ship.heading);
-        ctx.globalAlpha = 1 - sink * 0.75;
-
-        var hull = isPlayer ? '#d7eaff' : '#ffb1a7';
-        if (ship.hitFlash > 0) {
-            hull = '#ffffff';
-        }
-        ctx.fillStyle = hull;
-        ctx.strokeStyle = isPlayer ? 'rgba(99, 166, 255, 0.78)' : 'rgba(255, 108, 95, 0.78)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(28, 0);
-        ctx.lineTo(8, -13);
-        ctx.lineTo(-24, -10);
-        ctx.lineTo(-30, 0);
-        ctx.lineTo(-24, 10);
-        ctx.lineTo(8, 13);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = isPlayer ? 'rgba(99, 166, 255, 0.82)' : 'rgba(255, 108, 95, 0.82)';
-        ctx.beginPath();
-        ctx.moveTo(-4, -5);
-        ctx.lineTo(12 + ship.sail * 10, 0);
-        ctx.lineTo(-4, 5);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.strokeStyle = 'rgba(10, 18, 26, 0.55)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(-2, -15);
-        ctx.lineTo(-2, 15);
-        ctx.stroke();
-
-        ctx.restore();
-
-        if (!isPlayer && ship.hp > 0) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.42)';
-            ctx.fillRect(p.x - 25, p.y - 34, 50, 5);
-            ctx.fillStyle = 'rgba(255, 108, 95, 0.86)';
-            ctx.fillRect(p.x - 25, p.y - 34, 50 * clamp(ship.hp / ship.maxHp, 0, 1), 5);
-        }
-
-        if (DEBUG_ENABLED && ship.hp > 0) {
-            ctx.save();
-            ctx.strokeStyle = isPlayer ? 'rgba(99, 166, 255, 0.55)' : 'rgba(255, 108, 95, 0.48)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, isPlayer ? PLAYER_RADIUS : ENEMY_RADIUS, 0, TAU);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p.x + Math.cos(ship.heading) * 54, p.y + Math.sin(ship.heading) * 54);
-            ctx.stroke();
-            ctx.restore();
-        }
-    }
-
-    function drawProjectiles() {
-        ctx.save();
-        for (var i = 0; i < state.projectiles.length; i += 1) {
-            var p = state.projectiles[i];
-            var s = worldToScreen(p.x, p.y);
-            ctx.fillStyle = p.owner === 'player' ? 'rgba(255, 238, 190, 0.95)' : 'rgba(255, 130, 112, 0.95)';
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, 4, 0, TAU);
-            ctx.fill();
-        }
-        ctx.restore();
-    }
-
-    function drawCrates() {
-        ctx.save();
-        for (var i = 0; i < state.crates.length; i += 1) {
-            var c = state.crates[i];
-            var p = worldToScreen(c.x, c.y + Math.sin(c.bob) * 3);
-            ctx.translate(p.x, p.y);
-            ctx.rotate(0.22 + Math.sin(c.bob) * 0.08);
-            ctx.fillStyle = 'rgba(190, 132, 68, 0.94)';
-            ctx.strokeStyle = 'rgba(255, 231, 170, 0.38)';
-            ctx.lineWidth = 1.5;
-            ctx.fillRect(-8, -8, 16, 16);
-            ctx.strokeRect(-8, -8, 16, 16);
-            ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
-        }
-        ctx.restore();
-    }
-
-    function drawParticles() {
-        ctx.save();
-        for (var i = 0; i < state.particles.length; i += 1) {
-            var p = state.particles[i];
-            var s = worldToScreen(p.x, p.y);
-            var alpha = clamp(p.life / p.maxLife, 0, 1);
-            ctx.globalAlpha = alpha;
-            ctx.fillStyle = p.color;
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, p.size * (0.75 + (1 - alpha) * 0.85), 0, TAU);
-            ctx.fill();
-        }
-        ctx.restore();
-    }
-
-    function drawAim() {
-        if (!state.mouse.inside || state.player.hp <= 0) {
+        if (!mesh) {
             return;
         }
-        var player = state.player;
-        var p = worldToScreen(player.x, player.y);
-        ctx.save();
-        ctx.strokeStyle = player.fireCooldown > 0 ? 'rgba(143, 165, 184, 0.32)' : 'rgba(50, 209, 160, 0.62)';
-        ctx.setLineDash([8, 8]);
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(state.mouse.x, state.mouse.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = 'rgba(50, 209, 160, 0.72)';
-        ctx.beginPath();
-        ctx.arc(state.mouse.x, state.mouse.y, 5, 0, TAU);
-        ctx.fill();
-        ctx.restore();
+
+        mesh.position.set(ship.x, ship.hp > 0 ? 0 : -Math.min(24, ship.sinkTimer * 12), ship.z);
+        mesh.rotation.y = ship.heading;
+        mesh.rotation.z = ship.hp > 0 ? Math.sin(state.time * 2.5 + ship.x * 0.01) * 0.018 : ship.sinkTimer * 0.18;
+        mesh.rotation.x = ship.hp > 0 ? Math.cos(state.time * 2.0 + ship.z * 0.01) * 0.015 : -ship.sinkTimer * 0.10;
+
+        sailMesh = mesh.userData.sailMesh;
+        if (sailMesh) {
+            sailCurve = 0.44 + ship.sail * 0.66;
+            sailMesh.scale.set(sailCurve, 1, 1);
+            sailMesh.rotation.y = Math.sin(state.time * 2.2) * 0.055;
+        }
+
+        if (ship.debugRing) {
+            ship.debugRing.position.set(ship.x, 1.1, ship.z);
+            ship.debugRing.visible = DEBUG_ENABLED && ship.hp > 0;
+        }
     }
 
-    function drawWind() {
-        var x = state.width - 88;
-        var y = 94;
-        var wx = Math.cos(state.windAngle);
-        var wy = Math.sin(state.windAngle);
-        ctx.save();
-        ctx.strokeStyle = 'rgba(99, 166, 255, 0.76)';
-        ctx.fillStyle = 'rgba(99, 166, 255, 0.76)';
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(x, y, 34, 0, TAU);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x - wx * 23, y - wy * 23);
-        ctx.lineTo(x + wx * 23, y + wy * 23);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x + wx * 29, y + wy * 29);
-        ctx.lineTo(x + wx * 17 - wy * 7, y + wy * 17 + wx * 7);
-        ctx.lineTo(x + wx * 17 + wy * 7, y + wy * 17 - wx * 7);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-    }
+    function syncMeshes() {
+        var i;
+        var p;
+        var crate;
+        var points;
+        var attr;
+        var t;
+        var simX;
+        var simY;
+        var simZ;
+        var dirX;
+        var dirZ;
+        var len;
+        var vx;
+        var vy;
+        var vz;
+        var windAttr;
+        var windStart;
+        var windEnd;
+        var player;
 
-    function drawDebugText() {
-        if (!DEBUG_ENABLED) {
-            return;
-        }
-        ctx.save();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
-        ctx.fillRect(16, 96, 286, 104);
-        ctx.fillStyle = 'rgba(237, 246, 255, 0.84)';
-        ctx.font = '12px monospace';
-        ctx.fillText('seed: ' + state.seed, 28, 120);
-        ctx.fillText('projectiles: ' + state.projectiles.length, 28, 140);
-        ctx.fillText('particles: ' + state.particles.length, 28, 160);
-        ctx.fillText('crates: ' + state.crates.length, 28, 180);
-        ctx.restore();
-    }
-
-    function render() {
-        drawWater();
-
-        var items = [];
-        for (var i = 0; i < state.islands.length; i += 1) {
-            items.push({ type: 'island', y: state.islands[i].y, value: state.islands[i] });
-        }
-        for (var e = 0; e < state.enemies.length; e += 1) {
-            items.push({ type: 'ship', y: state.enemies[e].y, value: state.enemies[e] });
-        }
-        items.push({ type: 'ship', y: state.player.y, value: state.player });
-        items.sort(function (a, b) { return a.y - b.y; });
-        for (var item = 0; item < items.length; item += 1) {
-            if (items[item].type === 'island') {
-                drawIsland(items[item].value);
-            } else {
-                drawShip(items[item].value);
-            }
+        syncShipMesh(state.player);
+        for (i = 0; i < state.enemies.length; i += 1) {
+            syncShipMesh(state.enemies[i]);
         }
 
-        drawCrates();
-        drawProjectiles();
-        drawParticles();
-        drawAim();
-        drawWind();
-        drawDebugText();
+        for (i = 0; i < state.projectiles.length; i += 1) {
+            p = state.projectiles[i];
+            p.mesh.position.set(p.x, p.y, p.z);
+        }
+
+        for (i = 0; i < state.crates.length; i += 1) {
+            crate = state.crates[i];
+            crate.mesh.position.set(crate.x, 7 + Math.sin(crate.bob) * 3.2, crate.z);
+            crate.mesh.rotation.y += 0.01;
+        }
+
+        player = state.player;
+        aimMarker.position.set(state.mouseWorldX, 1.2, state.mouseWorldZ);
+        dirX = state.mouseWorldX - player.x;
+        dirZ = state.mouseWorldZ - player.z;
+        len = Math.max(1, length2(dirX, dirZ));
+        dirX /= len;
+        dirZ /= len;
+        vx = dirX * PROJECTILE_SPEED + player.vx * 0.22;
+        vy = 72;
+        vz = dirZ * PROJECTILE_SPEED + player.vz * 0.22;
+        simX = player.x;
+        simY = 19;
+        simZ = player.z;
+        attr = aimLine.geometry.attributes.position;
+
+        for (i = 0; i < attr.count; i += 1) {
+            t = i / (attr.count - 1) * 1.8;
+            points = {
+                x: simX + vx * t,
+                y: simY + vy * t - GRAVITY * t * t * 0.5,
+                z: simZ + vz * t
+            };
+            attr.setXYZ(i, points.x, Math.max(1.5, points.y), points.z);
+        }
+        attr.needsUpdate = true;
+
+        windStart = new THREE.Vector3(player.x, 70, player.z);
+        windEnd = new THREE.Vector3(
+            player.x + Math.sin(state.windAngle) * 140,
+            70,
+            player.z + Math.cos(state.windAngle) * 140
+        );
+        windAttr = windArrow.geometry.attributes.position;
+        windAttr.setXYZ(0, windStart.x, windStart.y, windStart.z);
+        windAttr.setXYZ(1, windEnd.x, windEnd.y, windEnd.z);
+        windAttr.needsUpdate = true;
     }
 
     function updateHud() {
-        var alive = 0;
-        for (var i = 0; i < state.enemies.length; i += 1) {
-            if (state.enemies[i].hp > 0) {
-                alive += 1;
-            }
-        }
+        var p = state.player;
+        var aliveEnemies = state.enemies.filter(function (enemy) {
+            return enemy.hp > 0;
+        }).length;
+        var speed = Math.round(length2(p.vx, p.vz));
+        var debugText;
+
         if (hud.hp) {
-            hud.hp.textContent = pad(state.player.hp, 3);
+            hud.hp.textContent = pad(p.hp, 3) + '/' + pad(p.maxHp, 3);
         }
         if (hud.sail) {
-            hud.sail.textContent = pad(state.player.sail * 100, 2);
+            hud.sail.textContent = pad(p.sail * 100, 2) + '%';
         }
         if (hud.wind) {
-            hud.wind.textContent = angleName(state.windAngle);
+            hud.wind.textContent = angleName(state.windAngle) + ' ' + Math.round(state.windSpeed * 100) + '%';
         }
         if (hud.cargo) {
-            hud.cargo.textContent = pad(state.player.cargo, 3);
+            hud.cargo.textContent = p.cargo + '/' + p.cargoCapacity;
         }
         if (hud.gold) {
-            hud.gold.textContent = pad(state.player.gold, 3);
+            hud.gold.textContent = pad(p.gold, 3);
         }
         if (hud.enemies) {
-            hud.enemies.textContent = pad(alive, 2);
+            hud.enemies.textContent = pad(aliveEnemies, 2);
         }
+        if (hud.dock) {
+            hud.dock.textContent = state.docked ? 'YES' : 'NO';
+        }
+
+        if (hud.message) {
+            if (DEBUG_ENABLED) {
+                debugText = 'DEBUG seed=' + state.seed + ' speed=' + speed + ' proj=' + state.projectiles.length + ' crates=' + state.crates.length;
+                debugText += ' ai=' + state.enemies.map(function (enemy) { return enemy.aiState; }).join(',');
+                hud.message.textContent = state.messageTimer > 0 ? state.messageText + ' | ' + debugText : debugText;
+            } else {
+                hud.message.textContent = state.messageTimer > 0 ? state.messageText : 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock near islands to sell cargo.';
+            }
+        }
+
         if (hud.pauseCard) {
             hud.pauseCard.hidden = !state.paused;
         }
@@ -882,111 +1276,143 @@
         }
     }
 
-    function frame(time) {
-        var minFrameMs = 1000 / 60;
-        if (state.lastRenderTime && time - state.lastRenderTime < minFrameMs) {
-            window.requestAnimationFrame(frame);
-            return;
-        }
-        state.lastRenderTime = time;
+    function renderFrame(now) {
+        var dt;
 
-        if (!state.lastFrameTime) {
-            state.lastFrameTime = time;
+        if (!clockStarted) {
+            clockStarted = true;
+            lastFrameTime = now;
         }
-        var dt = clamp((time - state.lastFrameTime) / 1000, 0, 0.10);
-        state.lastFrameTime = time;
-        if (!state.paused) {
-            state.accumulator += dt;
-            var steps = 0;
-            while (state.accumulator >= FIXED_DT && steps < 5) {
-                step(FIXED_DT);
-                state.accumulator -= FIXED_DT;
-                steps += 1;
-            }
+
+        dt = Math.min(0.05, (now - lastFrameTime) / 1000);
+        lastFrameTime = now;
+        accumulator += dt;
+
+        while (accumulator >= FIXED_DT) {
+            updateGame(FIXED_DT);
+            accumulator -= FIXED_DT;
         }
+
+        updateCamera(dt);
+        updateWater(state.time);
+        syncMeshes();
         updateHud();
-        render();
-        window.requestAnimationFrame(frame);
-    }
-
-    function updateMouse(event) {
-        var rect = canvas.getBoundingClientRect();
-        state.mouse.x = event.clientX - rect.left;
-        state.mouse.y = event.clientY - rect.top;
-        var world = screenToWorld(state.mouse.x, state.mouse.y);
-        state.mouse.worldX = world.x;
-        state.mouse.worldY = world.y;
-        state.mouse.inside = true;
-    }
-
-    function setPaused(value) {
-        state.paused = value;
-        updateHud();
+        renderer.render(scene, camera);
+        window.requestAnimationFrame(renderFrame);
     }
 
     function resetGame() {
-        var oldPaused = state.paused;
         state = makeInitialState();
-        state.paused = oldPaused && false;
-        resize();
-        setMessage('New run started. Use the wind and keep your broadside ready.', 3.2);
+        accumulator = 0;
+        clockStarted = false;
+        buildWorld();
+        syncMeshes();
+        setMessage('New run. Use wind, broadside fire, and dock for upgrades.', 4);
     }
 
-    window.addEventListener('resize', resize);
-    canvas.addEventListener('mousemove', updateMouse);
-    canvas.addEventListener('mouseenter', function (event) {
-        updateMouse(event);
-        state.mouse.inside = true;
-    });
-    canvas.addEventListener('mouseleave', function () {
-        state.mouse.inside = false;
-    });
-    canvas.addEventListener('mousedown', function (event) {
-        updateMouse(event);
-        state.input.fire = true;
-    });
+    function togglePause() {
+        state.paused = !state.paused;
+        updateHud();
+    }
 
-    window.addEventListener('keydown', function (event) {
-        var key = event.key.toLowerCase();
-        if (key === 'w') {
+    function onKeyDown(event) {
+        if (event.repeat && event.code !== 'Space') {
+            return;
+        }
+
+        if (event.code === 'KeyW') {
             state.input.sailUp = true;
-        } else if (key === 's') {
+        } else if (event.code === 'KeyS') {
             state.input.sailDown = true;
-        } else if (key === 'a') {
+        } else if (event.code === 'KeyA') {
             state.input.left = true;
-        } else if (key === 'd') {
+        } else if (event.code === 'KeyD') {
             state.input.right = true;
-        } else if (key === ' ' || key === 'spacebar') {
+        } else if (event.code === 'KeyQ') {
+            state.input.camLeft = true;
+        } else if (event.code === 'KeyE') {
+            state.input.camRight = true;
+        } else if (event.code === 'Space') {
             state.input.fire = true;
             event.preventDefault();
-        } else if (key === 'p') {
-            setPaused(!state.paused);
+        } else if (event.code === 'KeyP') {
+            togglePause();
+        } else if (event.code === 'Digit1') {
+            buyUpgrade(1);
+        } else if (event.code === 'Digit2') {
+            buyUpgrade(2);
+        } else if (event.code === 'Digit3') {
+            buyUpgrade(3);
         }
-    });
+    }
 
-    window.addEventListener('keyup', function (event) {
-        var key = event.key.toLowerCase();
-        if (key === 'w') {
+    function onKeyUp(event) {
+        if (event.code === 'KeyW') {
             state.input.sailUp = false;
-        } else if (key === 's') {
+        } else if (event.code === 'KeyS') {
             state.input.sailDown = false;
-        } else if (key === 'a') {
+        } else if (event.code === 'KeyA') {
             state.input.left = false;
-        } else if (key === 'd') {
+        } else if (event.code === 'KeyD') {
             state.input.right = false;
+        } else if (event.code === 'KeyQ') {
+            state.input.camLeft = false;
+        } else if (event.code === 'KeyE') {
+            state.input.camRight = false;
         }
-    });
+    }
 
-    if (hud.pauseButton) {
-        hud.pauseButton.addEventListener('click', function () {
-            setPaused(!state.paused);
+    function installEvents() {
+        window.addEventListener('resize', resize);
+        window.addEventListener('keydown', onKeyDown);
+        window.addEventListener('keyup', onKeyUp);
+        canvas.addEventListener('mousemove', function (event) {
+            updateMouseWorld(event.clientX, event.clientY);
         });
-    }
-    if (hud.resetButton) {
-        hud.resetButton.addEventListener('click', resetGame);
+        canvas.addEventListener('mouseenter', function (event) {
+            updateMouseWorld(event.clientX, event.clientY);
+            state.mouseInside = true;
+        });
+        canvas.addEventListener('mouseleave', function () {
+            state.mouseInside = false;
+        });
+        canvas.addEventListener('mousedown', function (event) {
+            if (event.button === 0) {
+                updateMouseWorld(event.clientX, event.clientY);
+                state.input.fire = true;
+                event.preventDefault();
+            }
+        });
+        canvas.addEventListener('contextmenu', function (event) {
+            event.preventDefault();
+        });
+
+        if (hud.pauseButton) {
+            hud.pauseButton.addEventListener('click', togglePause);
+        }
+        if (hud.resetButton) {
+            hud.resetButton.addEventListener('click', resetGame);
+        }
     }
 
-    resize();
-    setMessage('W/S sail. A/D rudder. Mouse to aim. Click or Space to fire.', 4.0);
-    window.requestAnimationFrame(frame);
-})();
+    async function boot() {
+        try {
+            THREE = await import(THREE_URL);
+            initThree();
+            installEvents();
+            setMessage('Isometric 3D prototype loaded. W/S sail, A/D rudder, Q/E camera, LMB fire.', 5);
+            window.requestAnimationFrame(renderFrame);
+        } catch (error) {
+            if (hud.loading) {
+                hud.loading.hidden = false;
+                hud.loading.innerHTML = '<strong>WebGL load failed</strong><span>Check network access to Three.js CDN</span>';
+            }
+            if (hud.message) {
+                hud.message.textContent = 'Failed to load Three.js. Check network access or browser WebGL support.';
+            }
+            console.error(error);
+        }
+    }
+
+    boot();
+}());

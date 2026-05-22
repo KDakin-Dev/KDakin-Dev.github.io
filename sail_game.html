@@ -6,19 +6,19 @@
     <title>Sail &amp; Fire | KDakin-Dev</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
     <link rel="stylesheet" href="./site.css?v=34">
-    <link rel="stylesheet" href="./sail_game.css?v=2">
+    <link rel="stylesheet" href="./sail_game.css?v=3">
 </head>
 <body class="sail-page">
-    <main class="sail-shell" aria-label="Sail and Fire playable prototype">
+    <main class="sail-shell" aria-label="Sail and Fire isometric 3D prototype">
         <section class="sail-stage">
             <header class="sail-header">
                 <a class="sail-back" href="./index.html#skills">Back to portfolio</a>
                 <div class="sail-title-block">
-                    <p class="sail-kicker">Playable prototype</p>
+                    <p class="sail-kicker">Playable isometric 3D prototype</p>
                     <h1>Sail &amp; Fire</h1>
                     <p>
-                        Wind-driven arcade sailing combat. Raise the sail, turn with the rudder,
-                        fire at hostile ships, collect cargo, and dock near islands to sell it.
+                        Isometric WebGL sailing combat. Raise the sail, use wind angle, turn the rudder,
+                        fire cannonballs, collect cargo, and dock near islands for upgrades.
                     </p>
                 </div>
                 <div class="sail-actions">
@@ -28,17 +28,23 @@
             </header>
 
             <div class="sail-game-wrap">
-                <canvas id="sail-canvas" aria-label="Sail and Fire game canvas"></canvas>
+                <canvas id="sail-canvas" aria-label="Sail and Fire WebGL game canvas"></canvas>
+                <div class="sail-loading" data-sail-loading>
+                    <strong>Loading WebGL scene</strong>
+                    <span>Three.js isometric prototype</span>
+                </div>
                 <div class="sail-hud" aria-label="Game state">
                     <div><span>HP</span><strong data-hud="hp">100</strong></div>
                     <div><span>Sail</span><strong data-hud="sail">00</strong></div>
                     <div><span>Wind</span><strong data-hud="wind">N</strong></div>
-                    <div><span>Cargo</span><strong data-hud="cargo">000</strong></div>
+                    <div><span>Cargo</span><strong data-hud="cargo">0/6</strong></div>
                     <div><span>Gold</span><strong data-hud="gold">000</strong></div>
                     <div><span>Enemies</span><strong data-hud="enemies">00</strong></div>
+                    <div><span>Dock</span><strong data-hud="dock">NO</strong></div>
+                    <div><span>Upg</span><strong data-hud="upgrade">1/2/3</strong></div>
                 </div>
                 <div class="sail-message" data-sail-message>
-                    W/S sail. A/D rudder. Mouse to aim. Click or Space to fire. Dock near islands to sell cargo.
+                    W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock near islands to sell cargo.
                 </div>
                 <div class="sail-pause-card" data-sail-pause-card hidden>
                     <strong>Paused</strong>
@@ -49,19 +55,19 @@
             <footer class="sail-notes">
                 <div>
                     <strong>Controls</strong>
-                    <p>W/S: sail power. A/D: rudder. Mouse: aim. LMB or Space: fire. P: pause.</p>
+                    <p>W/S: sail power. A/D: rudder. Q/E: orbit camera. Mouse: aim. LMB or Space: fire. P: pause.</p>
                 </div>
                 <div>
-                    <strong>Portfolio scope</strong>
-                    <p>Canvas MVP for website launch. The planned Three.js version can replace this page later without changing the portfolio entry.</p>
+                    <strong>3D scope</strong>
+                    <p>Orthographic camera, procedural low-poly ships, islands, water mesh, cannonball arcs, and WebGL scene sync.</p>
                 </div>
                 <div>
                     <strong>Debug</strong>
-                    <p>Add ?debug=1 to show steering vectors, hit radii, and runtime counters.</p>
+                    <p>Add ?debug=1 to show AI state, hit rings, wind vector, and runtime counters.</p>
                 </div>
             </footer>
         </section>
     </main>
-    <script src="./sail_game.js?v=2" defer></script>
+    <script src="./sail_game.js?v=3" defer></script>
 </body>
 </html>
