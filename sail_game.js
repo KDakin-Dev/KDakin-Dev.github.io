@@ -51,7 +51,9 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_CURVE_SAMPLES = 18;
+    var WAKE_CURVE_SAMPLES = 24;
+    var WAKE_MAX_AGE = 2.6;
+    var WAKE_SAMPLE_DISTANCE = 8.0;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -195,6 +197,9 @@
             fireHintCooldown: 0,
             wakeLeft: null,
             wakeRight: null,
+            wakeLeftSamples: [],
+            wakeRightSamples: [],
+            wakeDistance: 0,
             healthBar: null,
             aiTimer: 0,
             aiState: 'patrol',
@@ -692,7 +697,7 @@
             side: THREE.DoubleSide,
             uniforms: {
                 uColor: { value: new THREE.Color(0xeaf8ff) },
-                uOpacity: { value: 0.48 }
+                uOpacity: { value: 0.54 }
             },
             vertexShader: [
                 'attribute float aAlpha;',
@@ -1054,7 +1059,7 @@
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
         geometry.setIndex(indices);
-        geometry.setDrawRange(0, (WAKE_CURVE_SAMPLES - 1) * 6);
+        geometry.setDrawRange(0, 0);
 
         return setOverlayObject(new THREE.Mesh(geometry, materials.wakeLane.clone()), 18);
     }
@@ -1434,6 +1439,7 @@
         ship.x += ship.vx * dt;
         ship.z += ship.vz * dt;
         resolveIslandCollision(ship);
+        updateWakeSamples(ship, dt);
 
         resolveSeaBoundary(ship, dt);
 
@@ -2147,118 +2153,205 @@
         }
     }
 
-    function cubicBezierPoint(p0, p1, p2, p3, t) {
-        var it = 1 - t;
-        var a = it * it * it;
-        var b = 3 * it * it * t;
-        var c = 3 * it * t * t;
-        var d = t * t * t;
-
-        return {
-            x: p0.x * a + p1.x * b + p2.x * c + p3.x * d,
-            z: p0.z * a + p1.z * b + p2.z * c + p3.z * d
-        };
-    }
-
-    function transformWakeLocalToWorld(ship, localPoint) {
+    function wakeEmitterWorld(ship, sideSign) {
         var fx = forwardX(ship.heading);
         var fz = forwardZ(ship.heading);
         var rx = forwardX(ship.heading + Math.PI * 0.5);
         var rz = forwardZ(ship.heading + Math.PI * 0.5);
+        var localX = sideSign * 20;
+        var localZ = 30;
 
         return {
-            x: ship.x + rx * localPoint.x + fx * localPoint.z,
-            z: ship.z + rz * localPoint.x + fz * localPoint.z
+            x: ship.x + rx * localX + fx * localZ,
+            z: ship.z + rz * localX + fz * localZ
         };
     }
 
-    function buildWakeLaneLocalPoint(sideSign, t, trailLength) {
-        var p0 = { x: sideSign * 24, z: 33 };
-        var p1 = { x: sideSign * 35, z: 20 };
-        var p2 = { x: sideSign * 36, z: -18 - trailLength * 0.16 };
-        var p3 = { x: sideSign * 20, z: -trailLength };
-        return cubicBezierPoint(p0, p1, p2, p3, t);
+    function pushWakeSample(samples, point) {
+        var first = samples[0];
+
+        if (first && length2(first.x - point.x, first.z - point.z) < WAKE_SAMPLE_DISTANCE) {
+            first.x = point.x;
+            first.z = point.z;
+            first.age = 0;
+            return;
+        }
+
+        samples.unshift({
+            x: point.x,
+            z: point.z,
+            age: 0
+        });
+
+        if (samples.length > WAKE_CURVE_SAMPLES * 2) {
+            samples.length = WAKE_CURVE_SAMPLES * 2;
+        }
     }
 
-    function wakeLaneAlpha(t, speedRatio) {
-        var middle = Math.sin(Math.PI * t);
-        var tailFade = 1 - smoothstep(0.72, 1.0, t) * 0.72;
-        return clamp(Math.pow(middle, 0.72) * tailFade * (0.54 + speedRatio * 0.46), 0, 1);
+    function trimWakeSamples(samples, dt) {
+        var i;
+
+        for (i = samples.length - 1; i >= 0; i -= 1) {
+            samples[i].age += dt;
+            if (samples[i].age > WAKE_MAX_AGE) {
+                samples.splice(i, 1);
+            }
+        }
+    }
+
+    function updateWakeSamples(ship, dt) {
+        var speed = length2(ship.vx, ship.vz);
+        var leftPoint;
+        var rightPoint;
+        var distance;
+
+        trimWakeSamples(ship.wakeLeftSamples, dt);
+        trimWakeSamples(ship.wakeRightSamples, dt);
+
+        if (ship.hp <= 0 || speed < 10) {
+            return;
+        }
+
+        distance = speed * dt;
+        ship.wakeDistance += distance;
+
+        if (ship.wakeDistance < WAKE_SAMPLE_DISTANCE) {
+            return;
+        }
+
+        ship.wakeDistance = 0;
+        leftPoint = wakeEmitterWorld(ship, -1);
+        rightPoint = wakeEmitterWorld(ship, 1);
+
+        pushWakeSample(ship.wakeLeftSamples, leftPoint);
+        pushWakeSample(ship.wakeRightSamples, rightPoint);
+    }
+
+    function collectWakePoints(ship, sideSign) {
+        var samples = sideSign < 0 ? ship.wakeLeftSamples : ship.wakeRightSamples;
+        var points = [];
+        var current = wakeEmitterWorld(ship, sideSign);
+        var i;
+
+        points.push({
+            x: current.x,
+            z: current.z,
+            age: 0
+        });
+
+        for (i = 0; i < samples.length && points.length < WAKE_CURVE_SAMPLES; i += 1) {
+            if (length2(samples[i].x - current.x, samples[i].z - current.z) > 3.0) {
+                points.push(samples[i]);
+            }
+        }
+
+        return points;
+    }
+
+    function wakeLaneAlpha(t, age, speedRatio) {
+        var startFade = smoothstep(0.04, 0.18, t);
+        var tailFade = 1 - smoothstep(0.58, 1.0, t);
+        var ageFade = 1 - smoothstep(WAKE_MAX_AGE * 0.55, WAKE_MAX_AGE, age);
+        return clamp(startFade * tailFade * ageFade * (0.52 + speedRatio * 0.48), 0, 1);
+    }
+
+    function getWakePointTangent(points, index) {
+        var current = points[index];
+        var prev = points[Math.max(0, index - 1)] || current;
+        var next = points[Math.min(points.length - 1, index + 1)] || current;
+        var tx = prev.x - next.x;
+        var tz = prev.z - next.z;
+        var tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
+
+        return {
+            x: tx / tangentLength,
+            z: tz / tangentLength
+        };
+    }
+
+    function hideWakeLane(mesh) {
+        if (!mesh) {
+            return;
+        }
+        mesh.visible = false;
+        mesh.geometry.setDrawRange(0, 0);
     }
 
     function syncWakeLane(ship, mesh, sideSign) {
         var speed;
         var speedRatio;
-        var trailLength;
+        var points;
         var attr;
         var alphaAttr;
         var positions;
         var alphas;
+        var count;
         var i;
-        var t;
-        var pointLocal;
-        var prevLocal;
-        var nextLocal;
-        var pointWorld;
-        var prevWorld;
-        var nextWorld;
-        var tx;
-        var tz;
-        var tangentLength;
+        var point;
+        var tangent;
         var nx;
         var nz;
+        var t;
         var width;
         var alpha;
+        var lastPoint;
 
         if (!mesh) {
             return;
         }
 
         speed = length2(ship.vx, ship.vz);
-        mesh.visible = ship.hp > 0 && speed > 10;
-        if (!mesh.visible) {
+        points = collectWakePoints(ship, sideSign);
+        count = points.length;
+
+        if (ship.hp <= 0 || speed < 10 || count < 2) {
+            hideWakeLane(mesh);
             return;
         }
 
         speedRatio = clamp(speed / 145, 0, 1);
-        trailLength = clamp(52 + speed * 0.70, 58, 112);
         attr = mesh.geometry.attributes.position;
         alphaAttr = mesh.geometry.attributes.aAlpha;
         positions = attr.array;
         alphas = alphaAttr.array;
 
-        for (i = 0; i < WAKE_CURVE_SAMPLES; i += 1) {
-            t = i / Math.max(1, WAKE_CURVE_SAMPLES - 1);
-            pointLocal = buildWakeLaneLocalPoint(sideSign, t, trailLength);
-            prevLocal = buildWakeLaneLocalPoint(sideSign, Math.max(0, t - 0.01), trailLength);
-            nextLocal = buildWakeLaneLocalPoint(sideSign, Math.min(1, t + 0.01), trailLength);
-            pointWorld = transformWakeLocalToWorld(ship, pointLocal);
-            prevWorld = transformWakeLocalToWorld(ship, prevLocal);
-            nextWorld = transformWakeLocalToWorld(ship, nextLocal);
+        for (i = 0; i < count; i += 1) {
+            point = points[i];
+            tangent = getWakePointTangent(points, i);
+            nx = -tangent.z;
+            nz = tangent.x;
+            t = i / Math.max(1, count - 1);
+            width = (0.80 + speedRatio * 0.55) * (0.25 + Math.sin(Math.PI * t) * 0.75);
+            alpha = wakeLaneAlpha(t, point.age, speedRatio);
 
-            tx = nextWorld.x - prevWorld.x;
-            tz = nextWorld.z - prevWorld.z;
-            tangentLength = Math.sqrt(tx * tx + tz * tz) || 1;
-            nx = -tz / tangentLength;
-            nz = tx / tangentLength;
-
-            width = (0.85 + speedRatio * 0.75) * (0.28 + Math.sin(Math.PI * t) * 0.72);
-            alpha = wakeLaneAlpha(t, speedRatio);
-
-            positions[(i * 2) * 3 + 0] = pointWorld.x + nx * width;
+            positions[(i * 2) * 3 + 0] = point.x + nx * width;
             positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2) * 3 + 2] = pointWorld.z + nz * width;
+            positions[(i * 2) * 3 + 2] = point.z + nz * width;
 
-            positions[(i * 2 + 1) * 3 + 0] = pointWorld.x - nx * width;
+            positions[(i * 2 + 1) * 3 + 0] = point.x - nx * width;
             positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2 + 1) * 3 + 2] = pointWorld.z - nz * width;
+            positions[(i * 2 + 1) * 3 + 2] = point.z - nz * width;
 
             alphas[i * 2] = alpha;
             alphas[i * 2 + 1] = alpha;
         }
 
+        lastPoint = points[count - 1];
+        for (i = count; i < WAKE_CURVE_SAMPLES; i += 1) {
+            positions[(i * 2) * 3 + 0] = lastPoint.x;
+            positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2) * 3 + 2] = lastPoint.z;
+            positions[(i * 2 + 1) * 3 + 0] = lastPoint.x;
+            positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
+            positions[(i * 2 + 1) * 3 + 2] = lastPoint.z;
+            alphas[i * 2] = 0;
+            alphas[i * 2 + 1] = 0;
+        }
+
         attr.needsUpdate = true;
         alphaAttr.needsUpdate = true;
+        mesh.visible = true;
+        mesh.geometry.setDrawRange(0, Math.max(0, (count - 1) * 6));
     }
 
     function syncWake(ship) {
