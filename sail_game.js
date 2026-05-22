@@ -40,7 +40,7 @@
     var WAKE_LIFE = 3.2;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
-    var ISLAND_DOCK_RADIUS = 118;
+    var DOCK_INTERACT_RADIUS = 72;
     var THREE = null;
     var renderer = null;
     var scene = null;
@@ -171,6 +171,7 @@
             patrolIndex: 0,
             isPlayer: isPlayer,
             mesh: null,
+            dockRing: null,
             debugRing: null,
             damage: isPlayer ? 35 : 18,
             cannonCooldownMul: 1,
@@ -194,6 +195,7 @@
             dock: true,
             name: 'Harbor',
             mesh: null,
+            dockRing: null,
             debugRing: null
         });
 
@@ -225,6 +227,8 @@
             gameOver: false,
             routeClear: false,
             docked: false,
+            nearDock: false,
+            activeDockIndex: -1,
             dockTimer: 0,
             sellCooldown: 0,
             player: makeShip(-250, -190, 0.35, true),
@@ -245,7 +249,7 @@
             mouseWorldX: 0,
             mouseWorldZ: 0,
             mouseInside: false,
-            messageText: 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space broadside fire.',
+            messageText: 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. F docks at piers.',
             messageTimer: 0,
             input: {
                 sailUp: false,
@@ -254,7 +258,8 @@
                 right: false,
                 camLeft: false,
                 camRight: false,
-                fire: false
+                fire: false,
+                dock: false
             }
         };
     }
@@ -302,6 +307,7 @@
             leaf: makeMaterial(0x2f7f54, 0.92, 0.0),
             crate: makeMaterial(0xb57231, 0.88, 0.0),
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
+            dockZone: new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 }),
             debugGreen: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 }),
             debugRed: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 }),
             wind: new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.44 }),
@@ -460,6 +466,16 @@
             var dock = new THREE.Mesh(new THREE.BoxGeometry(24, 7, 95), materials.dock);
             dock.position.set(0, 8, island.r + 34);
             group.add(dock);
+
+            island.dockX = island.x;
+            island.dockZ = island.z + island.r + 34;
+            island.dockRing = createDebugRing(DOCK_INTERACT_RADIUS, materials.dockZone);
+            island.dockRing.position.set(island.dockX, 1.4, island.dockZ);
+            worldGroup.add(island.dockRing);
+        } else {
+            island.dockX = island.x;
+            island.dockZ = island.z;
+            island.dockRing = null;
         }
 
         group.position.set(island.x, 0, island.z);
@@ -467,7 +483,7 @@
         worldGroup.add(group);
 
         if (DEBUG_ENABLED) {
-            island.debugRing = createDebugRing(island.dock ? ISLAND_DOCK_RADIUS : island.r, materials.debugGreen);
+            island.debugRing = createDebugRing(island.r, materials.debugGreen);
             island.debugRing.position.set(island.x, 1, island.z);
             worldGroup.add(island.debugRing);
         }
@@ -1292,7 +1308,7 @@
                 p.cargoValue += crate.value;
                 worldGroup.remove(crate.mesh);
                 state.crates.splice(i, 1);
-                setMessage('Cargo recovered. Dock near an island to sell it.', 2.0);
+                setMessage('Cargo recovered. Dock at a pier with F to sell it.', 2.0);
             }
         }
     }
@@ -1333,9 +1349,12 @@
 
     function updateDock(dt) {
         var p = state.player;
-        var docked = false;
+        var nearDock = false;
+        var activeDockIndex = -1;
         var i;
         var island;
+        var dx;
+        var dz;
         var hullCost;
         var sailCost;
         var cannonCost;
@@ -1345,21 +1364,25 @@
             if (!island.dock) {
                 continue;
             }
-            if (dist2(p, island) <= ISLAND_DOCK_RADIUS) {
-                docked = true;
+
+            dx = p.x - island.dockX;
+            dz = p.z - island.dockZ;
+            if (length2(dx, dz) <= DOCK_INTERACT_RADIUS) {
+                nearDock = true;
+                activeDockIndex = i;
                 break;
             }
         }
 
-        state.docked = docked;
+        state.nearDock = nearDock;
+        state.activeDockIndex = activeDockIndex;
+        state.dockTimer = Math.max(0, state.dockTimer - dt);
+        state.docked = state.dockTimer > 0;
         state.sellCooldown = Math.max(0, state.sellCooldown - dt);
 
-        if (docked && p.cargo > 0 && state.sellCooldown <= 0) {
-            p.gold += p.cargoValue;
-            setMessage('Cargo sold for ' + p.cargoValue + ' gold. Upgrades: 1 hull, 2 sail, 3 cannon.', 3.5);
-            p.cargo = 0;
-            p.cargoValue = 0;
-            state.sellCooldown = 2.0;
+        if (state.input.dock) {
+            dockAtPier();
+            state.input.dock = false;
         }
 
         hullCost = upgradeCost('hull');
@@ -1367,6 +1390,30 @@
         cannonCost = upgradeCost('cannon');
         if (hud.upgrade) {
             hud.upgrade.textContent = hullCost + '/' + sailCost + '/' + cannonCost;
+        }
+    }
+
+    function dockAtPier() {
+        var p = state.player;
+        var island;
+
+        if (!state.nearDock || state.activeDockIndex < 0) {
+            setMessage('Move into the pier zone, then press F to dock.', 1.8);
+            return;
+        }
+
+        island = state.islands[state.activeDockIndex];
+        state.dockTimer = 2.5;
+        state.docked = true;
+
+        if (p.cargo > 0 && state.sellCooldown <= 0) {
+            p.gold += p.cargoValue;
+            setMessage('Docked at ' + island.name + '. Cargo sold for ' + p.cargoValue + ' gold. Upgrades: 1 hull, 2 sail, 3 cannon.', 3.5);
+            p.cargo = 0;
+            p.cargoValue = 0;
+            state.sellCooldown = 2.0;
+        } else {
+            setMessage('Docked at ' + island.name + '. Upgrades: 1 hull, 2 sail, 3 cannon.', 2.6);
         }
     }
 
@@ -1384,8 +1431,8 @@
         var p = state.player;
         var cost;
 
-        if (!state.docked || state.gameOver) {
-            setMessage('Dock near an island before buying upgrades.', 1.7);
+        if ((!state.nearDock && !state.docked) || state.gameOver) {
+            setMessage('Dock at a pier before buying upgrades.', 1.7);
             return;
         }
 
@@ -1701,7 +1748,7 @@
             hud.reload.textContent = p.fireCooldown <= 0 ? 'READY' : pad((1 - p.fireCooldown / (0.58 * p.cannonCooldownMul)) * 100, 2) + '%';
         }
         if (hud.dock) {
-            hud.dock.textContent = state.docked ? 'YES' : 'NO';
+            hud.dock.textContent = state.nearDock ? 'PRESS F' : (state.docked ? 'DOCKED' : 'NO');
         }
 
         if (hud.message) {
@@ -1710,7 +1757,7 @@
                 debugText += ' ai=' + state.enemies.map(function (enemy) { return enemy.aiState; }).join(',');
                 hud.message.textContent = state.messageTimer > 0 ? state.messageText + ' | ' + debugText : debugText;
             } else {
-                hud.message.textContent = state.messageTimer > 0 ? state.messageText : 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space broadside fire. Dock near islands to sell cargo.';
+                hud.message.textContent = state.messageTimer > 0 ? state.messageText : (state.nearDock ? 'Press F to dock at the pier. Cargo sells here. Upgrades: 1 hull, 2 sail, 3 cannon.' : 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock at a pier with F.');
             }
         }
 
@@ -1758,7 +1805,7 @@
         clockStarted = false;
         buildWorld();
         syncMeshes();
-        setMessage('New run. Catch the wind, fire broadside, and dock for upgrades.', 4);
+        setMessage('New run. Catch the wind, fire broadside, and press F inside a pier zone to dock.', 4);
     }
 
     function togglePause() {
@@ -1786,6 +1833,9 @@
         } else if (event.code === 'Space') {
             state.input.fire = true;
             event.preventDefault();
+        } else if (event.code === 'KeyF') {
+            state.input.dock = true;
+            event.preventDefault();
         } else if (event.code === 'KeyP') {
             togglePause();
         } else if (event.code === 'Digit1') {
@@ -1810,6 +1860,8 @@
             state.input.camLeft = false;
         } else if (event.code === 'KeyE') {
             state.input.camRight = false;
+        } else if (event.code === 'KeyF') {
+            state.input.dock = false;
         }
     }
 
