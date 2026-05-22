@@ -6,7 +6,7 @@
     <title>Sail &amp; Fire | KDakin-Dev</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
     <link rel="stylesheet" href="./site.css?v=34">
-    <link rel="stylesheet" href="./sail_game.css?v=8">
+    <link rel="stylesheet" href="./sail_game.css?v=12">
 </head>
 <body class="sail-page">
     <main class="sail-shell" aria-label="Sail and Fire isometric 3D prototype">
@@ -40,6 +40,28 @@
                 <div class="sail-message" data-sail-message>
                     W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Press F inside a pier zone to dock.
                 </div>
+
+                <div class="sail-dock-panel" data-dock-panel hidden aria-hidden="true" role="dialog" aria-label="Dock services">
+                    <div class="sail-dock-head">
+                        <div>
+                            <span>Harbor</span>
+                            <strong data-dock="name">Pier</strong>
+                        </div>
+                        <button class="sail-dock-close" type="button" data-dock-close aria-label="Close dock menu">Close</button>
+                    </div>
+                    <div class="sail-dock-stats">
+                        <div><span>Cargo</span><strong data-dock="cargo">0/6</strong></div>
+                        <div><span>Cargo value</span><strong data-dock="cargoValue">0 gold</strong></div>
+                        <div><span>Gold</span><strong data-dock="gold">0</strong></div>
+                    </div>
+                    <div class="sail-dock-actions">
+                        <button type="button" data-dock-sell>Sell cargo</button>
+                        <button type="button" data-dock-upgrade="1">Hull upgrade</button>
+                        <button type="button" data-dock-upgrade="2">Sail upgrade</button>
+                        <button type="button" data-dock-upgrade="3">Cannon upgrade</button>
+                    </div>
+                    <p class="sail-dock-hint" data-dock="hint">Press F near a pier to open this menu. Esc closes it.</p>
+                </div>
                 <div class="sail-pause-card" data-sail-pause-card hidden aria-hidden="true">
                     <strong>Paused</strong>
                     <span>Press P or the Pause button to continue.</span>
@@ -62,6 +84,6 @@
             </footer>
         </section>
     </main>
-    <script src="./sail_game.js?v=8" defer></script>
+    <script src="./sail_game.js?v=14" defer></script>
 </body>
 </html>
