@@ -50,10 +50,12 @@
     var AIM_MAX_RANGE = 720;
     var WAKE_POINT_COUNT = 34;
     var WAKE_LIFE = 3.2;
+    var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
     var DOCK_INTERACT_RADIUS = 72;
-    var ISLAND_SAFE_ZONE_EXTRA = 230;
+    var ISLAND_SHORE_BUFFER = 230;
+    var SHALLOW_WATER_WIDTH = 210;
     var ISLAND_TOTAL_COUNT = 16;
     var TRADING_ISLAND_COUNT = 4;
     var WILD_ISLAND_COUNT = ISLAND_TOTAL_COUNT - TRADING_ISLAND_COUNT;
@@ -454,29 +456,41 @@
         };
     }
 
-    function getIslandSafetyAt(x, z) {
+    function islandLocalAngleAtPoint(island, x, z) {
+        return wrapAngle(Math.atan2(x - island.x, z - island.z) - (island.shapeRotation || 0));
+    }
+
+    function islandCoastRadiusAtLocalAngle(island, localAngle) {
+        return island.r * islandShapeFactor(island, localAngle);
+    }
+
+    function islandCoastRadiusAtPoint(island, x, z) {
+        return islandCoastRadiusAtLocalAngle(island, islandLocalAngleAtPoint(island, x, z));
+    }
+
+    function islandNavigationRadiusAtPoint(island, x, z) {
+        return islandCoastRadiusAtPoint(island, x, z) + ISLAND_SHORE_BUFFER;
+    }
+
+    function getIslandNavigationBufferAt(x, z) {
         var i;
         var island;
-        var safeRadius;
+        var bufferRadius;
         var distance;
 
         for (i = 0; i < state.islands.length; i += 1) {
             island = state.islands[i];
-            safeRadius = island.safeRadius || island.r + ISLAND_SAFE_ZONE_EXTRA;
             distance = length2(x - island.x, z - island.z);
-            if (distance <= safeRadius) {
+            bufferRadius = islandNavigationRadiusAtPoint(island, x, z);
+            if (distance <= bufferRadius) {
                 return {
                     island: island,
                     distance: distance,
-                    safeRadius: safeRadius
+                    navigationRadius: bufferRadius
                 };
             }
         }
         return null;
-    }
-
-    function isInsideIslandSafeZone(x, z) {
-        return getIslandSafetyAt(x, z) !== null;
     }
 
     function makeEnemyZone(rng, islands, index) {
@@ -553,7 +567,6 @@
             x: -110,
             z: -80,
             r: 86,
-            safeRadius: 86 + ISLAND_SAFE_ZONE_EXTRA,
             dock: true,
             shape: 'trade',
             shapeRotation: 0,
@@ -563,7 +576,6 @@
             name: 'Harbor',
             mesh: null,
             dockRing: null,
-            safeRing: null,
             debugRing: null
         });
 
@@ -575,13 +587,11 @@
                 x: placement.x,
                 z: placement.z,
                 r: islandRadius,
-                safeRadius: islandRadius + ISLAND_SAFE_ZONE_EXTRA,
                 dock: zone.dock,
                 name: zone.dock ? 'Trade Pier ' + tradeIndex++ : 'Wild Island ' + wildIndex++,
                 mesh: null,
                 dockRing: null,
-                safeRing: null,
-                debugRing: null
+                    debugRing: null
             }, makeIslandShapeData(zone.dock ? 'trade' : pickWildIslandShape(wildIndex, rng), rng)));
         }
 
@@ -634,11 +644,9 @@
             mouseWorldX: 0,
             mouseWorldZ: 0,
             mouseInside: false,
-            messageText: 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. F docks at piers.',
+            messageText: 'W/S sail stages. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. F docks at piers.',
             messageTimer: 0,
             input: {
-                sailUp: false,
-                sailDown: false,
                 left: false,
                 right: false,
                 camLeft: false,
@@ -694,7 +702,6 @@
             crate: makeMaterial(0xb57231, 0.88, 0.0),
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
             dockZone: new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 }),
-            safeZone: new THREE.MeshBasicMaterial({ color: 0x8ee6cf, wireframe: true, transparent: true, opacity: 0.18, side: THREE.DoubleSide, depthWrite: false }),
             fogBoundary: new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false }),
             debugGreen: new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 }),
             debugRed: new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 }),
@@ -729,7 +736,7 @@
         for (i = 0; i < state.islands.length; i += 1) {
             island = state.islands[i];
             d = length2(x - island.x, z - island.z);
-            shallowFactor = Math.max(shallowFactor, 1 - smoothstep(island.r * 1.15, island.r + 360, d));
+            shallowFactor = Math.max(shallowFactor, 1 - smoothstep(10, SHALLOW_WATER_WIDTH, d - islandCoastRadiusAtPoint(island, x, z)));
         }
 
         color.lerp(shallow, clamp(shallowFactor * 0.82, 0, 0.82));
@@ -919,11 +926,6 @@
         group.position.set(island.x, 0, island.z);
         island.mesh = group;
         worldGroup.add(group);
-
-        island.safeRing = createDebugRing(island.safeRadius || island.r + ISLAND_SAFE_ZONE_EXTRA, materials.safeZone);
-        island.safeRing.position.set(island.x, 0.7, island.z);
-        island.safeRing.renderOrder = 2;
-        worldGroup.add(island.safeRing);
 
         if (DEBUG_ENABLED) {
             island.debugRing = createDebugRing(island.r, materials.debugGreen);
@@ -1419,16 +1421,19 @@
         }
     }
 
+    function setPlayerSailStage(delta) {
+        var p = state.player;
+        var currentStage = Math.round(p.sail / SAIL_STAGE_STEP);
+        var nextStage = clamp(currentStage + delta, 0, 3);
+        p.sail = nextStage * SAIL_STAGE_STEP;
+        if (state.messageTimer <= 0.15) {
+            setMessage('Sail set to ' + Math.round(p.sail * 100) + '%.', 0.9);
+        }
+    }
+
     function updatePlayer(dt) {
-        var sailDelta = 0;
         var rudder = 0;
 
-        if (state.input.sailUp) {
-            sailDelta += 1;
-        }
-        if (state.input.sailDown) {
-            sailDelta -= 1;
-        }
         if (state.input.left) {
             rudder += 1;
         }
@@ -1436,7 +1441,7 @@
             rudder -= 1;
         }
 
-        updateShipPhysics(state.player, rudder, sailDelta, dt);
+        updateShipPhysics(state.player, rudder, 0, dt);
 
         if (state.input.fire) {
             fireFromShip(state.player, state.mouseWorldX, state.mouseWorldZ);
@@ -1456,14 +1461,14 @@
         enemy.aiTimer = randRange(state.rng, 3.2, 6.2);
     }
 
-    function steerEnemyAwayFromSafeZone(enemy, safety) {
-        var dx = enemy.x - safety.island.x;
-        var dz = enemy.z - safety.island.z;
+    function steerEnemyAwayFromIslandBuffer(enemy, buffer) {
+        var dx = enemy.x - buffer.island.x;
+        var dz = enemy.z - buffer.island.z;
         var d = Math.max(1, length2(dx, dz));
-        var escapeRadius = safety.safeRadius + 140;
+        var escapeRadius = buffer.navigationRadius + 140;
 
-        enemy.targetX = safety.island.x + dx / d * escapeRadius;
-        enemy.targetZ = safety.island.z + dz / d * escapeRadius;
+        enemy.targetX = buffer.island.x + dx / d * escapeRadius;
+        enemy.targetZ = buffer.island.z + dz / d * escapeRadius;
         enemy.targetX = lerp(enemy.targetX, enemy.zoneX, 0.22);
         enemy.targetZ = lerp(enemy.targetZ, enemy.zoneZ, 0.22);
         enemy.aiTimer = 1.4;
@@ -1488,8 +1493,7 @@
         var turnError;
         var rudder;
         var sailDelta;
-        var playerSafety;
-        var enemySafety;
+        var enemyBuffer;
         var zoneDistance;
 
         if (enemy.hp <= 0) {
@@ -1498,16 +1502,10 @@
         }
 
         enemy.aiTimer -= dt;
-        playerSafety = getIslandSafetyAt(player.x, player.z);
-        enemySafety = getIslandSafetyAt(enemy.x, enemy.z);
+        enemyBuffer = getIslandNavigationBufferAt(enemy.x, enemy.z);
         zoneDistance = length2(enemy.x - enemy.zoneX, enemy.z - enemy.zoneZ);
 
-        if (enemySafety) {
-            enemy.aiState = 'patrol';
-            steerEnemyAwayFromSafeZone(enemy, enemySafety);
-            desiredX = enemy.targetX;
-            desiredZ = enemy.targetZ;
-        } else if (zoneDistance > enemy.zoneRadius * 1.45) {
+        if (zoneDistance > enemy.zoneRadius * 1.45) {
             enemy.aiState = 'patrol';
             desiredX = enemy.zoneX;
             desiredZ = enemy.zoneZ;
@@ -1515,7 +1513,7 @@
             enemy.aiState = 'retreat';
             desiredX = enemy.zoneX;
             desiredZ = enemy.zoneZ;
-        } else if (!playerSafety && distanceToPlayer < 260) {
+        } else if (distanceToPlayer < 260) {
             enemy.aiState = 'attack';
             desiredHeadingOverride = chooseBroadsideHeading(enemy, player);
             desiredX = enemy.x + Math.sin(desiredHeadingOverride) * 160;
@@ -1527,7 +1525,7 @@
             if (enemy.fireCooldown <= 0) {
                 fireFromShip(enemy, player.x + player.vx * 0.9, player.z + player.vz * 0.9);
             }
-        } else if (!playerSafety && distanceToPlayer < 720 && zoneDistance < enemy.zoneRadius * 1.15) {
+        } else if (distanceToPlayer < 720 && zoneDistance < enemy.zoneRadius * 1.15) {
             enemy.aiState = 'chase';
             desiredX = player.x + player.vx * 1.2;
             desiredZ = player.z + player.vz * 1.2;
@@ -1538,6 +1536,11 @@
             }
             desiredX = enemy.targetX;
             desiredZ = enemy.targetZ;
+            if (enemyBuffer) {
+                steerEnemyAwayFromIslandBuffer(enemy, enemyBuffer);
+                desiredX = enemy.targetX;
+                desiredZ = enemy.targetZ;
+            }
         }
 
         dx = desiredX - enemy.x;
@@ -1745,10 +1748,6 @@
         if (player.hp <= 0 || p.y > 28) {
             return false;
         }
-        if (p.owner === 'enemy' && isInsideIslandSafeZone(player.x, player.z)) {
-            return false;
-        }
-
         if (length2(p.x - player.x, p.z - player.z) <= PLAYER_RADIUS) {
             applyDamage(player, p.damage);
             setMessage('Hit taken. Hit taken. Keep moving and turn for a better broadside.', 2.2);
@@ -2117,7 +2116,7 @@
 
         if (!state.routeClear && alive === 0) {
             state.routeClear = true;
-            setMessage('Route clear. The harbor is safe for now.', 8);
+            setMessage('Route clear. Harbor traffic is open.', 8);
         }
     }
 
@@ -2310,10 +2309,6 @@
             island = state.islands[i];
             x = mapToMini(island.x);
             y = mapToMini(island.z);
-            ctx.strokeStyle = 'rgba(142, 230, 207, 0.22)';
-            ctx.beginPath();
-            ctx.arc(x, y, ((island.safeRadius || island.r + ISLAND_SAFE_ZONE_EXTRA) / SEA_HARD_LIMIT) * 78, 0, TAU);
-            ctx.stroke();
             ctx.fillStyle = island.dock ? 'rgba(255, 209, 102, 0.85)' : 'rgba(83, 158, 90, 0.70)';
             ctx.beginPath();
             ctx.arc(x, y, clamp(island.r / 24, 2.5, 5.5), 0, TAU);
@@ -2389,7 +2384,7 @@
                 debugText += ' ai=' + state.enemies.map(function (enemy) { return enemy.aiState; }).join(',');
                 hud.message.textContent = state.messageTimer > 0 ? state.messageText + ' | ' + debugText : debugText;
             } else {
-                hud.message.textContent = state.messageTimer > 0 ? state.messageText : (state.nearDock ? 'Press F to open the pier services menu.' : (isInsideIslandSafeZone(p.x, p.z) ? 'Island safe zone. Enemies keep distance here. Reach a pier and press F to dock.' : 'W/S sail. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock at a pier with F.'));
+                hud.message.textContent = state.messageTimer > 0 ? state.messageText : (state.nearDock ? 'Press F to open the pier services menu.' : 'W/S sail stages. A/D rudder. Q/E camera. Mouse aim. LMB or Space fire. Dock at a pier with F.');
             }
         }
 
@@ -2470,9 +2465,11 @@
         }
 
         if (event.code === 'KeyW') {
-            state.input.sailUp = true;
+            setPlayerSailStage(1);
+            event.preventDefault();
         } else if (event.code === 'KeyS') {
-            state.input.sailDown = true;
+            setPlayerSailStage(-1);
+            event.preventDefault();
         } else if (event.code === 'KeyA') {
             state.input.left = true;
         } else if (event.code === 'KeyD') {
@@ -2499,11 +2496,7 @@
     }
 
     function onKeyUp(event) {
-        if (event.code === 'KeyW') {
-            state.input.sailUp = false;
-        } else if (event.code === 'KeyS') {
-            state.input.sailDown = false;
-        } else if (event.code === 'KeyA') {
+        if (event.code === 'KeyA') {
             state.input.left = false;
         } else if (event.code === 'KeyD') {
             state.input.right = false;
@@ -2571,7 +2564,7 @@
             THREE = await import(THREE_URL);
             initThree();
             installEvents();
-            setMessage('Sail and Fire loaded. W/S sail, A/D rudder, Q/E camera, LMB broadside fire.', 5);
+            setMessage('Sail and Fire loaded. W/S switch sail stages, A/D rudder, Q/E camera, LMB broadside fire.', 5);
             window.requestAnimationFrame(renderFrame);
         } catch (error) {
             if (hud.loading) {
