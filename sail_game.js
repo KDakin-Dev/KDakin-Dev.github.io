@@ -51,14 +51,14 @@
     var AIM_DOT_COUNT = 30;
     var AIM_MAX_FLIGHT_TIME = 3.0;
     var AIM_MAX_RANGE = 720;
-    var WAKE_CURVE_SAMPLES = 32;
-    var WAKE_MAX_AGE = 3.0;
-    var WAKE_MIN_SPEED = 10;
-    var WAKE_SAMPLE_DISTANCE = 6.5;
-    var WAKE_BASE_WIDTH = 1.15;
-    var WAKE_EXPAND_WIDTH = 3.2;
-    var WAKE_SIDE_DRIFT = 4.0;
-    var WAKE_BACK_DRIFT = 1.4;
+    var WAKE_CURVE_SAMPLES = 96;
+    var WAKE_MIN_SPEED = 8;
+    var WAKE_FULL_SPEED = 150;
+    var WAKE_SAMPLE_DISTANCE_SLOW = 7.4;
+    var WAKE_SAMPLE_DISTANCE_FAST = 5.2;
+    var WAKE_EMITTER_SIDE_OFFSET = 20;
+    var WAKE_EMITTER_FORWARD_OFFSET = 30;
+    var WAKE_INNER_WIDTH = 0.45;
     var SAIL_STAGE_STEP = 1 / 3;
     var PLAYER_RADIUS = 24;
     var ENEMY_RADIUS = 23;
@@ -202,10 +202,10 @@
             wakeRight: null,
             wakeLeftSamples: [],
             wakeRightSamples: [],
-            wakeLeftDistance: 0,
-            wakeRightDistance: 0,
-            wakeLeftEmitter: null,
-            wakeRightEmitter: null,
+            wakeDistance: 0,
+            wakePrevX: x,
+            wakePrevZ: z,
+            wakePrevHeading: heading,
             healthBar: null,
             aiTimer: 0,
             aiState: 'patrol',
@@ -2142,89 +2142,59 @@
         }
     }
 
-    function wakeEmitterWorld(ship, sideSign) {
-        var fx = forwardX(ship.heading);
-        var fz = forwardZ(ship.heading);
-        var rx = forwardX(ship.heading + Math.PI * 0.5);
-        var rz = forwardZ(ship.heading + Math.PI * 0.5);
-        var localX = sideSign * 20;
-        var localZ = 30;
-        var outX = rx * sideSign;
-        var outZ = rz * sideSign;
+    function wakeSpeedRatio(speed) {
+        return clamp((speed - WAKE_MIN_SPEED) / Math.max(1, WAKE_FULL_SPEED - WAKE_MIN_SPEED), 0, 1);
+    }
+
+    function wakeLifetime(speedRatio) {
+        return lerp(0.90, 3.20, smoothstep(0, 1, speedRatio));
+    }
+
+    function wakeSampleDistance(speedRatio, turnRatio) {
+        var base = lerp(WAKE_SAMPLE_DISTANCE_SLOW, WAKE_SAMPLE_DISTANCE_FAST, speedRatio);
+        return base * lerp(1.0, 0.72, turnRatio);
+    }
+
+    function wakeEmitterAt(x, z, heading, sideSign) {
+        var fx = forwardX(heading);
+        var fz = forwardZ(heading);
+        var rx = forwardX(heading + Math.PI * 0.5);
+        var rz = forwardZ(heading + Math.PI * 0.5);
 
         return {
-            x: ship.x + rx * localX + fx * localZ,
-            z: ship.z + rz * localX + fz * localZ,
-            outX: outX,
-            outZ: outZ
+            x: x + rx * sideSign * WAKE_EMITTER_SIDE_OFFSET + fx * WAKE_EMITTER_FORWARD_OFFSET,
+            z: z + rz * sideSign * WAKE_EMITTER_SIDE_OFFSET + fz * WAKE_EMITTER_FORWARD_OFFSET,
+            outX: rx * sideSign,
+            outZ: rz * sideSign,
+            forwardX: fx,
+            forwardZ: fz
         };
     }
 
-    function cloneWakeEmitter(emitter) {
-        return {
-            x: emitter.x,
-            z: emitter.z,
-            outX: emitter.outX,
-            outZ: emitter.outZ
-        };
-    }
-
-    function interpolateWakeEmitter(a, b, t) {
-        var outX = lerp(a.outX, b.outX, t);
-        var outZ = lerp(a.outZ, b.outZ, t);
-        var outLen = Math.sqrt(outX * outX + outZ * outZ) || 1;
-
-        return {
-            x: lerp(a.x, b.x, t),
-            z: lerp(a.z, b.z, t),
-            outX: outX / outLen,
-            outZ: outZ / outLen
-        };
-    }
-
-    function makeWakeSample(ship, emitter) {
-        var speed = length2(ship.vx, ship.vz);
-        var speedRatio = clamp(speed / 145, 0, 1);
-        var fx;
-        var fz;
-        var nx;
-        var nz;
-        var nLen;
-
-        if (speed > WAKE_MIN_SPEED) {
-            fx = ship.vx / speed;
-            fz = ship.vz / speed;
-        } else {
-            fx = forwardX(ship.heading);
-            fz = forwardZ(ship.heading);
-        }
-
-        nx = -fz;
-        nz = fx;
-        if (nx * emitter.outX + nz * emitter.outZ < 0) {
-            nx = -nx;
-            nz = -nz;
-        }
-        nLen = Math.sqrt(nx * nx + nz * nz) || 1;
-        nx /= nLen;
-        nz /= nLen;
+    function makeWakeSample(emitter, speedRatio, turnRatio) {
+        var sideDrift = lerp(5.9, 2.15, speedRatio) * lerp(1.15, 0.85, turnRatio);
+        var backDrift = lerp(0.25, 1.28, speedRatio);
+        var outLen = Math.sqrt(emitter.outX * emitter.outX + emitter.outZ * emitter.outZ) || 1;
+        var fLen = Math.sqrt(emitter.forwardX * emitter.forwardX + emitter.forwardZ * emitter.forwardZ) || 1;
+        var outX = emitter.outX / outLen;
+        var outZ = emitter.outZ / outLen;
+        var forwardXValue = emitter.forwardX / fLen;
+        var forwardZValue = emitter.forwardZ / fLen;
 
         return {
             x: emitter.x,
             z: emitter.z,
             age: 0,
-            nx: nx,
-            nz: nz,
-            driftX: emitter.outX * (WAKE_SIDE_DRIFT + speedRatio * 2.0) - fx * WAKE_BACK_DRIFT,
-            driftZ: emitter.outZ * (WAKE_SIDE_DRIFT + speedRatio * 2.0) - fz * WAKE_BACK_DRIFT,
-            speedRatio: speedRatio
+            lifetime: wakeLifetime(speedRatio),
+            outX: outX,
+            outZ: outZ,
+            forwardX: forwardXValue,
+            forwardZ: forwardZValue,
+            driftX: outX * sideDrift - forwardXValue * backDrift,
+            driftZ: outZ * sideDrift - forwardZValue * backDrift,
+            speedRatio: speedRatio,
+            turnRatio: turnRatio
         };
-    }
-
-    function normalizeWakeSampleNormal(sample) {
-        var nLen = Math.sqrt(sample.nx * sample.nx + sample.nz * sample.nz) || 1;
-        sample.nx /= nLen;
-        sample.nz /= nLen;
     }
 
     function pushWakeSample(samples, sample) {
@@ -2232,15 +2202,11 @@
         var dot;
 
         if (first) {
-            dot = sample.nx * first.nx + sample.nz * first.nz;
+            dot = sample.outX * first.outX + sample.outZ * first.outZ;
             if (dot < 0) {
-                sample.nx = -sample.nx;
-                sample.nz = -sample.nz;
-                dot = -dot;
+                sample.outX = -sample.outX;
+                sample.outZ = -sample.outZ;
             }
-            sample.nx = lerp(sample.nx, first.nx, 0.22);
-            sample.nz = lerp(sample.nz, first.nz, 0.22);
-            normalizeWakeSampleNormal(sample);
         }
 
         samples.unshift(sample);
@@ -2258,121 +2224,102 @@
             sample.age += dt;
             sample.x += sample.driftX * dt;
             sample.z += sample.driftZ * dt;
-            if (sample.age > WAKE_MAX_AGE) {
+            if (sample.age >= sample.lifetime) {
                 samples.splice(i, 1);
             }
         }
     }
 
-    function resetWakeEmitter(ship, sideSign) {
-        if (sideSign < 0) {
-            ship.wakeLeftEmitter = null;
-            ship.wakeLeftDistance = 0;
-        } else {
-            ship.wakeRightEmitter = null;
-            ship.wakeRightDistance = 0;
-        }
+    function resetWakeSpawn(ship) {
+        ship.wakeDistance = 0;
+        ship.wakePrevX = ship.x;
+        ship.wakePrevZ = ship.z;
+        ship.wakePrevHeading = ship.heading;
     }
 
-    function updateWakeLaneSamples(ship, sideSign, dt) {
+    function pushWakeLaneSample(ship, sideSign, spawnX, spawnZ, spawnHeading, speedRatio, turnRatio) {
         var samples = sideSign < 0 ? ship.wakeLeftSamples : ship.wakeRightSamples;
-        var previousKey = sideSign < 0 ? 'wakeLeftEmitter' : 'wakeRightEmitter';
-        var distanceKey = sideSign < 0 ? 'wakeLeftDistance' : 'wakeRightDistance';
-        var current = wakeEmitterWorld(ship, sideSign);
-        var previous = ship[previousKey];
-        var segmentDistance;
-        var remaining;
-        var need;
-        var t;
-        var spawnEmitter;
-        var start;
+        var emitter = wakeEmitterAt(spawnX, spawnZ, spawnHeading, sideSign);
+        pushWakeSample(samples, makeWakeSample(emitter, speedRatio, turnRatio));
+    }
 
-        if (!previous) {
-            pushWakeSample(samples, makeWakeSample(ship, current));
-            ship[previousKey] = cloneWakeEmitter(current);
-            ship[distanceKey] = 0;
-            return;
-        }
-
-        segmentDistance = length2(current.x - previous.x, current.z - previous.z);
-        if (segmentDistance < 0.001) {
-            ship[previousKey] = cloneWakeEmitter(current);
-            return;
-        }
-
-        remaining = segmentDistance;
-        start = previous;
-        while (ship[distanceKey] + remaining >= WAKE_SAMPLE_DISTANCE) {
-            need = WAKE_SAMPLE_DISTANCE - ship[distanceKey];
-            t = clamp(need / remaining, 0, 1);
-            spawnEmitter = interpolateWakeEmitter(start, current, t);
-            pushWakeSample(samples, makeWakeSample(ship, spawnEmitter));
-            start = spawnEmitter;
-            remaining -= need;
-            ship[distanceKey] = 0;
-            if (remaining < 0.001) {
-                break;
-            }
-        }
-
-        ship[distanceKey] += Math.max(0, remaining);
-        ship[previousKey] = cloneWakeEmitter(current);
+    function pushWakeSamplePair(ship, spawnX, spawnZ, spawnHeading, speedRatio, turnRatio) {
+        pushWakeLaneSample(ship, -1, spawnX, spawnZ, spawnHeading, speedRatio, turnRatio);
+        pushWakeLaneSample(ship, 1, spawnX, spawnZ, spawnHeading, speedRatio, turnRatio);
     }
 
     function updateWakeSamples(ship, dt) {
         var speed = length2(ship.vx, ship.vz);
+        var dx = ship.x - ship.wakePrevX;
+        var dz = ship.z - ship.wakePrevZ;
+        var moveDistance = length2(dx, dz);
+        var headingDelta = wrapAngle(ship.heading - ship.wakePrevHeading);
+        var speedRatio = wakeSpeedRatio(speed);
+        var turnRate = Math.abs(headingDelta) / Math.max(dt, 0.001);
+        var turnRatio = clamp((turnRate * 34) / Math.max(speed, 24), 0, 1);
+        var spacing = wakeSampleDistance(speedRatio, turnRatio);
+        var previousX = ship.wakePrevX;
+        var previousZ = ship.wakePrevZ;
+        var previousHeading = ship.wakePrevHeading;
+        var remaining;
+        var need;
+        var t;
+        var spawnX;
+        var spawnZ;
+        var spawnHeading;
 
         ageWakeSamples(ship.wakeLeftSamples, dt);
         ageWakeSamples(ship.wakeRightSamples, dt);
 
         if (ship.hp <= 0 || speed < WAKE_MIN_SPEED) {
-            resetWakeEmitter(ship, -1);
-            resetWakeEmitter(ship, 1);
+            resetWakeSpawn(ship);
             return;
         }
 
-        updateWakeLaneSamples(ship, -1, dt);
-        updateWakeLaneSamples(ship, 1, dt);
+        if (ship.wakeLeftSamples.length === 0 && ship.wakeRightSamples.length === 0) {
+            pushWakeSamplePair(ship, ship.x, ship.z, ship.heading, speedRatio, turnRatio);
+        }
+
+        remaining = moveDistance;
+        while (ship.wakeDistance + remaining >= spacing) {
+            need = spacing - ship.wakeDistance;
+            t = clamp(need / Math.max(remaining, 0.001), 0, 1);
+            spawnX = lerp(previousX, ship.x, t);
+            spawnZ = lerp(previousZ, ship.z, t);
+            spawnHeading = previousHeading + headingDelta * t;
+            pushWakeSamplePair(ship, spawnX, spawnZ, spawnHeading, speedRatio, turnRatio);
+            previousX = spawnX;
+            previousZ = spawnZ;
+            previousHeading = spawnHeading;
+            remaining -= need;
+            ship.wakeDistance = 0;
+            if (remaining < 0.001) {
+                break;
+            }
+        }
+
+        ship.wakeDistance += Math.max(0, remaining);
+        ship.wakeDistance = Math.min(ship.wakeDistance, spacing);
+        ship.wakePrevX = ship.x;
+        ship.wakePrevZ = ship.z;
+        ship.wakePrevHeading = ship.heading;
     }
 
     function wakeLaneAlpha(sample) {
-        var ageRatio = clamp(sample.age / WAKE_MAX_AGE, 0, 1);
-        var headFade = smoothstep(0.015, 0.10, ageRatio);
-        var tailFade = 1 - smoothstep(0.62, 1.0, ageRatio);
-        return clamp(headFade * tailFade * (0.48 + sample.speedRatio * 0.52), 0, 1);
+        var ageRatio = clamp(sample.age / Math.max(sample.lifetime, 0.001), 0, 1);
+        var headFade = smoothstep(0.00, 0.13, ageRatio);
+        var tailFade = 1 - smoothstep(0.54, 1.0, ageRatio);
+        var speedAlpha = lerp(0.24, 0.78, sample.speedRatio);
+        var turnAlpha = lerp(1.0, 0.68, sample.turnRatio);
+        return clamp(headFade * tailFade * speedAlpha * turnAlpha, 0, 1);
     }
 
-    function wakeLaneWidth(sample, bendFactor) {
-        var ageRatio = clamp(sample.age / WAKE_MAX_AGE, 0, 1);
-        var tailNarrow = 1 - smoothstep(0.80, 1.0, ageRatio) * 0.35;
-        return (WAKE_BASE_WIDTH + sample.speedRatio * 0.90 + ageRatio * WAKE_EXPAND_WIDTH) * tailNarrow * bendFactor;
-    }
-
-    function wakeBendFactor(samples, index) {
-        var prev = samples[index - 1];
-        var current = samples[index];
-        var next = samples[index + 1];
-        var ax;
-        var az;
-        var bx;
-        var bz;
-        var al;
-        var bl;
-        var dot;
-
-        if (!prev || !current || !next) {
-            return 1;
-        }
-
-        ax = prev.x - current.x;
-        az = prev.z - current.z;
-        bx = current.x - next.x;
-        bz = current.z - next.z;
-        al = Math.sqrt(ax * ax + az * az) || 1;
-        bl = Math.sqrt(bx * bx + bz * bz) || 1;
-        dot = clamp((ax / al) * (bx / bl) + (az / al) * (bz / bl), -1, 1);
-
-        return 0.58 + smoothstep(-0.15, 0.82, dot) * 0.42;
+    function wakeLaneWidth(sample) {
+        var ageRatio = clamp(sample.age / Math.max(sample.lifetime, 0.001), 0, 1);
+        var birthWidth = lerp(1.75, 0.90, sample.speedRatio);
+        var expandWidth = lerp(5.2, 2.15, sample.speedRatio);
+        var turnWidth = lerp(1.0, 0.72, sample.turnRatio);
+        return (birthWidth + expandWidth * smoothstep(0.05, 1.0, ageRatio)) * turnWidth;
     }
 
     function hideWakeLane(mesh) {
@@ -2394,6 +2341,7 @@
         var sample;
         var width;
         var alpha;
+        var innerWidth;
         var lastSample;
 
         if (!mesh) {
@@ -2412,18 +2360,19 @@
 
         for (i = 0; i < count; i += 1) {
             sample = samples[i];
-            width = wakeLaneWidth(sample, wakeBendFactor(samples, i));
+            width = wakeLaneWidth(sample);
             alpha = wakeLaneAlpha(sample);
+            innerWidth = WAKE_INNER_WIDTH * lerp(1.0, 0.72, sample.speedRatio);
 
-            positions[(i * 2) * 3 + 0] = sample.x + sample.nx * width;
+            positions[(i * 2) * 3 + 0] = sample.x - sample.outX * innerWidth;
             positions[(i * 2) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2) * 3 + 2] = sample.z + sample.nz * width;
+            positions[(i * 2) * 3 + 2] = sample.z - sample.outZ * innerWidth;
 
-            positions[(i * 2 + 1) * 3 + 0] = sample.x - sample.nx * width;
+            positions[(i * 2 + 1) * 3 + 0] = sample.x + sample.outX * width;
             positions[(i * 2 + 1) * 3 + 1] = WATER_TRAIL_Y;
-            positions[(i * 2 + 1) * 3 + 2] = sample.z - sample.nz * width;
+            positions[(i * 2 + 1) * 3 + 2] = sample.z + sample.outZ * width;
 
-            alphas[i * 2] = alpha;
+            alphas[i * 2] = alpha * 0.74;
             alphas[i * 2 + 1] = alpha;
         }
 
