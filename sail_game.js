@@ -58,11 +58,13 @@
     var PROJECTILE_MAX_LIFE = 3.2;
     var BROADSIDE_HALF_ARC = 0.82;
     var AIM_DOT_COUNT = 30;
-    var AIM_DOT_MIN_COUNT = 5;
-    var AIM_DOT_SPACING = 34;
+    var AIM_DOT_MIN_COUNT = 3;
+    var AIM_DOT_SPACING = 42;
     var AIM_MAX_FLIGHT_TIME = 3.0;
-    var AIM_MAX_RANGE = 720;
-    var PLAYER_CANNON_RELOAD_BASE = 0.58;
+    var AIM_MAX_RANGE = 520;
+    var AIM_ZONE_INNER_RANGE = 42;
+    var AIM_ZONE_SEGMENTS = 40;
+    var PLAYER_CANNON_RELOAD_BASE = 0.46;
     var ENEMY_CANNON_RELOAD_BASE = 1.15;
     var WAKE_CURVE_SAMPLES = 96;
     var WAKE_MIN_SPEED = 8;
@@ -102,6 +104,8 @@
     var aimDots = null;
     var aimDotMatrix = null;
     var aimMarker = null;
+    var aimZoneLeft = null;
+    var aimZoneRight = null;
     var windArrow = null;
     var minimapContext = null;
     var clockStarted = false;
@@ -808,7 +812,19 @@
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
             hpFill: new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.92 }),
             aimGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.88 })),
-            aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 }))
+            aimBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff5d55, transparent: true, opacity: 0.90 })),
+            aimCooldown: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xc8d3dc, transparent: true, opacity: 0.62 })),
+            aimMarkerGood: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.58 })),
+            aimMarkerBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff5d55, wireframe: true, transparent: true, opacity: 0.72 })),
+            aimMarkerCooldown: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xc8d3dc, wireframe: true, transparent: true, opacity: 0.52 })),
+            aimZoneFill: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.060, side: THREE.DoubleSide })),
+            aimZoneLine: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.30 })),
+            aimZoneFillActive: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.105, side: THREE.DoubleSide })),
+            aimZoneLineActive: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x32d1a0, transparent: true, opacity: 0.54 })),
+            aimZoneFillBad: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff5d55, transparent: true, opacity: 0.080, side: THREE.DoubleSide })),
+            aimZoneLineBad: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0xff5d55, transparent: true, opacity: 0.68 })),
+            aimZoneFillCooldown: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xc8d3dc, transparent: true, opacity: 0.060, side: THREE.DoubleSide })),
+            aimZoneLineCooldown: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0xc8d3dc, transparent: true, opacity: 0.36 }))
         };
 
         materials.hullPlayer.side = THREE.DoubleSide;
@@ -1130,6 +1146,114 @@
         worldGroup.add(ship.healthBar);
     }
 
+    function makeAimZoneFillGeometry() {
+        var positions = [];
+        var indices = [];
+        var i;
+        var angle;
+        var innerX;
+        var innerZ;
+        var outerX;
+        var outerZ;
+        var vertexIndex;
+
+        for (i = 0; i <= AIM_ZONE_SEGMENTS; i += 1) {
+            angle = -BROADSIDE_HALF_ARC + (BROADSIDE_HALF_ARC * 2) * (i / AIM_ZONE_SEGMENTS);
+            innerX = Math.sin(angle) * AIM_ZONE_INNER_RANGE;
+            innerZ = Math.cos(angle) * AIM_ZONE_INNER_RANGE;
+            outerX = Math.sin(angle) * AIM_MAX_RANGE;
+            outerZ = Math.cos(angle) * AIM_MAX_RANGE;
+            positions.push(innerX, WATER_OVERLAY_Y - 0.08, innerZ);
+            positions.push(outerX, WATER_OVERLAY_Y - 0.08, outerZ);
+        }
+
+        for (i = 0; i < AIM_ZONE_SEGMENTS; i += 1) {
+            vertexIndex = i * 2;
+            indices.push(vertexIndex, vertexIndex + 1, vertexIndex + 2);
+            indices.push(vertexIndex + 1, vertexIndex + 3, vertexIndex + 2);
+        }
+
+        var geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    function makeAimZoneLineGeometry() {
+        var points = [];
+        var i;
+        var angle;
+
+        angle = -BROADSIDE_HALF_ARC;
+        points.push(new THREE.Vector3(Math.sin(angle) * AIM_ZONE_INNER_RANGE, WATER_OVERLAY_Y + 0.08, Math.cos(angle) * AIM_ZONE_INNER_RANGE));
+        points.push(new THREE.Vector3(Math.sin(angle) * AIM_MAX_RANGE, WATER_OVERLAY_Y + 0.08, Math.cos(angle) * AIM_MAX_RANGE));
+
+        for (i = 0; i <= AIM_ZONE_SEGMENTS; i += 1) {
+            angle = -BROADSIDE_HALF_ARC + (BROADSIDE_HALF_ARC * 2) * (i / AIM_ZONE_SEGMENTS);
+            points.push(new THREE.Vector3(Math.sin(angle) * AIM_MAX_RANGE, WATER_OVERLAY_Y + 0.08, Math.cos(angle) * AIM_MAX_RANGE));
+        }
+
+        angle = BROADSIDE_HALF_ARC;
+        points.push(new THREE.Vector3(Math.sin(angle) * AIM_ZONE_INNER_RANGE, WATER_OVERLAY_Y + 0.08, Math.cos(angle) * AIM_ZONE_INNER_RANGE));
+
+        for (i = AIM_ZONE_SEGMENTS; i >= 0; i -= 1) {
+            angle = -BROADSIDE_HALF_ARC + (BROADSIDE_HALF_ARC * 2) * (i / AIM_ZONE_SEGMENTS);
+            points.push(new THREE.Vector3(Math.sin(angle) * AIM_ZONE_INNER_RANGE, WATER_OVERLAY_Y + 0.08, Math.cos(angle) * AIM_ZONE_INNER_RANGE));
+        }
+
+        return new THREE.BufferGeometry().setFromPoints(points);
+    }
+
+    function createAimZoneSide(side) {
+        var group = new THREE.Group();
+        var fill = new THREE.Mesh(makeAimZoneFillGeometry(), materials.aimZoneFill);
+        var line = new THREE.Line(makeAimZoneLineGeometry(), materials.aimZoneLine);
+
+        setOverlayObject(fill, 25);
+        setOverlayObject(line, 26);
+        group.add(fill);
+        group.add(line);
+        group.visible = false;
+        group.userData.side = side;
+        group.userData.fill = fill;
+        group.userData.line = line;
+        setOverlayObject(group, 25);
+        return group;
+    }
+
+    function setAimZoneState(zone, stateName) {
+        if (!zone) {
+            return;
+        }
+
+        if (stateName === 'bad') {
+            zone.userData.fill.material = materials.aimZoneFillBad;
+            zone.userData.line.material = materials.aimZoneLineBad;
+        } else if (stateName === 'cooldown') {
+            zone.userData.fill.material = materials.aimZoneFillCooldown;
+            zone.userData.line.material = materials.aimZoneLineCooldown;
+        } else if (stateName === 'active') {
+            zone.userData.fill.material = materials.aimZoneFillActive;
+            zone.userData.line.material = materials.aimZoneLineActive;
+        } else {
+            zone.userData.fill.material = materials.aimZoneFill;
+            zone.userData.line.material = materials.aimZoneLine;
+        }
+    }
+
+    function syncAimZone(zone, renderShip, side) {
+        var centerAngle;
+
+        if (!zone) {
+            return;
+        }
+
+        centerAngle = renderShip.heading + (side > 0 ? Math.PI * 0.5 : -Math.PI * 0.5);
+        zone.position.set(renderShip.x, 0, renderShip.z);
+        zone.rotation.y = centerAngle;
+    }
+
     function createAimObjects() {
         var dotGeometry = new THREE.SphereGeometry(3.2, 8, 6);
         var windGeometry;
@@ -1144,6 +1268,11 @@
         aimMarker.position.y = WATER_OVERLAY_Y;
         setOverlayObject(aimMarker, 29);
         worldGroup.add(aimMarker);
+
+        aimZoneLeft = createAimZoneSide(-1);
+        aimZoneRight = createAimZoneSide(1);
+        worldGroup.add(aimZoneLeft);
+        worldGroup.add(aimZoneRight);
 
         if (DEBUG_ENABLED) {
             windGeometry = new THREE.BufferGeometry().setFromPoints([
@@ -1743,10 +1872,16 @@
         var p = state.player;
         var aimShip = typeof renderAlpha === 'number' ? sampleShipTransform(p, renderAlpha) : p;
         var shot = getShotPlan(p, state.mouseWorldX, state.mouseWorldZ, aimShip);
+        var cooldown = getShipCannonCooldown(p, shot.info.side);
+        var ready = cooldown <= 0;
+        var inArc = shot.info.inArc;
         return {
             info: shot.info,
             shot: shot,
-            canFire: shot.info.inArc && getShipCannonCooldown(p, shot.info.side) <= 0 && p.hp > 0 && !state.gameOver
+            cooldown: cooldown,
+            ready: ready,
+            inArc: inArc,
+            canFire: inArc && ready && p.hp > 0 && !state.gameOver
         };
     }
 
@@ -2580,6 +2715,10 @@
         var aimStatus;
         var aimVisible;
         var dotCount;
+        var renderPlayer;
+        var activeAimZone;
+        var inactiveAimZone;
+        var aimStateName;
 
         renderAlpha = typeof renderAlpha === 'number' ? renderAlpha : MAX_RENDER_ALPHA;
         renderTime = typeof renderTime === 'number' ? renderTime : state.time;
@@ -2605,10 +2744,37 @@
         aimDots.visible = aimVisible;
         aimMarker.visible = aimVisible;
 
+        if (aimZoneLeft) {
+            aimZoneLeft.visible = aimVisible;
+        }
+        if (aimZoneRight) {
+            aimZoneRight.visible = aimVisible;
+        }
+
         if (aimVisible) {
+            renderPlayer = sampleShipTransform(player, renderAlpha);
             aimStatus = getPlayerAimStatus(renderAlpha);
-            aimDots.material = materials.aimGood;
-            aimMarker.material = materials.aimMarkerGood;
+
+            syncAimZone(aimZoneLeft, renderPlayer, -1);
+            syncAimZone(aimZoneRight, renderPlayer, 1);
+
+            activeAimZone = aimStatus.info.side < 0 ? aimZoneLeft : aimZoneRight;
+            inactiveAimZone = aimStatus.info.side < 0 ? aimZoneRight : aimZoneLeft;
+            aimStateName = aimStatus.inArc ? (aimStatus.ready ? 'active' : 'cooldown') : 'bad';
+            setAimZoneState(inactiveAimZone, 'idle');
+            setAimZoneState(activeAimZone, aimStateName);
+
+            if (!aimStatus.inArc) {
+                aimDots.material = materials.aimBad;
+                aimMarker.material = materials.aimMarkerBad;
+            } else if (!aimStatus.ready) {
+                aimDots.material = materials.aimCooldown;
+                aimMarker.material = materials.aimMarkerCooldown;
+            } else {
+                aimDots.material = materials.aimGood;
+                aimMarker.material = materials.aimMarkerGood;
+            }
+
             aimMarker.position.set(aimStatus.shot.endX, WATER_OVERLAY_Y, aimStatus.shot.endZ);
             vx = aimStatus.shot.vx;
             vy = aimStatus.shot.vy;
