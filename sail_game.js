@@ -107,9 +107,13 @@
     var WIND_RIBBON_SLOT_Z = [-0.56, -0.72, -0.58, -0.18, 0.18, 0.46, 0.54, 0.66];
     var WIND_RIBBON_SLOT_JITTER_X = 54;
     var WIND_RIBBON_SLOT_JITTER_Z = 42;
-    var WIND_RIBBON_TAIL_FADE_END = 0.44;
-    var WIND_RIBBON_HEAD_FADE_START = 0.90;
-    var WIND_RIBBON_HEAD_ALPHA_MIN = 0.74;
+    var WIND_RIBBON_FLOW_DISTANCE = 180;
+    var WIND_RIBBON_TAIL_FADE_END = 0.34;
+    var WIND_RIBBON_HEAD_FADE_START = 0.52;
+    var WIND_RIBBON_TIP_FADE_START = 0.94;
+    var WIND_RIBBON_MID_ALPHA = 0.50;
+    var WIND_RIBBON_HEAD_ALPHA = 1.00;
+    var WIND_RIBBON_TIP_ALPHA = 0.82;
     var CANNON_SMOKE_LIFE = 0.58;
     var CANNON_SMOKE_MAX = 44;
     var CANNON_RECOIL_TIME = 0.34;
@@ -1550,6 +1554,13 @@
         worldGroup.add(windRibbonMesh);
     }
 
+    function getWindRibbonFlowAlpha(t) {
+        var tailAlpha = smoothstep(0.0, WIND_RIBBON_TAIL_FADE_END, t);
+        var headAlpha = lerp(WIND_RIBBON_MID_ALPHA, WIND_RIBBON_HEAD_ALPHA, smoothstep(WIND_RIBBON_HEAD_FADE_START, 0.90, t));
+        var tipAlpha = lerp(1.0, WIND_RIBBON_TIP_ALPHA, smoothstep(WIND_RIBBON_TIP_FADE_START, 1.0, t));
+        return tailAlpha * headAlpha * tipAlpha;
+    }
+
     function updateWindRibbons(renderTime, renderAlpha) {
         var mesh = windRibbonMesh;
         var geometry;
@@ -1604,9 +1615,7 @@
         var slotIndex;
         var slotBaseX;
         var slotBaseZ;
-        var tailFade;
-        var headFade;
-        var directionFade;
+        var flowFade;
 
         if (!mesh || !mesh.geometry) {
             return;
@@ -1662,7 +1671,7 @@
             lifeT = clamp(localTime / Math.max(0.001, seed.life), 0, 1);
             lifeFade = smoothstep(0.0, seed.fadeIn, localTime) * (1 - smoothstep(seed.life - seed.fadeOut, seed.life, localTime));
             moveFade = smoothstep(0.0, 0.25, lifeT) * (1 - smoothstep(0.86, 1.0, lifeT));
-            drift = (lifeT - 0.5) * 105 * seed.driftMul * state.windSpeed;
+            drift = (lifeT - 0.5) * WIND_RIBBON_FLOW_DISTANCE * seed.driftMul * state.windSpeed;
             pulse = 0.78 + Math.sin(renderTime * 1.12 * seed.speed + seed.phaseB) * 0.12;
 
             for (point = 0; point < WIND_RIBBON_POINTS; point += 1) {
@@ -1679,11 +1688,9 @@
                 centerScreenZ = baseScreenZ + dirScreenZ * centerOffset + sideScreenZ * curl;
                 centerDistance = Math.sqrt(centerScreenX * centerScreenX + centerScreenZ * centerScreenZ);
                 centerFade = smoothstep(WIND_RIBBON_CENTER_CLEAR, WIND_RIBBON_CENTER_CLEAR + WIND_RIBBON_CENTER_FADE, centerDistance);
-                tailFade = smoothstep(0.0, WIND_RIBBON_TAIL_FADE_END, t);
-                headFade = lerp(1.0, WIND_RIBBON_HEAD_ALPHA_MIN, smoothstep(WIND_RIBBON_HEAD_FADE_START, 1.0, t));
-                directionFade = tailFade * headFade;
-                endFade = smoothstep(0.0, 0.12, t) * (1 - smoothstep(0.96, 1.0, t) * 0.16);
-                alpha = endFade * directionFade * lifeFade * centerFade * seed.opacity * pulse * clamp(0.72 + state.windSpeed * 0.20, 0.62, 1.0);
+                flowFade = getWindRibbonFlowAlpha(t);
+                endFade = smoothstep(0.0, 0.10, t) * (1 - smoothstep(0.98, 1.0, t) * 0.08);
+                alpha = endFade * flowFade * lifeFade * centerFade * seed.opacity * pulse * clamp(0.72 + state.windSpeed * 0.20, 0.62, 1.0);
                 vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
 
                 sideIndex = vertexIndex * 3;
