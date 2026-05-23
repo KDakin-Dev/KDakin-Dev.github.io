@@ -89,13 +89,17 @@
     var GUARDED_LOOT_TIER3_COUNT = 3;
     var ENEMY_ATTACK_RANGE = 286;
     var ENEMY_CHASE_RANGE = 792;
-    var WIND_RIBBON_COUNT = 14;
-    var WIND_RIBBON_POINTS = 12;
-    var WIND_RIBBON_LENGTH = 320;
-    var WIND_RIBBON_WIDTH = 8.5;
+    var WIND_RIBBON_COUNT = 18;
+    var WIND_RIBBON_POINTS = 9;
+    var WIND_RIBBON_LENGTH = 145;
+    var WIND_RIBBON_WIDTH = 3.2;
     var WIND_RIBBON_Y = 38;
-    var WIND_RIBBON_SCREEN_X = 540;
-    var WIND_RIBBON_SCREEN_Z = 390;
+    var WIND_RIBBON_SCREEN_X = 500;
+    var WIND_RIBBON_SCREEN_Z = 350;
+    var WIND_RIBBON_LIFE_MIN = 1.35;
+    var WIND_RIBBON_LIFE_MAX = 2.55;
+    var WIND_RIBBON_CYCLE_MIN = 6.4;
+    var WIND_RIBBON_CYCLE_MAX = 10.2;
     var CANNON_SMOKE_LIFE = 0.58;
     var CANNON_SMOKE_MAX = 44;
     var CANNON_RECOIL_TIME = 0.34;
@@ -1050,7 +1054,7 @@
             side: THREE.DoubleSide,
             uniforms: {
                 uColor: { value: new THREE.Color(0xdffbff) },
-                uOpacity: { value: 0.38 }
+                uOpacity: { value: 0.34 }
             },
             vertexShader: [
                 'attribute float aAlpha;',
@@ -1493,11 +1497,18 @@
                 screenZ: randRange(rng, -1, 1),
                 phaseA: randRange(rng, 0, TAU),
                 phaseB: randRange(rng, 0, TAU),
-                speed: randRange(rng, 0.68, 1.24),
-                wiggle: randRange(rng, 12, 26),
-                lengthMul: randRange(rng, 0.74, 1.18),
-                widthMul: randRange(rng, 0.72, 1.22),
-                opacity: randRange(rng, 0.62, 1.0)
+                speed: randRange(rng, 0.72, 1.22),
+                wiggle: randRange(rng, 8, 18),
+                lengthMul: randRange(rng, 0.72, 1.25),
+                widthMul: randRange(rng, 0.70, 1.18),
+                opacity: randRange(rng, 0.34, 0.76),
+                life: randRange(rng, WIND_RIBBON_LIFE_MIN, WIND_RIBBON_LIFE_MAX),
+                cycle: randRange(rng, WIND_RIBBON_CYCLE_MIN, WIND_RIBBON_CYCLE_MAX),
+                cycleOffset: randRange(rng, 0, WIND_RIBBON_CYCLE_MAX),
+                fadeIn: randRange(rng, 0.28, 0.48),
+                fadeOut: randRange(rng, 0.42, 0.70),
+                driftMul: randRange(rng, 0.65, 1.35),
+                bendMul: randRange(rng, -1, 1)
             });
         }
 
@@ -1548,6 +1559,10 @@
         var seed;
         var t;
         var centerOffset;
+        var lifeT;
+        var localTime;
+        var lifeFade;
+        var moveFade;
         var drift;
         var curl;
         var pulse;
@@ -1585,24 +1600,39 @@
 
         for (strip = 0; strip < seeds.length; strip += 1) {
             seed = seeds[strip];
-            baseScreenX = seed.screenX * WIND_RIBBON_SCREEN_X + Math.sin(renderTime * 0.11 * seed.speed + seed.phaseA) * 46;
-            baseScreenZ = seed.screenZ * WIND_RIBBON_SCREEN_Z + Math.cos(renderTime * 0.09 * seed.speed + seed.phaseB) * 38;
+            localTime = (renderTime * seed.speed + seed.cycleOffset) % seed.cycle;
+            baseScreenX = seed.screenX * WIND_RIBBON_SCREEN_X + Math.sin(renderTime * 0.09 * seed.speed + seed.phaseA) * 34;
+            baseScreenZ = seed.screenZ * WIND_RIBBON_SCREEN_Z + Math.cos(renderTime * 0.08 * seed.speed + seed.phaseB) * 30;
             baseX = player.x + screenRightX * baseScreenX + viewX * baseScreenZ;
             baseZ = player.z + screenRightZ * baseScreenX + viewZ * baseScreenZ;
-            drift = Math.sin(renderTime * 0.72 * seed.speed + seed.phaseA) * 42 * state.windSpeed;
-            pulse = 0.78 + Math.sin(renderTime * 1.35 * seed.speed + seed.phaseB) * 0.16;
+
+            if (localTime > seed.life) {
+                for (point = 0; point < WIND_RIBBON_POINTS; point += 1) {
+                    vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
+                    alphas[vertexIndex] = 0;
+                    alphas[vertexIndex + 1] = 0;
+                }
+                continue;
+            }
+
+            lifeT = clamp(localTime / Math.max(0.001, seed.life), 0, 1);
+            lifeFade = smoothstep(0.0, seed.fadeIn, localTime) * (1 - smoothstep(seed.life - seed.fadeOut, seed.life, localTime));
+            moveFade = smoothstep(0.0, 0.25, lifeT) * (1 - smoothstep(0.86, 1.0, lifeT));
+            drift = (lifeT - 0.5) * 105 * seed.driftMul * state.windSpeed;
+            pulse = 0.78 + Math.sin(renderTime * 1.12 * seed.speed + seed.phaseB) * 0.12;
 
             for (point = 0; point < WIND_RIBBON_POINTS; point += 1) {
                 t = point / Math.max(1, WIND_RIBBON_POINTS - 1);
                 centerOffset = (t - 0.5) * WIND_RIBBON_LENGTH * seed.lengthMul + drift;
-                curl = Math.sin(t * TAU * 1.15 + renderTime * 0.78 * seed.speed + seed.phaseA) * seed.wiggle;
-                curl += Math.sin(t * TAU * 2.25 + seed.phaseB) * seed.wiggle * 0.28;
+                curl = Math.sin(t * TAU * 0.92 + lifeT * 1.45 + seed.phaseA) * seed.wiggle * moveFade;
+                curl += Math.sin(t * Math.PI * 1.55 + seed.phaseB) * seed.wiggle * 0.32;
+                curl += Math.sin(lifeT * Math.PI) * seed.wiggle * 0.45 * seed.bendMul;
                 centerX = baseX + dirX * centerOffset + sideX * curl;
                 centerZ = baseZ + dirZ * centerOffset + sideZ * curl;
-                centerY = WIND_RIBBON_Y + Math.sin(t * TAU + renderTime * 0.6 + seed.phaseA) * 3.5;
-                width = WIND_RIBBON_WIDTH * seed.widthMul * (0.75 + Math.sin(t * Math.PI) * 0.48);
-                endFade = smoothstep(0.0, 0.22, t) * (1 - smoothstep(0.78, 1.0, t));
-                alpha = endFade * seed.opacity * pulse * clamp(0.76 + state.windSpeed * 0.18, 0.65, 1.05);
+                centerY = WIND_RIBBON_Y + Math.sin(t * TAU + renderTime * 0.42 + seed.phaseA) * 2.4;
+                width = WIND_RIBBON_WIDTH * seed.widthMul * (0.42 + Math.sin(t * Math.PI) * 0.72);
+                endFade = smoothstep(0.0, 0.28, t) * (1 - smoothstep(0.70, 1.0, t));
+                alpha = endFade * lifeFade * seed.opacity * pulse * clamp(0.72 + state.windSpeed * 0.20, 0.62, 1.0);
                 vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
 
                 sideIndex = vertexIndex * 3;
