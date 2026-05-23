@@ -355,7 +355,8 @@
             doubleShot: false,
             recoilTimer: 0,
             recoilSide: 0,
-            recoilStrength: 0
+            recoilStrength: 0,
+            statsSunk: false
         };
     }
 
@@ -971,6 +972,9 @@
             gameOver: false,
             resultType: '',
             routeClear: false,
+            runGoldLooted: 0,
+            runShipsSunk: 0,
+            runTerrorReported: false,
             docked: false,
             nearDock: false,
             activeDockIndex: -1,
@@ -1017,6 +1021,39 @@
         if (hud.message) {
             hud.message.textContent = text;
         }
+    }
+
+    function emitSailStats(delta) {
+        if (!delta || typeof window.CustomEvent !== 'function') {
+            return;
+        }
+        window.dispatchEvent(new CustomEvent('kdakin:sail-stats', { detail: delta }));
+    }
+
+    function addLootedGold(amount) {
+        var value = Math.max(0, Math.floor(Number(amount) || 0));
+        if (value <= 0) {
+            return;
+        }
+        state.runGoldLooted += value;
+        emitSailStats({ goldLooted: value });
+    }
+
+    function recordEnemySunk(enemy) {
+        if (!enemy || enemy.statsSunk) {
+            return;
+        }
+        enemy.statsSunk = true;
+        state.runShipsSunk += 1;
+        emitSailStats({ shipsSunk: 1 });
+    }
+
+    function recordTerrorOfSeas() {
+        if (state.runTerrorReported) {
+            return;
+        }
+        state.runTerrorReported = true;
+        emitSailStats({ seaTerrors: 1 });
     }
 
     function makeMaterial(color, roughness, metalness) {
@@ -2758,7 +2795,8 @@
         syncDockPanel();
 
         if (resultType === 'victory') {
-            setMessage('You are the Terror of the Seas. All enemies defeated.', 10);
+            recordTerrorOfSeas();
+            setMessage('Rank assigned: Terror of the Seas. All enemies defeated.', 10);
         } else {
             setMessage('Ship lost. Try again or return to the resume.', 10);
         }
@@ -2775,6 +2813,7 @@
     function sinkEnemy(enemy) {
         var crateCount = 2 + Math.floor(state.rng() * 3);
         var i;
+        recordEnemySunk(enemy);
         enemy.sinkTimer = 0.01;
         setMessage('Enemy ship disabled. Cargo crates in the water.', 2.4);
 
@@ -2821,6 +2860,7 @@
             if (dist2(crate, p) < 44) {
                 if (crate.kind === 'gold') {
                     p.gold += crate.value;
+                    addLootedGold(crate.value);
                     worldGroup.remove(crate.mesh);
                     state.crates.splice(i, 1);
                     setMessage('Gold chest recovered: +' + crate.value + ' gold.', 2.0);
@@ -2999,6 +3039,7 @@
         }
 
         p.gold += value;
+        addLootedGold(value);
         p.cargo = 0;
         p.cargoValue = 0;
         setMessage('Cargo sold for ' + value + ' gold.', 2.2);
@@ -3778,7 +3819,7 @@
         var visible = state.gameOver && (state.resultType === 'defeat' || state.resultType === 'victory');
         var title = state.resultType === 'victory' ? 'Terror of the Seas!' : 'Ship lost';
         var body = state.resultType === 'victory'
-            ? 'You defeated every enemy on the sea. Congratulations, and thank you for playing!'
+            ? 'Rank assigned: Terror of the Seas. Ships sunk this run: ' + state.runShipsSunk + '. Gold looted this run: ' + state.runGoldLooted + '.'
             : 'You fought bravely, but something went wrong. Try again or return to the resume.';
 
         if (!hud.resultOverlay) {

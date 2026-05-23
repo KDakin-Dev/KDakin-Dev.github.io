@@ -130,20 +130,32 @@
                     <aside class="site-skill-game-card site-sail-card" aria-label="Sail and Fire playable game" data-reveal>
                         <p class="site-card-eyebrow">Playable block</p>
                         <h3>Sail &amp; Fire</h3>
-                        <div class="site-skill-game-preview site-sail-preview" aria-hidden="true">
-                            <span class="site-sail-wave site-sail-wave-a"></span>
-                            <span class="site-sail-wave site-sail-wave-b"></span>
-                            <span class="site-sail-island"></span>
+                        <div class="site-skill-game-preview site-sail-preview" aria-hidden="true" data-sail-preview>
+                            <span class="site-sail-grid"></span>
+                            <span class="site-sail-island site-sail-island-a"></span>
+                            <span class="site-sail-island site-sail-island-b"></span>
+                            <span class="site-sail-route-ring site-sail-route-ring-a"></span>
+                            <span class="site-sail-route-ring site-sail-route-ring-b"></span>
+                            <span class="site-sail-wake site-sail-wake-a"></span>
+                            <span class="site-sail-wake site-sail-wake-b"></span>
+                            <span class="site-sail-enemy"></span>
+                            <span class="site-sail-enemy-sail"></span>
                             <span class="site-sail-ship"></span>
                             <span class="site-sail-sail"></span>
                             <span class="site-sail-shot site-sail-shot-a"></span>
                             <span class="site-sail-shot site-sail-shot-b"></span>
-                            <span class="site-sail-wind"></span>
+                            <span class="site-sail-wind-ribbon site-sail-wind-ribbon-a"></span>
+                            <span class="site-sail-wind-ribbon site-sail-wind-ribbon-b"></span>
                         </div>
                         <p>
                             Isometric 3D sailing combat prototype: wind, sail control, broadside fire,
                             enemy ships, cargo pickup, docking, minimap, and debug mode.
                         </p>
+                        <div class="site-sail-stats" aria-label="Shared Sail and Fire statistics">
+                            <div><span>Gold looted</span><strong data-sail-stat="goldLooted">000</strong></div>
+                            <div><span>Ships sunk</span><strong data-sail-stat="shipsSunk">000</strong></div>
+                            <div><span>Sea terrors</span><strong data-sail-stat="seaTerrors">000</strong></div>
+                        </div>
                         <a class="site-button" href="./sail_game.html">Play demo</a>
                     </aside>
 
@@ -291,8 +303,8 @@
         </footer>
     </main>
 
-    <script type="module" src="./firebase_stats.js?v=1"></script>
-    <script src="./site_preview.js?v=4" defer></script>
+    <script type="module" src="./firebase_stats.js?v=2"></script>
+    <script src="./site_preview.js?v=5" defer></script>
     <script src="./field_game.js?v=11" defer></script>
 </body>
 </html>

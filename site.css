@@ -502,24 +502,28 @@ body.game-mode .site-page {
     background: #162333;
 }
 
-.site-star-stats {
+.site-star-stats,
+.site-sail-stats {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     border: 1px solid var(--site-line-soft);
     background: rgba(255, 255, 255, 0.018);
 }
 
-.site-star-stats div {
+.site-star-stats div,
+.site-sail-stats div {
     min-height: 52px;
     padding: 9px 10px;
     border-right: 1px solid var(--site-line-soft);
 }
 
-.site-star-stats div:last-child {
+.site-star-stats div:last-child,
+.site-sail-stats div:last-child {
     border-right: 0;
 }
 
-.site-star-stats span {
+.site-star-stats span,
+.site-sail-stats span {
     display: block;
     color: var(--site-dim);
     font-size: 8px;
@@ -530,13 +534,22 @@ body.game-mode .site-page {
     white-space: nowrap;
 }
 
-.site-star-stats strong {
+.site-star-stats strong,
+.site-sail-stats strong {
     display: block;
     margin-top: 6px;
     color: var(--site-text);
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     font-size: 17px;
     font-weight: 900;
+}
+
+.site-sail-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.site-sail-stats strong {
+    font-size: 16px;
 }
 
 .site-note {
@@ -954,17 +967,25 @@ html.site-reveal-ready [data-reveal].is-visible {
         padding: 18px;
     }
 
-    .site-star-stats {
+    .site-star-stats,
+    .site-sail-stats {
         grid-template-columns: 1fr 1fr;
     }
 
-    .site-star-stats div:nth-child(2) {
+    .site-star-stats div:nth-child(2),
+    .site-sail-stats div:nth-child(2) {
         border-right: 0;
     }
 
     .site-star-stats div:nth-child(1),
-    .site-star-stats div:nth-child(2) {
+    .site-star-stats div:nth-child(2),
+    .site-sail-stats div:nth-child(1),
+    .site-sail-stats div:nth-child(2) {
         border-bottom: 1px solid var(--site-line-soft);
+    }
+
+    .site-sail-stats div:nth-child(3) {
+        grid-column: 1 / -1;
     }
 
     .site-skill-game-card {
@@ -989,135 +1010,290 @@ html.site-reveal-ready [data-reveal].is-visible {
         transform: none;
         transition: none;
     }
+
+    .site-sail-wake,
+    .site-sail-shot,
+    .site-sail-wind-ribbon {
+        animation: none;
+    }
+}
+
+
+@keyframes siteSailShotPulse {
+    0% {
+        opacity: 0;
+        transform: translate(-8px, 4px) scale(0.78);
+    }
+    18% {
+        opacity: 0.92;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(42px, -13px) scale(1.05);
+    }
+}
+
+@keyframes siteSailWakePulse {
+    0%, 100% {
+        opacity: 0.38;
+        transform: translate(-50%, -50%) rotate(16deg) skewX(-22deg) scaleX(0.86);
+    }
+    50% {
+        opacity: 0.74;
+        transform: translate(-50%, -50%) rotate(16deg) skewX(-22deg) scaleX(1.10);
+    }
+}
+
+@keyframes siteSailWindDrift {
+    0%, 100% {
+        opacity: 0.42;
+        transform: rotate(-32deg) translateX(-5px);
+    }
+    50% {
+        opacity: 0.78;
+        transform: rotate(-32deg) translateX(8px);
+    }
 }
 
 .site-sail-card {
     background:
-        radial-gradient(circle at 34% 24%, rgba(50, 209, 160, 0.10), transparent 30%),
-        radial-gradient(circle at 70% 70%, rgba(99, 166, 255, 0.08), transparent 34%),
+        radial-gradient(circle at 32% 20%, rgba(50, 209, 160, 0.12), transparent 30%),
+        radial-gradient(circle at 72% 68%, rgba(99, 166, 255, 0.10), transparent 34%),
         linear-gradient(180deg, rgba(9, 12, 15, 0.94), rgba(0, 0, 0, 0.58));
 }
 
 .site-sail-preview {
+    min-height: 238px;
     background:
-        linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.026) 1px, transparent 1px),
-        radial-gradient(circle at 32% 18%, rgba(50, 209, 160, 0.10), transparent 28%),
-        linear-gradient(180deg, rgba(12, 51, 72, 0.92), rgba(5, 20, 31, 0.96));
-    background-size: 30px 30px, 30px 30px, auto, auto;
+        radial-gradient(circle at 52% 50%, rgba(99, 166, 255, 0.12), transparent 34%),
+        linear-gradient(180deg, rgba(14, 58, 84, 0.94), rgba(5, 20, 31, 0.98));
+    perspective: 760px;
+    isolation: isolate;
 }
 
-.site-sail-wave,
+.site-sail-preview::before {
+    content: "";
+    position: absolute;
+    left: -18%;
+    right: -18%;
+    top: 13%;
+    bottom: -20%;
+    background:
+        linear-gradient(62deg, rgba(196, 232, 255, 0.12) 1px, transparent 1px),
+        linear-gradient(118deg, rgba(196, 232, 255, 0.10) 1px, transparent 1px),
+        radial-gradient(circle at 45% 36%, rgba(255, 255, 255, 0.035), transparent 38%);
+    background-size: 36px 36px, 36px 36px, auto;
+    transform: rotateX(60deg) rotateZ(-22deg) translateY(26px);
+    transform-origin: 50% 66%;
+    opacity: 0.68;
+    z-index: 0;
+}
+
+.site-sail-grid,
 .site-sail-island,
+.site-sail-route-ring,
+.site-sail-wake,
+.site-sail-enemy,
+.site-sail-enemy-sail,
 .site-sail-ship,
 .site-sail-sail,
 .site-sail-shot,
-.site-sail-wind {
+.site-sail-wind-ribbon {
     position: absolute;
     display: block;
 }
 
-.site-sail-wave {
-    left: -12%;
-    right: -12%;
-    height: 1px;
-    background: rgba(180, 226, 255, 0.22);
-    transform: rotate(-8deg);
-}
-
-.site-sail-wave-a {
-    top: 38%;
-    box-shadow: 0 34px 0 rgba(180, 226, 255, 0.16), 0 68px 0 rgba(180, 226, 255, 0.11);
-}
-
-.site-sail-wave-b {
-    top: 24%;
-    opacity: 0.62;
-    box-shadow: 0 42px 0 rgba(180, 226, 255, 0.12), 0 84px 0 rgba(180, 226, 255, 0.08);
+.site-sail-grid {
+    inset: 0;
+    background:
+        radial-gradient(circle at 18% 78%, rgba(180, 226, 255, 0.16), transparent 20%),
+        radial-gradient(circle at 78% 28%, rgba(180, 226, 255, 0.10), transparent 20%);
+    opacity: 0.72;
+    z-index: 1;
 }
 
 .site-sail-island {
-    left: 62%;
-    top: 18%;
-    width: 92px;
-    height: 56px;
     border: 1px solid rgba(255, 231, 170, 0.24);
-    border-radius: 50%;
+    border-radius: 54% 46% 48% 52%;
     background:
-        radial-gradient(ellipse at 38% 35%, rgba(49, 104, 60, 0.95), transparent 28%),
-        radial-gradient(ellipse at 64% 60%, rgba(49, 104, 60, 0.80), transparent 24%),
+        radial-gradient(ellipse at 38% 35%, rgba(49, 104, 60, 0.98), transparent 30%),
+        radial-gradient(ellipse at 67% 62%, rgba(49, 104, 60, 0.82), transparent 27%),
         #9b7a45;
-    transform: rotate(-12deg);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.22);
+    transform: rotateX(57deg) rotateZ(-18deg);
+    z-index: 2;
+}
+
+.site-sail-island-a {
+    left: 62%;
+    top: 16%;
+    width: 96px;
+    height: 62px;
+}
+
+.site-sail-island-b {
+    left: 12%;
+    top: 62%;
+    width: 62px;
+    height: 38px;
+    opacity: 0.78;
+}
+
+.site-sail-route-ring {
+    border: 1px solid rgba(99, 166, 255, 0.34);
+    border-radius: 50%;
+    transform: rotateX(62deg) rotateZ(-20deg);
+    z-index: 2;
+}
+
+.site-sail-route-ring-a {
+    left: 24%;
+    top: 39%;
+    width: 94px;
+    height: 52px;
+}
+
+.site-sail-route-ring-b {
+    right: 15%;
+    bottom: 22%;
+    width: 74px;
+    height: 38px;
+    opacity: 0.64;
+}
+
+.site-sail-wake {
+    width: 78px;
+    height: 13px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, rgba(225, 247, 255, 0.00), rgba(225, 247, 255, 0.26), rgba(225, 247, 255, 0.00));
+    filter: blur(0.2px);
+    transform: translate(-50%, -50%) rotate(16deg) skewX(-22deg);
+    animation: siteSailWakePulse 3.8s ease-in-out infinite;
+    z-index: 4;
+}
+
+.site-sail-wake-a {
+    left: 29%;
+    top: 62%;
+}
+
+.site-sail-wake-b {
+    left: 25%;
+    top: 67%;
+    width: 58px;
+    opacity: 0.55;
+    animation-delay: -1.6s;
+}
+
+.site-sail-ship,
+.site-sail-enemy {
+    width: 88px;
+    height: 34px;
+    border: 1px solid rgba(199, 235, 255, 0.62);
+    border-radius: 52% 46% 44% 52%;
+    clip-path: polygon(0 50%, 18% 12%, 78% 18%, 100% 50%, 78% 82%, 18% 88%);
+    box-shadow: 0 14px 32px rgba(0, 0, 0, 0.26), 0 0 22px rgba(99, 166, 255, 0.16);
+    transform: translate(-50%, -50%) rotate(16deg);
+    z-index: 6;
 }
 
 .site-sail-ship {
-    left: 36%;
-    top: 55%;
-    width: 86px;
-    height: 34px;
-    border: 1px solid rgba(99, 166, 255, 0.72);
-    border-radius: 52% 46% 44% 52%;
-    background: #d7eaff;
-    box-shadow: 0 0 32px rgba(99, 166, 255, 0.20);
-    transform: translate(-50%, -50%) rotate(16deg);
-    clip-path: polygon(0 50%, 18% 12%, 78% 18%, 100% 50%, 78% 82%, 18% 88%);
+    left: 39%;
+    top: 56%;
+    background: linear-gradient(90deg, #d7eaff, #8eb6d6);
+}
+
+.site-sail-enemy {
+    left: 70%;
+    top: 40%;
+    width: 72px;
+    height: 28px;
+    border-color: rgba(255, 176, 143, 0.56);
+    background: linear-gradient(90deg, #6d2d36, #3c1720);
+    transform: translate(-50%, -50%) rotate(196deg);
+    opacity: 0.92;
+}
+
+.site-sail-sail,
+.site-sail-enemy-sail {
+    width: 34px;
+    height: 24px;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    z-index: 7;
 }
 
 .site-sail-sail {
-    left: 39%;
-    top: 52%;
-    width: 34px;
-    height: 24px;
-    background: rgba(99, 166, 255, 0.82);
-    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    left: 41%;
+    top: 53%;
+    background: rgba(99, 166, 255, 0.88);
     transform: translate(-50%, -50%) rotate(16deg);
 }
 
+.site-sail-enemy-sail {
+    left: 68%;
+    top: 42%;
+    width: 27px;
+    height: 19px;
+    background: rgba(216, 185, 168, 0.86);
+    transform: translate(-50%, -50%) rotate(196deg);
+}
+
 .site-sail-shot {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
     border-radius: 999px;
     background: #ffeebe;
-    box-shadow: 0 0 14px rgba(255, 238, 190, 0.70);
+    box-shadow: 0 0 18px rgba(255, 238, 190, 0.76), 0 0 38px rgba(255, 238, 190, 0.24);
+    z-index: 8;
+}
+
+.site-sail-shot::before {
+    content: "";
+    position: absolute;
+    right: 3px;
+    top: 3px;
+    width: 42px;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(255, 238, 190, 0.00), rgba(255, 238, 190, 0.42));
+    transform: rotate(-14deg);
+    transform-origin: right center;
 }
 
 .site-sail-shot-a {
-    left: 55%;
-    top: 45%;
+    left: 53%;
+    top: 47%;
+    animation: siteSailShotPulse 2.8s ease-out infinite;
 }
 
 .site-sail-shot-b {
-    left: 70%;
-    top: 39%;
-    opacity: 0.58;
+    left: 60%;
+    top: 44%;
+    opacity: 0.62;
+    animation: siteSailShotPulse 2.8s ease-out infinite;
+    animation-delay: 0.16s;
 }
 
-.site-sail-wind {
-    right: 18px;
-    bottom: 18px;
-    width: 58px;
-    height: 58px;
-    border: 1px solid rgba(99, 166, 255, 0.38);
+.site-sail-wind-ribbon {
+    width: 112px;
+    height: 15px;
     border-radius: 999px;
+    background: linear-gradient(90deg, rgba(99, 166, 255, 0.00), rgba(99, 166, 255, 0.24), rgba(99, 166, 255, 0.05));
+    transform: rotate(-32deg);
+    animation: siteSailWindDrift 4.6s ease-in-out infinite;
+    z-index: 3;
 }
 
-.site-sail-wind::before,
-.site-sail-wind::after {
-    content: '';
-    position: absolute;
-    left: 15px;
-    top: 27px;
-    width: 28px;
-    height: 2px;
-    background: rgba(99, 166, 255, 0.82);
-    transform: rotate(-34deg);
+.site-sail-wind-ribbon-a {
+    right: 12px;
+    bottom: 34px;
 }
 
-.site-sail-wind::after {
-    left: 34px;
-    top: 19px;
-    width: 9px;
-    transform: rotate(26deg);
+.site-sail-wind-ribbon-b {
+    right: 54px;
+    bottom: 64px;
+    width: 86px;
+    opacity: 0.62;
+    animation-delay: -2.1s;
 }
 
 .site-project-facts a {

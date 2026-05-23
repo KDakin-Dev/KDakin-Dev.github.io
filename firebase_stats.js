@@ -12,7 +12,14 @@ const firebaseConfig = {
     appId: "1:500304910798:web:461af507f2971565e8739f"
 };
 
-const STAT_KEYS = ["created", "stable", "magnetars", "blackHoles"];
+const STAR_STAT_KEYS = ["created", "stable", "magnetars", "blackHoles"];
+const SAIL_STAT_KEYS = ["goldLooted", "shipsSunk", "seaTerrors"];
+const SAIL_DATABASE_KEYS = {
+    goldLooted: "sailGoldLooted",
+    shipsSunk: "sailShipsSunk",
+    seaTerrors: "sailSeaTerrors"
+};
+
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const database = getDatabase(app);
@@ -20,23 +27,42 @@ const statsRef = ref(database, "stats");
 let authReady = false;
 let authPromise = null;
 
-function padStat(value) {
-    const safeValue = Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
-    return String(Math.floor(safeValue)).padStart(3, "0");
+function toSafeInteger(value) {
+    const numberValue = Number(value);
+    if (!Number.isFinite(numberValue)) {
+        return 0;
+    }
+    return Math.max(0, Math.floor(numberValue));
 }
 
-function setStatText(key, value) {
-    const target = document.querySelector('[data-star-stat="' + key + '"]');
+function padStat(value) {
+    return String(toSafeInteger(value)).padStart(3, "0");
+}
+
+function setStatText(attributeName, key, value) {
+    const target = document.querySelector("[" + attributeName + "=\"" + key + "\"]");
     if (target) {
         target.textContent = padStat(value);
     }
 }
 
-function renderStats(stats) {
+function renderStarStats(stats) {
     const source = stats && typeof stats === "object" ? stats : {};
-    STAT_KEYS.forEach(function (key) {
-        setStatText(key, source[key] || 0);
+    STAR_STAT_KEYS.forEach(function (key) {
+        setStatText("data-star-stat", key, source[key] || 0);
     });
+}
+
+function renderSailStats(stats) {
+    const source = stats && typeof stats === "object" ? stats : {};
+    SAIL_STAT_KEYS.forEach(function (key) {
+        setStatText("data-sail-stat", key, source[SAIL_DATABASE_KEYS[key]] || 0);
+    });
+}
+
+function renderStats(stats) {
+    renderStarStats(stats);
+    renderSailStats(stats);
 }
 
 function normalizeOutcome(rawOutcome) {
@@ -68,12 +94,13 @@ async function ensureAuth() {
     await authPromise;
 }
 
-async function incrementCounter(key) {
+async function incrementCounter(key, amount) {
+    const safeAmount = Math.max(1, toSafeInteger(amount || 1));
     await runTransaction(ref(database, "stats/" + key), function (currentValue) {
         if (typeof currentValue !== "number") {
-            return 1;
+            return safeAmount;
         }
-        return currentValue + 1;
+        return currentValue + safeAmount;
     });
 }
 
@@ -82,27 +109,61 @@ async function recordStarOutcome(rawOutcome) {
     try {
         await ensureAuth();
         await Promise.all([
-            incrementCounter("created"),
-            incrementCounter(outcomeKey)
+            incrementCounter("created", 1),
+            incrementCounter(outcomeKey, 1)
         ]);
     } catch (error) {
         console.warn("Star statistics update failed", error);
     }
 }
 
+async function recordSailStats(delta) {
+    const safeDelta = delta && typeof delta === "object" ? delta : {};
+    const updates = [];
+    SAIL_STAT_KEYS.forEach(function (key) {
+        const amount = toSafeInteger(safeDelta[key]);
+        if (amount > 0) {
+            updates.push({ key: SAIL_DATABASE_KEYS[key], amount: amount });
+        }
+    });
+
+    if (updates.length < 1) {
+        return;
+    }
+
+    try {
+        await ensureAuth();
+        await Promise.all(updates.map(function (update) {
+            return incrementCounter(update.key, update.amount);
+        }));
+    } catch (error) {
+        console.warn("Sail statistics update failed", error);
+    }
+}
+
 onValue(statsRef, function (snapshot) {
     renderStats(snapshot.val());
 }, function (error) {
-    console.warn("Star statistics read failed", error);
+    console.warn("Statistics read failed", error);
     renderStats(null);
 });
 
 window.KDakinStarStats = {
     recordStarOutcome: recordStarOutcome,
-    renderStats: renderStats
+    renderStats: renderStarStats
+};
+
+window.KDakinSailStats = {
+    recordSailStats: recordSailStats,
+    renderStats: renderSailStats
 };
 
 window.addEventListener("kdakin:star-game-complete", function (event) {
     const detail = event && event.detail ? event.detail : {};
     recordStarOutcome(detail.outcome || detail.endingType || "stable");
+});
+
+window.addEventListener("kdakin:sail-stats", function (event) {
+    const detail = event && event.detail ? event.detail : {};
+    recordSailStats(detail);
 });
