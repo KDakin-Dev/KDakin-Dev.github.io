@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KDakin-Dev | Game Designer Portfolio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=5">
-    <link rel="stylesheet" href="./site.css?v=36">
+    <link rel="stylesheet" href="./site.css?v=37">
     <link rel="stylesheet" href="./field_game.css?v=9">
 </head>
 <body>
@@ -131,21 +131,7 @@
                         <p class="site-card-eyebrow">Playable block</p>
                         <h3>Sail &amp; Fire</h3>
                         <div class="site-skill-game-preview site-sail-preview" aria-hidden="true" data-sail-preview>
-                            <span class="site-sail-grid"></span>
-                            <span class="site-sail-island site-sail-island-a"></span>
-                            <span class="site-sail-island site-sail-island-b"></span>
-                            <span class="site-sail-route-ring site-sail-route-ring-a"></span>
-                            <span class="site-sail-route-ring site-sail-route-ring-b"></span>
-                            <span class="site-sail-wake site-sail-wake-a"></span>
-                            <span class="site-sail-wake site-sail-wake-b"></span>
-                            <span class="site-sail-enemy"></span>
-                            <span class="site-sail-enemy-sail"></span>
-                            <span class="site-sail-ship"></span>
-                            <span class="site-sail-sail"></span>
-                            <span class="site-sail-shot site-sail-shot-a"></span>
-                            <span class="site-sail-shot site-sail-shot-b"></span>
-                            <span class="site-sail-wind-ribbon site-sail-wind-ribbon-a"></span>
-                            <span class="site-sail-wind-ribbon site-sail-wind-ribbon-b"></span>
+                            <canvas class="site-sail-preview-canvas" data-sail-preview-canvas width="640" height="420"></canvas>
                         </div>
                         <p>
                             Isometric 3D sailing combat prototype: wind, sail control, broadside fire,
@@ -304,7 +290,7 @@
     </main>
 
     <script type="module" src="./firebase_stats.js?v=2"></script>
-    <script src="./site_preview.js?v=5" defer></script>
+    <script src="./site_preview.js?v=6" defer></script>
     <script src="./field_game.js?v=11" defer></script>
 </body>
 </html>
