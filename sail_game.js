@@ -36,27 +36,32 @@
         dockPanel: document.querySelector('[data-dock-panel]'),
         dockClose: document.querySelector('[data-dock-close]'),
         dockSell: document.querySelector('[data-dock-sell]'),
+        dockRepair: document.querySelector('[data-dock-repair]'),
         dockUpgradeButtons: document.querySelectorAll('[data-dock-upgrade]'),
         dockName: document.querySelector('[data-dock="name"]'),
         dockCargo: document.querySelector('[data-dock="cargo"]'),
         dockCargoValue: document.querySelector('[data-dock="cargoValue"]'),
         dockGold: document.querySelector('[data-dock="gold"]'),
-        dockHint: document.querySelector('[data-dock="hint"]')
+        dockHint: document.querySelector('[data-dock="hint"]'),
+        resultOverlay: document.querySelector('[data-result-overlay]'),
+        resultTitle: document.querySelector('[data-result-title]'),
+        resultText: document.querySelector('[data-result-text]'),
+        resultRestart: document.querySelector('[data-result-restart]')
     };
 
     var DEBUG_ENABLED = new URLSearchParams(window.location.search).get('debug') === '1';
     var TAU = Math.PI * 2;
     var FIXED_DT = 1 / 60;
     var MAX_RENDER_ALPHA = 1;
-    var SEA_SAFE_LIMIT = 2600;
-    var SEA_TIER2_LIMIT = 3650;
-    var SEA_TIER3_LIMIT = 4700;
-    var SEA_FOG_LIMIT = 5450;
+    var SEA_SAFE_LIMIT = 2080;
+    var SEA_TIER2_LIMIT = 2920;
+    var SEA_TIER3_LIMIT = 3760;
+    var SEA_FOG_LIMIT = 4360;
     var SEA_DANGER_LIMIT = SEA_TIER2_LIMIT;
     var SEA_LIMIT = SEA_FOG_LIMIT;
     var SEA_SOFT_LIMIT = SEA_SAFE_LIMIT;
     var SEA_HARD_LIMIT = SEA_FOG_LIMIT;
-    var WATER_SIZE = 12800;
+    var WATER_SIZE = 10240;
     var WATER_OVERLAY_Y = 10;
     var WATER_TRAIL_Y = 6.8;
     var WATER_DEBUG_Y = 11;
@@ -76,8 +81,24 @@
     var AIM_ZONE_ALPHA_COOLDOWN = 0.135;
     var AIM_ZONE_EDGE_ALPHA_MIN = 0.48;
     var AIM_ZONE_RADIUS_ALPHA_MIN = 0.42;
-    var PLAYER_CANNON_RELOAD_BASE = 0.50;
+    var PLAYER_CANNON_RELOAD_BASE = 0.75;
     var ENEMY_CANNON_RELOAD_BASE = 1.15;
+    var REPAIR_COST_PER_HP = 1;
+    var GUARDED_LOOT_TIER1_COUNT = 5;
+    var GUARDED_LOOT_TIER2_COUNT = 7;
+    var GUARDED_LOOT_TIER3_COUNT = 3;
+    var ENEMY_ATTACK_RANGE = 286;
+    var ENEMY_CHASE_RANGE = 792;
+    var WIND_RIBBON_COUNT = 14;
+    var WIND_RIBBON_POINTS = 12;
+    var WIND_RIBBON_LENGTH = 320;
+    var WIND_RIBBON_WIDTH = 8.5;
+    var WIND_RIBBON_Y = 38;
+    var WIND_RIBBON_SCREEN_X = 540;
+    var WIND_RIBBON_SCREEN_Z = 390;
+    var CANNON_SMOKE_LIFE = 0.58;
+    var CANNON_SMOKE_MAX = 44;
+    var CANNON_RECOIL_TIME = 0.34;
     var WAKE_CURVE_SAMPLES = 96;
     var WAKE_MIN_SPEED = 8;
     var WAKE_FULL_SPEED = 150;
@@ -103,24 +124,24 @@
     var ENEMY_SHORE_CLEARANCE = 360;
     var ENEMY_TIER1_ZONE_COUNT = 5;
     var ENEMY_TIER2_ZONE_COUNT = 4;
-    var ENEMY_TIER3_ZONE_COUNT = 3;
+    var ENEMY_TIER3_ZONE_COUNT = 1;
     var ENEMY_TIER1_SHIP_COUNT = 7;
     var ENEMY_TIER2_SHIP_COUNT = 10;
     var ENEMY_TIER3_ESCORTS_PER_ZONE = 2;
     var ENEMY_TIER3_BOSSES_PER_ZONE = 1;
-    var ENEMY_TIER1_ZONE_RADIUS = 430;
-    var ENEMY_TIER2_ZONE_RADIUS = 610;
-    var ENEMY_TIER3_ZONE_RADIUS = 720;
+    var ENEMY_TIER1_ZONE_RADIUS = 360;
+    var ENEMY_TIER2_ZONE_RADIUS = 500;
+    var ENEMY_TIER3_ZONE_RADIUS = 620;
     var ENEMY_TIER2_HP_MUL = 1.55;
     var ENEMY_TIER2_DAMAGE_MUL = 1.35;
     var ENEMY_TIER2_RELOAD_MUL = 0.82;
     var ENEMY_TIER2_SAIL_POWER_MUL = 1.07;
     var ENEMY_TIER2_SCALE = 1.12;
-    var ENEMY_TIER3_HP_MUL = 3.2;
+    var ENEMY_TIER3_HP_MUL = 3.84;
     var ENEMY_TIER3_DAMAGE_MUL = 1.75;
     var ENEMY_TIER3_RELOAD_MUL = 0.72;
     var ENEMY_TIER3_SAIL_POWER_MUL = 1.03;
-    var ENEMY_TIER3_SCALE = 1.42;
+    var ENEMY_TIER3_SCALE = 1.70;
     var THREE = null;
     var renderer = null;
     var scene = null;
@@ -137,6 +158,7 @@
     var aimZoneLeft = null;
     var aimZoneRight = null;
     var windArrow = null;
+    var windRibbonMesh = null;
     var minimapContext = null;
     var MINIMAP_SIZE = 220;
     var MINIMAP_CENTER = MINIMAP_SIZE * 0.5;
@@ -306,13 +328,16 @@
             isPlayer: isPlayer,
             mesh: null,
             debugRing: null,
-            damage: isPlayer ? 35 : 18,
+            damage: isPlayer ? 32 : 18,
             cannonCooldownMul: 1,
             sailPowerMul: 1,
             zoneTier: isPlayer ? 'player' : 'tier1',
             visualScale: isPlayer ? 1.0 : 0.95,
             collisionRadius: isPlayer ? PLAYER_RADIUS : ENEMY_RADIUS,
-            doubleShot: false
+            doubleShot: false,
+            recoilTimer: 0,
+            recoilSide: 0,
+            recoilStrength: 0
         };
     }
 
@@ -370,8 +395,8 @@
             zones.push({
                 dock: true,
                 angle: rotation + i * TAU / Math.max(1, TRADING_ISLAND_COUNT),
-                minRadius: 1220,
-                maxRadius: 2180,
+                minRadius: 980,
+                maxRadius: 1740,
                 angleJitter: 0.24,
                 minIslandRadius: 64,
                 maxIslandRadius: 100
@@ -382,8 +407,8 @@
             zones.push({
                 dock: false,
                 angle: rotation + (i + 0.5) * TAU / Math.max(1, WILD_ISLAND_COUNT),
-                minRadius: i % 3 === 0 ? 580 : 940,
-                maxRadius: i % 3 === 0 ? 1850 : 2600,
+                minRadius: i % 3 === 0 ? 465 : 750,
+                maxRadius: i % 3 === 0 ? 1480 : 1780,
                 angleJitter: 0.30,
                 minIslandRadius: i % 4 === 0 ? 36 : (i % 4 === 1 ? 56 : (i % 4 === 2 ? 78 : 44)),
                 maxIslandRadius: i % 4 === 0 ? 60 : (i % 4 === 1 ? 98 : (i % 4 === 2 ? 132 : 78))
@@ -742,6 +767,63 @@
         applyEnemyTierStats(enemy, tier);
     }
 
+    function makeCrateData(x, z, value, kind) {
+        return {
+            x: x,
+            z: z,
+            value: value,
+            kind: kind || 'cargo',
+            mesh: null,
+            bob: randRange(state ? state.rng : Math.random, 0, TAU)
+        };
+    }
+
+    function guardedLootValue(rng, tier, kind) {
+        if (tier === 'tier3') {
+            return kind === 'gold' ? Math.floor(randRange(rng, 95, 135)) : Math.floor(randRange(rng, 70, 105));
+        }
+        if (tier === 'tier2') {
+            return kind === 'gold' ? Math.floor(randRange(rng, 55, 82)) : Math.floor(randRange(rng, 42, 68));
+        }
+        return kind === 'gold' ? Math.floor(randRange(rng, 24, 42)) : Math.floor(randRange(rng, 24, 48));
+    }
+
+    function generateGuardedLoot(rng, zones, islands) {
+        var crates = [];
+        var counts = { tier1: 0, tier2: 0, tier3: 0 };
+        var limits = {
+            tier1: GUARDED_LOOT_TIER1_COUNT,
+            tier2: GUARDED_LOOT_TIER2_COUNT,
+            tier3: GUARDED_LOOT_TIER3_COUNT
+        };
+        var i;
+        var zone;
+        var point;
+        var kind;
+        var value;
+
+        for (i = 0; i < zones.length; i += 1) {
+            zone = zones[i];
+            if (counts[zone.tier] >= limits[zone.tier]) {
+                continue;
+            }
+            point = randomPointInEnemyZone(rng, zone, islands);
+            kind = (zone.tier === 'tier1' && i % 2 === 0) || (zone.tier !== 'tier1' && i % 3 !== 0) ? 'cargo' : 'gold';
+            value = guardedLootValue(rng, zone.tier, kind);
+            crates.push({
+                x: point.x,
+                z: point.z,
+                value: value,
+                kind: kind,
+                mesh: null,
+                bob: randRange(rng, 0, TAU)
+            });
+            counts[zone.tier] += 1;
+        }
+
+        return crates;
+    }
+
     function makeInitialState() {
         var seed = seedFromUrl();
         var rng = makeRng(seed);
@@ -866,6 +948,7 @@
             time: 0,
             paused: false,
             gameOver: false,
+            resultType: '',
             routeClear: false,
             docked: false,
             nearDock: false,
@@ -876,9 +959,10 @@
             enemies: enemies,
             enemyZones: enemyZones,
             islands: islands,
-            crates: [],
+            crates: generateGuardedLoot(rng, enemyZones, islands),
             projectiles: [],
             splashes: [],
+            smokePuffs: [],
             windAngle: randRange(rng, 0, TAU),
             windTargetAngle: randRange(rng, 0, TAU),
             windSpeed: randRange(rng, 0.78, 1.08),
@@ -958,6 +1042,35 @@
         });
     }
 
+    function makeWindRibbonMaterial() {
+        return makeWaterOverlayMaterial(new THREE.ShaderMaterial({
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+            uniforms: {
+                uColor: { value: new THREE.Color(0xdffbff) },
+                uOpacity: { value: 0.38 }
+            },
+            vertexShader: [
+                'attribute float aAlpha;',
+                'varying float vAlpha;',
+                'void main() {',
+                '    vAlpha = aAlpha;',
+                '    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+                '}'
+            ].join('\n'),
+            fragmentShader: [
+                'uniform vec3 uColor;',
+                'uniform float uOpacity;',
+                'varying float vAlpha;',
+                'void main() {',
+                '    gl_FragColor = vec4(uColor, uOpacity * vAlpha);',
+                '}'
+            ].join('\n')
+        }));
+    }
+
     function makeAimZoneMaterial(color, opacity) {
         return makeWaterOverlayMaterial(new THREE.ShaderMaterial({
             transparent: true,
@@ -1017,12 +1130,16 @@
             palm: makeMaterial(0x5d3c21, 0.90, 0.0),
             leaf: makeMaterial(0x2f7f54, 0.92, 0.0),
             crate: makeMaterial(0xb57231, 0.88, 0.0),
+            goldCrate: makeMaterial(0xf1c85b, 0.92, 0.0),
+            cargoCrate: makeMaterial(0x9a6a3a, 0.88, 0.0),
             dock: makeMaterial(0x6b472a, 0.88, 0.0),
             dockZone: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xe0b565, wireframe: true, transparent: true, opacity: 0.50 })),
             fogBoundary: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x061019, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })),
             debugGreen: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             debugRed: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0xff6c5f, wireframe: true, transparent: true, opacity: 0.40 })),
             wind: makeWaterOverlayMaterial(new THREE.LineBasicMaterial({ color: 0x63a6ff, transparent: true, opacity: 0.32 })),
+            windRibbon: makeWindRibbonMaterial(),
+            smokePuff: new THREE.MeshBasicMaterial({ color: 0xc9d0d1, transparent: true, opacity: 0.34, depthWrite: false }),
             splashRing: makeWaterOverlayMaterial(new THREE.MeshBasicMaterial({ color: 0x32d1a0, wireframe: true, transparent: true, opacity: 0.45 })),
             wakeLane: makeWakeLaneMaterial(),
             hpBack: new THREE.MeshBasicMaterial({ color: 0x120e12, transparent: true, opacity: 0.82 }),
@@ -1109,6 +1226,17 @@
         waterMesh = mesh;
     }
 
+    function sampleWaterWave(worldX, worldZ, time) {
+        var wave = Math.sin(worldX * 0.010 + time * 1.25) * 3.0;
+        wave += Math.cos((-worldZ) * 0.012 - time * 1.05) * 2.2;
+        wave += Math.sin((worldX - worldZ) * 0.006 + time * 0.85) * 1.4;
+        return wave;
+    }
+
+    function sampleFloatHeight(worldX, worldZ, time) {
+        return sampleWaterWave(worldX, worldZ, time) * 0.24;
+    }
+
     function updateWater(time) {
         if (!waterPositions || !waterBasePositions) {
             return;
@@ -1119,15 +1247,11 @@
         var i;
         var x;
         var y;
-        var wave;
 
         for (i = 0; i < arr.length; i += 3) {
             x = base[i];
             y = base[i + 1];
-            wave = Math.sin(x * 0.010 + time * 1.25) * 3.0;
-            wave += Math.cos(y * 0.012 - time * 1.05) * 2.2;
-            wave += Math.sin((x + y) * 0.006 + time * 0.85) * 1.4;
-            arr[i + 2] = wave;
+            arr[i + 2] = sampleWaterWave(x, -y, time);
         }
 
         waterPositions.needsUpdate = true;
@@ -1300,17 +1424,23 @@
         return new THREE.Mesh(new THREE.SphereGeometry(5, 10, 8), materials.cannonball);
     }
 
-    function createCrateMesh() {
+    function createCrateMesh(kind) {
         var group = new THREE.Group();
-        var box = new THREE.Mesh(new THREE.BoxGeometry(18, 14, 18), materials.crate);
-        var bandA = new THREE.Mesh(new THREE.BoxGeometry(20, 16, 3), materials.dock);
-        var bandB = new THREE.Mesh(new THREE.BoxGeometry(3, 16, 20), materials.dock);
+        var isGold = kind === 'gold';
+        var bodyMaterial = isGold ? materials.goldCrate : materials.cargoCrate;
+        var box = new THREE.Mesh(new THREE.BoxGeometry(isGold ? 17 : 20, isGold ? 13 : 15, isGold ? 17 : 20), bodyMaterial);
+        var bandA = new THREE.Mesh(new THREE.BoxGeometry(isGold ? 19 : 22, isGold ? 15 : 17, 3), materials.dock);
+        var bandB = new THREE.Mesh(new THREE.BoxGeometry(3, isGold ? 15 : 17, isGold ? 19 : 22), materials.dock);
+        var lid = new THREE.Mesh(new THREE.BoxGeometry(isGold ? 19 : 22, 3, isGold ? 19 : 22), isGold ? materials.goldCrate : materials.crate);
         box.position.y = 8;
         bandA.position.y = 8.5;
         bandB.position.y = 8.6;
+        lid.position.y = 16;
         group.add(box);
         group.add(bandA);
         group.add(bandB);
+        group.add(lid);
+        group.userData.kind = isGold ? 'gold' : 'cargo';
         return group;
     }
 
@@ -1340,6 +1470,158 @@
         geometry.setDrawRange(0, 0);
 
         return setOverlayObject(new THREE.Mesh(geometry, materials.wakeLane.clone()), 18);
+    }
+
+    function createWindRibbonMesh(rng) {
+        var stripCount = WIND_RIBBON_COUNT;
+        var pointCount = WIND_RIBBON_POINTS;
+        var vertexCount = stripCount * pointCount * 2;
+        var geometry = new THREE.BufferGeometry();
+        var positions = new Float32Array(vertexCount * 3);
+        var alphas = new Float32Array(vertexCount);
+        var indices = [];
+        var seeds = [];
+        var strip;
+        var point;
+        var index;
+        var nextIndex;
+        var sideIndex;
+
+        for (strip = 0; strip < stripCount; strip += 1) {
+            seeds.push({
+                screenX: randRange(rng, -1, 1),
+                screenZ: randRange(rng, -1, 1),
+                phaseA: randRange(rng, 0, TAU),
+                phaseB: randRange(rng, 0, TAU),
+                speed: randRange(rng, 0.68, 1.24),
+                wiggle: randRange(rng, 12, 26),
+                lengthMul: randRange(rng, 0.74, 1.18),
+                widthMul: randRange(rng, 0.72, 1.22),
+                opacity: randRange(rng, 0.62, 1.0)
+            });
+        }
+
+        for (strip = 0; strip < stripCount; strip += 1) {
+            for (point = 0; point < pointCount - 1; point += 1) {
+                index = (strip * pointCount + point) * 2;
+                nextIndex = (strip * pointCount + point + 1) * 2;
+                indices.push(index, index + 1, nextIndex);
+                indices.push(index + 1, nextIndex + 1, nextIndex);
+            }
+        }
+
+        for (sideIndex = 0; sideIndex < vertexCount; sideIndex += 1) {
+            alphas[sideIndex] = 0;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('aAlpha', new THREE.BufferAttribute(alphas, 1));
+        geometry.setIndex(indices);
+        geometry.setDrawRange(0, indices.length);
+
+        windRibbonMesh = setOverlayObject(new THREE.Mesh(geometry, materials.windRibbon), 24);
+        windRibbonMesh.userData.seeds = seeds;
+        windRibbonMesh.userData.pointCount = pointCount;
+        worldGroup.add(windRibbonMesh);
+    }
+
+    function updateWindRibbons(renderTime, renderAlpha) {
+        var mesh = windRibbonMesh;
+        var geometry;
+        var positionAttr;
+        var alphaAttr;
+        var positions;
+        var alphas;
+        var seeds;
+        var player;
+        var dirX;
+        var dirZ;
+        var sideX;
+        var sideZ;
+        var viewX;
+        var viewZ;
+        var screenRightX;
+        var screenRightZ;
+        var strip;
+        var point;
+        var sideIndex;
+        var seed;
+        var t;
+        var centerOffset;
+        var drift;
+        var curl;
+        var pulse;
+        var endFade;
+        var alpha;
+        var width;
+        var centerX;
+        var centerY;
+        var centerZ;
+        var baseX;
+        var baseZ;
+        var baseScreenX;
+        var baseScreenZ;
+        var vertexIndex;
+
+        if (!mesh || !mesh.geometry) {
+            return;
+        }
+
+        geometry = mesh.geometry;
+        positionAttr = geometry.attributes.position;
+        alphaAttr = geometry.attributes.aAlpha;
+        positions = positionAttr.array;
+        alphas = alphaAttr.array;
+        seeds = mesh.userData.seeds || [];
+        player = sampleShipTransform(state.player, renderAlpha);
+        dirX = Math.sin(state.windAngle);
+        dirZ = Math.cos(state.windAngle);
+        sideX = dirZ;
+        sideZ = -dirX;
+        viewX = -Math.sin(state.cameraOrbit);
+        viewZ = -Math.cos(state.cameraOrbit);
+        screenRightX = Math.cos(state.cameraOrbit);
+        screenRightZ = -Math.sin(state.cameraOrbit);
+
+        for (strip = 0; strip < seeds.length; strip += 1) {
+            seed = seeds[strip];
+            baseScreenX = seed.screenX * WIND_RIBBON_SCREEN_X + Math.sin(renderTime * 0.11 * seed.speed + seed.phaseA) * 46;
+            baseScreenZ = seed.screenZ * WIND_RIBBON_SCREEN_Z + Math.cos(renderTime * 0.09 * seed.speed + seed.phaseB) * 38;
+            baseX = player.x + screenRightX * baseScreenX + viewX * baseScreenZ;
+            baseZ = player.z + screenRightZ * baseScreenX + viewZ * baseScreenZ;
+            drift = Math.sin(renderTime * 0.72 * seed.speed + seed.phaseA) * 42 * state.windSpeed;
+            pulse = 0.78 + Math.sin(renderTime * 1.35 * seed.speed + seed.phaseB) * 0.16;
+
+            for (point = 0; point < WIND_RIBBON_POINTS; point += 1) {
+                t = point / Math.max(1, WIND_RIBBON_POINTS - 1);
+                centerOffset = (t - 0.5) * WIND_RIBBON_LENGTH * seed.lengthMul + drift;
+                curl = Math.sin(t * TAU * 1.15 + renderTime * 0.78 * seed.speed + seed.phaseA) * seed.wiggle;
+                curl += Math.sin(t * TAU * 2.25 + seed.phaseB) * seed.wiggle * 0.28;
+                centerX = baseX + dirX * centerOffset + sideX * curl;
+                centerZ = baseZ + dirZ * centerOffset + sideZ * curl;
+                centerY = WIND_RIBBON_Y + Math.sin(t * TAU + renderTime * 0.6 + seed.phaseA) * 3.5;
+                width = WIND_RIBBON_WIDTH * seed.widthMul * (0.75 + Math.sin(t * Math.PI) * 0.48);
+                endFade = smoothstep(0.0, 0.22, t) * (1 - smoothstep(0.78, 1.0, t));
+                alpha = endFade * seed.opacity * pulse * clamp(0.76 + state.windSpeed * 0.18, 0.65, 1.05);
+                vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
+
+                sideIndex = vertexIndex * 3;
+                positions[sideIndex + 0] = centerX + sideX * width;
+                positions[sideIndex + 1] = centerY;
+                positions[sideIndex + 2] = centerZ + sideZ * width;
+                alphas[vertexIndex] = alpha;
+
+                sideIndex = (vertexIndex + 1) * 3;
+                positions[sideIndex + 0] = centerX - sideX * width;
+                positions[sideIndex + 1] = centerY;
+                positions[sideIndex + 2] = centerZ - sideZ * width;
+                alphas[vertexIndex + 1] = alpha;
+            }
+        }
+
+        positionAttr.needsUpdate = true;
+        alphaAttr.needsUpdate = true;
+        mesh.visible = true;
     }
 
     function createHealthBar() {
@@ -1515,6 +1797,8 @@
             worldGroup.remove(child);
             disposeObjectGeometry(child);
         }
+
+        windRibbonMesh = null;
     }
 
     function createFogBoundary() {
@@ -1574,7 +1858,12 @@
             }
         }
 
+        for (i = 0; i < state.crates.length; i += 1) {
+            attachCrateMesh(state.crates[i]);
+        }
+
         createAimObjects();
+        createWindRibbonMesh(rng);
     }
 
     function initThree() {
@@ -1804,6 +2093,10 @@
 
         rememberShipTransform(ship);
 
+        if (ship.recoilTimer > 0) {
+            ship.recoilTimer = Math.max(0, ship.recoilTimer - dt);
+        }
+
         if (ship.hp <= 0) {
             ship.sinkTimer += dt;
             ship.vx *= Math.pow(0.96, dt * 60);
@@ -1957,17 +2250,17 @@
             enemy.aiState = 'retreat';
             desiredX = enemy.zoneX;
             desiredZ = enemy.zoneZ;
-        } else if (distanceToPlayer < 260) {
+        } else if (distanceToPlayer < ENEMY_ATTACK_RANGE) {
             enemy.aiState = 'attack';
             desiredHeadingOverride = chooseBroadsideHeading(enemy, player);
             desiredX = enemy.x + Math.sin(desiredHeadingOverride) * 160;
             desiredZ = enemy.z + Math.cos(desiredHeadingOverride) * 160;
-            if (distanceToPlayer < 150) {
+            if (distanceToPlayer < ENEMY_ATTACK_RANGE * 0.58) {
                 desiredX += (enemy.x - player.x) * 0.45;
                 desiredZ += (enemy.z - player.z) * 0.45;
             }
             fireFromShip(enemy, player.x + player.vx * 0.9, player.z + player.vz * 0.9);
-        } else if (distanceToPlayer < 720 && zoneDistance < enemy.zoneRadius * 1.15) {
+        } else if (distanceToPlayer < ENEMY_CHASE_RANGE && zoneDistance < enemy.zoneRadius * 1.15) {
             enemy.aiState = 'chase';
             desiredX = player.x + player.vx * 1.2;
             desiredZ = player.z + player.vz * 1.2;
@@ -2152,8 +2445,88 @@
             mesh: mesh
         };
 
+        mesh.position.set(projectile.x, projectile.y, projectile.z);
         worldGroup.add(mesh);
         state.projectiles.push(projectile);
+        makeCannonSmoke(
+            projectile.x,
+            projectile.y + 2,
+            projectile.z,
+            shot.info.rightX * shot.info.side,
+            shot.info.rightZ * shot.info.side,
+            clamp(ship.visualScale || 1, 0.86, 1.85)
+        );
+    }
+
+    function createSmokePuffMesh(pieceCount) {
+        var group = new THREE.Group();
+        var i;
+        var piece;
+        var material;
+        var scale;
+
+        for (i = 0; i < pieceCount; i += 1) {
+            material = materials.smokePuff.clone();
+            piece = new THREE.Mesh(new THREE.SphereGeometry(5.2, 7, 5), material);
+            piece.userData.offsetX = randRange(state.rng, -5.5, 5.5);
+            piece.userData.offsetY = randRange(state.rng, -2.5, 5.5);
+            piece.userData.offsetZ = randRange(state.rng, -5.5, 5.5);
+            piece.userData.driftX = randRange(state.rng, -7, 7);
+            piece.userData.driftY = randRange(state.rng, 4, 12);
+            piece.userData.driftZ = randRange(state.rng, -7, 7);
+            piece.userData.opacity = randRange(state.rng, 0.22, 0.36);
+            scale = randRange(state.rng, 0.72, 1.22);
+            piece.scale.setScalar(scale);
+            setOverlayObject(piece, 32);
+            group.add(piece);
+        }
+
+        setOverlayObject(group, 32);
+        return group;
+    }
+
+    function trimSmokePuffs() {
+        var old;
+
+        while (state.smokePuffs.length > CANNON_SMOKE_MAX) {
+            old = state.smokePuffs.shift();
+            if (old && old.mesh) {
+                worldGroup.remove(old.mesh);
+                disposeObjectGeometry(old.mesh);
+            }
+        }
+    }
+
+    function makeCannonSmoke(x, y, z, sideX, sideZ, scaleMul) {
+        var pieceCount;
+        var puff;
+        var mesh;
+
+        if (!worldGroup) {
+            return;
+        }
+
+        pieceCount = scaleMul > 1.25 ? 6 : 4;
+        mesh = createSmokePuffMesh(pieceCount);
+        mesh.position.set(x + sideX * 5, y, z + sideZ * 5);
+        mesh.scale.setScalar(scaleMul);
+        worldGroup.add(mesh);
+        puff = {
+            life: CANNON_SMOKE_LIFE,
+            totalLife: CANNON_SMOKE_LIFE,
+            mesh: mesh,
+            sideX: sideX,
+            sideZ: sideZ,
+            scaleMul: scaleMul
+        };
+        state.smokePuffs.push(puff);
+        trimSmokePuffs();
+    }
+
+    function addCannonRecoil(ship, side, strength) {
+        ship.recoilTimer = CANNON_RECOIL_TIME;
+        ship.recoilSide = side;
+        ship.recoilStrength = strength || 1;
     }
 
     function fireFromShip(ship, targetX, targetZ) {
@@ -2182,6 +2555,8 @@
         } else {
             spawnProjectileFromShot(ship, shot, 0);
         }
+
+        addCannonRecoil(ship, shot.info.side, ship.doubleShot ? 1.18 : 1.0);
 
         cooldown = getShipCannonReloadSeconds(ship);
         setShipCannonCooldown(ship, shot.info.side, cooldown);
@@ -2279,12 +2654,33 @@
         return false;
     }
 
+    function finishGame(resultType) {
+        if (state.gameOver) {
+            return;
+        }
+
+        state.gameOver = true;
+        state.resultType = resultType;
+        state.input.aimHeld = false;
+        state.input.aimSource = '';
+        state.input.fireReleaseQueued = false;
+        state.dockPanelOpen = false;
+        state.docked = false;
+        state.dockTimer = 0;
+        syncDockPanel();
+
+        if (resultType === 'victory') {
+            setMessage('You are the Terror of the Seas. All enemies defeated.', 10);
+        } else {
+            setMessage('Ship lost. Try again or return to the resume.', 10);
+        }
+    }
+
     function applyDamage(ship, amount) {
         ship.hp = Math.max(0, ship.hp - amount);
         ship.hitFlash = 0.22;
         if (ship.isPlayer && ship.hp <= 0) {
-            state.gameOver = true;
-            setMessage('Ship lost. Press New run to restart.', 10);
+            finishGame('defeat');
         }
     }
 
@@ -2298,22 +2694,31 @@
             spawnCrate(
                 enemy.x + randRange(state.rng, -42, 42),
                 enemy.z + randRange(state.rng, -42, 42),
-                24 + Math.floor(randRange(state.rng, 0, 42))
+                24 + Math.floor(randRange(state.rng, 0, 42)),
+                i === 0 && enemy.zoneTier === 'tier3' ? 'gold' : 'cargo'
             );
         }
     }
 
-    function spawnCrate(x, z, value) {
-        var mesh = createCrateMesh();
+    function attachCrateMesh(crate) {
+        if (crate.mesh || !worldGroup) {
+            return;
+        }
+        crate.mesh = createCrateMesh(crate.kind);
+        crate.mesh.position.set(crate.x, 8, crate.z);
+        worldGroup.add(crate.mesh);
+    }
+
+    function spawnCrate(x, z, value, kind) {
         var crate = {
             x: x,
             z: z,
             value: value,
-            mesh: mesh,
+            kind: kind || 'cargo',
+            mesh: null,
             bob: randRange(state.rng, 0, TAU)
         };
-        mesh.position.set(x, 8, z);
-        worldGroup.add(mesh);
+        attachCrateMesh(crate);
         state.crates.push(crate);
     }
 
@@ -2325,12 +2730,21 @@
         for (i = state.crates.length - 1; i >= 0; i -= 1) {
             crate = state.crates[i];
             crate.bob += dt * 1.8;
-            if (dist2(crate, p) < 44 && p.cargo < p.cargoCapacity) {
-                p.cargo += 1;
-                p.cargoValue += crate.value;
-                worldGroup.remove(crate.mesh);
-                state.crates.splice(i, 1);
-                setMessage('Cargo recovered. Dock at a pier with F to sell it.', 2.0);
+            if (dist2(crate, p) < 44) {
+                if (crate.kind === 'gold') {
+                    p.gold += crate.value;
+                    worldGroup.remove(crate.mesh);
+                    state.crates.splice(i, 1);
+                    setMessage('Gold chest recovered: +' + crate.value + ' gold.', 2.0);
+                } else if (p.cargo < p.cargoCapacity) {
+                    p.cargo += 1;
+                    p.cargoValue += crate.value;
+                    worldGroup.remove(crate.mesh);
+                    state.crates.splice(i, 1);
+                    setMessage('Cargo recovered. Dock at a pier with F to sell it.', 2.0);
+                } else {
+                    setMessage('Cargo hold full. Dock and sell goods first.', 1.4);
+                }
             }
         }
     }
@@ -2365,6 +2779,47 @@
             if (splash.life <= 0) {
                 worldGroup.remove(splash.mesh);
                 state.splashes.splice(i, 1);
+            }
+        }
+    }
+
+    function updateSmokePuffs(dt) {
+        var i;
+        var puff;
+        var t;
+        var j;
+        var child;
+        var fade;
+        var scale;
+
+        for (i = state.smokePuffs.length - 1; i >= 0; i -= 1) {
+            puff = state.smokePuffs[i];
+            puff.life -= dt;
+            t = 1 - clamp(puff.life / puff.totalLife, 0, 1);
+            fade = Math.pow(1 - t, 1.35);
+            scale = 1 + t * 1.8;
+            puff.mesh.position.x += puff.sideX * dt * 13;
+            puff.mesh.position.y += dt * 8;
+            puff.mesh.position.z += puff.sideZ * dt * 13;
+            puff.mesh.scale.setScalar(puff.scaleMul * scale);
+            puff.mesh.rotation.y += dt * 0.7;
+
+            for (j = 0; j < puff.mesh.children.length; j += 1) {
+                child = puff.mesh.children[j];
+                child.position.set(
+                    child.userData.offsetX + child.userData.driftX * t,
+                    child.userData.offsetY + child.userData.driftY * t,
+                    child.userData.offsetZ + child.userData.driftZ * t
+                );
+                if (child.material) {
+                    child.material.opacity = child.userData.opacity * fade;
+                }
+            }
+
+            if (puff.life <= 0) {
+                worldGroup.remove(puff.mesh);
+                disposeObjectGeometry(puff.mesh);
+                state.smokePuffs.splice(i, 1);
             }
         }
     }
@@ -2462,6 +2917,35 @@
         syncDockPanel();
     }
 
+    function repairCost() {
+        var p = state.player;
+        return Math.ceil(Math.max(0, p.maxHp - p.hp) * REPAIR_COST_PER_HP);
+    }
+
+    function repairAtDock() {
+        var p = state.player;
+        var cost = repairCost();
+
+        if (!state.dockPanelOpen) {
+            setMessage('Dock first, then repair hull.', 1.6);
+            return;
+        }
+        if (cost <= 0) {
+            setMessage('Hull is already fully repaired.', 1.5);
+            syncDockPanel();
+            return;
+        }
+        if (p.gold < cost) {
+            setMessage('Need ' + cost + ' gold to repair hull.', 1.7);
+            syncDockPanel();
+            return;
+        }
+        p.gold -= cost;
+        p.hp = p.maxHp;
+        setMessage('Hull repaired for ' + cost + ' gold.', 2.0);
+        syncDockPanel();
+    }
+
     function buyUpgrade(slot) {
         var p = state.player;
         var cost;
@@ -2502,7 +2986,7 @@
             }
             p.gold -= cost;
             p.damage += 10;
-            p.cannonCooldownMul = Math.max(0.55, p.cannonCooldownMul - 0.08);
+            p.cannonCooldownMul = Math.max(0.80, p.cannonCooldownMul - 0.05);
             setMessage('Cannon upgraded. Damage and reload improved.', 2.3);
         }
         syncDockPanel();
@@ -2514,6 +2998,7 @@
         var hullCost = upgradeCost('hull');
         var sailCost = upgradeCost('sail');
         var cannonCost = upgradeCost('cannon');
+        var hullRepairCost = repairCost();
         var buttons;
         var i;
         var slot;
@@ -2549,6 +3034,10 @@
         if (hud.dockSell) {
             hud.dockSell.disabled = p.cargo <= 0;
             hud.dockSell.textContent = p.cargo > 0 ? 'Sell cargo - ' + p.cargoValue + ' gold' : 'Sell cargo - empty hold';
+        }
+        if (hud.dockRepair) {
+            hud.dockRepair.disabled = hullRepairCost <= 0 || p.gold < hullRepairCost;
+            hud.dockRepair.textContent = hullRepairCost > 0 ? 'Repair hull - ' + hullRepairCost + ' gold' : 'Repair hull - full HP';
         }
 
         buttons = hud.dockUpgradeButtons || [];
@@ -2587,6 +3076,7 @@
         updateProjectiles(dt);
         updateCrates(dt);
         updateSplashes(dt);
+        updateSmokePuffs(dt);
         updateDock(dt);
         updateRouteClear();
     }
@@ -2598,7 +3088,7 @@
 
         if (!state.routeClear && alive === 0) {
             state.routeClear = true;
-            setMessage('Route clear. Harbor traffic is open.', 8);
+            finishGame('victory');
         }
     }
 
@@ -2885,16 +3375,29 @@
         var mesh = ship.mesh;
         var sailMesh;
         var sailCurve;
+        var floatY;
+        var waterRoll;
+        var waterPitch;
+        var recoilT;
+        var recoilRoll;
+        var recoilPitch;
         var renderState = sampleShipTransform(ship, renderAlpha);
 
         if (!mesh) {
             return;
         }
 
-        mesh.position.set(renderState.x, ship.hp > 0 ? 0 : -Math.min(24, renderState.sinkTimer * 12), renderState.z);
+        floatY = sampleFloatHeight(renderState.x, renderState.z, renderTime);
+        waterRoll = Math.sin(renderTime * 2.5 + renderState.x * 0.01) * 0.030 + sampleWaterWave(renderState.x + 35, renderState.z, renderTime) * 0.0024;
+        waterPitch = Math.cos(renderTime * 2.0 + renderState.z * 0.01) * 0.024 + sampleWaterWave(renderState.x, renderState.z + 35, renderTime) * 0.0020;
+        recoilT = ship.recoilTimer > 0 ? 1 - clamp(ship.recoilTimer / CANNON_RECOIL_TIME, 0, 1) : 1;
+        recoilRoll = ship.recoilTimer > 0 ? -ship.recoilSide * Math.sin(recoilT * Math.PI) * 0.078 * (ship.recoilStrength || 1) : 0;
+        recoilPitch = ship.recoilTimer > 0 ? Math.sin(recoilT * TAU) * 0.022 * (ship.recoilStrength || 1) : 0;
+
+        mesh.position.set(renderState.x, ship.hp > 0 ? floatY : -Math.min(24, renderState.sinkTimer * 12), renderState.z);
         mesh.rotation.y = renderState.heading;
-        mesh.rotation.z = ship.hp > 0 ? Math.sin(renderTime * 2.5 + renderState.x * 0.01) * 0.018 : renderState.sinkTimer * 0.18;
-        mesh.rotation.x = ship.hp > 0 ? Math.cos(renderTime * 2.0 + renderState.z * 0.01) * 0.015 : -renderState.sinkTimer * 0.10;
+        mesh.rotation.z = ship.hp > 0 ? waterRoll + recoilRoll : renderState.sinkTimer * 0.18;
+        mesh.rotation.x = ship.hp > 0 ? waterPitch + recoilPitch : -renderState.sinkTimer * 0.10;
 
         sailMesh = mesh.userData.sailMesh;
         if (sailMesh) {
@@ -2951,8 +3454,10 @@
 
         for (i = 0; i < state.crates.length; i += 1) {
             crate = state.crates[i];
-            crate.mesh.position.set(crate.x, 7 + Math.sin(crate.bob) * 3.2, crate.z);
-            crate.mesh.rotation.y += 0.01;
+            attachCrateMesh(crate);
+            crate.mesh.position.set(crate.x, 7 + sampleFloatHeight(crate.x, crate.z, renderTime) + Math.sin(crate.bob) * 3.2, crate.z);
+            crate.mesh.rotation.y += crate.kind === 'gold' ? 0.014 : 0.010;
+            crate.mesh.rotation.z = Math.sin(crate.bob * 0.7) * 0.08;
         }
 
         player = state.player;
@@ -3015,6 +3520,8 @@
             aimDots.count = 0;
         }
         aimDots.instanceMatrix.needsUpdate = true;
+
+        updateWindRibbons(renderTime, renderAlpha);
 
         if (windArrow) {
             windArrow.visible = DEBUG_ENABLED;
@@ -3103,9 +3610,9 @@
             ctx.fill();
         }
 
-        ctx.fillStyle = 'rgba(181, 114, 49, 0.85)';
         for (i = 0; i < state.crates.length; i += 1) {
             crate = state.crates[i];
+            ctx.fillStyle = crate.kind === 'gold' ? 'rgba(241, 200, 91, 0.95)' : 'rgba(181, 114, 49, 0.85)';
             ctx.fillRect(mapToMini(crate.x) - 1.5, mapToMini(crate.z) - 1.5, 3, 3);
         }
 
@@ -3179,6 +3686,29 @@
         setBottomReloadHud(hud.bottomRightCard, hud.bottomRightRing, hud.bottomRightText, p.rightCannonCooldown, reloadSeconds);
     }
 
+    function syncResultOverlay() {
+        var visible = state.gameOver && (state.resultType === 'defeat' || state.resultType === 'victory');
+        var title = state.resultType === 'victory' ? 'Terror of the Seas!' : 'Ship lost';
+        var body = state.resultType === 'victory'
+            ? 'You defeated every enemy on the sea. Congratulations, and thank you for playing!'
+            : 'You fought bravely, but something went wrong. Try again or return to the resume.';
+
+        if (!hud.resultOverlay) {
+            return;
+        }
+
+        hud.resultOverlay.hidden = !visible;
+        hud.resultOverlay.classList.toggle('is-visible', visible);
+        hud.resultOverlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+
+        if (hud.resultTitle) {
+            hud.resultTitle.textContent = title;
+        }
+        if (hud.resultText) {
+            hud.resultText.textContent = body;
+        }
+    }
+
     function updateHud() {
         var p = state.player;
         var aliveEnemies = state.enemies.filter(function (enemy) {
@@ -3226,6 +3756,7 @@
 
         drawMinimap();
         syncDockPanel();
+        syncResultOverlay();
 
         if (hud.pauseCard) {
             hud.pauseCard.hidden = !state.paused;
@@ -3275,6 +3806,7 @@
         buildWorld();
         syncMeshes(MAX_RENDER_ALPHA, state.time);
         syncDockPanel();
+        syncResultOverlay();
         setMessage('New run. Catch the wind, fire broadside, and press F inside a pier zone to dock.', 4);
     }
 
@@ -3407,11 +3939,17 @@
         if (hud.resetButton) {
             hud.resetButton.addEventListener('click', resetGame);
         }
+        if (hud.resultRestart) {
+            hud.resultRestart.addEventListener('click', resetGame);
+        }
         if (hud.dockClose) {
             hud.dockClose.addEventListener('click', closeDockPanel);
         }
         if (hud.dockSell) {
             hud.dockSell.addEventListener('click', sellCargoAtDock);
+        }
+        if (hud.dockRepair) {
+            hud.dockRepair.addEventListener('click', repairAtDock);
         }
         if (hud.dockUpgradeButtons) {
             hud.dockUpgradeButtons.forEach(function (button) {
