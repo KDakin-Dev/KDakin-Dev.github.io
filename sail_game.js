@@ -89,17 +89,20 @@
     var GUARDED_LOOT_TIER3_COUNT = 3;
     var ENEMY_ATTACK_RANGE = 286;
     var ENEMY_CHASE_RANGE = 792;
-    var WIND_RIBBON_COUNT = 18;
+    var WIND_RIBBON_COUNT = 12;
+    var WIND_RIBBON_VISIBLE_LIMIT = 4;
     var WIND_RIBBON_POINTS = 9;
     var WIND_RIBBON_LENGTH = 145;
     var WIND_RIBBON_WIDTH = 3.2;
     var WIND_RIBBON_Y = 38;
-    var WIND_RIBBON_SCREEN_X = 500;
-    var WIND_RIBBON_SCREEN_Z = 350;
-    var WIND_RIBBON_LIFE_MIN = 1.35;
-    var WIND_RIBBON_LIFE_MAX = 2.55;
-    var WIND_RIBBON_CYCLE_MIN = 6.4;
-    var WIND_RIBBON_CYCLE_MAX = 10.2;
+    var WIND_RIBBON_SCREEN_X = 520;
+    var WIND_RIBBON_SCREEN_Z = 370;
+    var WIND_RIBBON_CENTER_CLEAR = 235;
+    var WIND_RIBBON_CENTER_FADE = 125;
+    var WIND_RIBBON_LIFE_MIN = 2.05;
+    var WIND_RIBBON_LIFE_MAX = 3.85;
+    var WIND_RIBBON_CYCLE_MIN = 9.8;
+    var WIND_RIBBON_CYCLE_MAX = 16.8;
     var CANNON_SMOKE_LIFE = 0.58;
     var CANNON_SMOKE_MAX = 44;
     var CANNON_RECOIL_TIME = 0.34;
@@ -848,6 +851,7 @@
         var wildIndex = 1;
         var bossIndex;
         var escortIndex;
+        var initialWindAngle;
 
         islands.push({
             x: -110,
@@ -946,6 +950,8 @@
             }
         }
 
+        initialWindAngle = randRange(rng, 0, TAU);
+
         return {
             seed: seed,
             rng: rng,
@@ -967,10 +973,10 @@
             projectiles: [],
             splashes: [],
             smokePuffs: [],
-            windAngle: randRange(rng, 0, TAU),
-            windTargetAngle: randRange(rng, 0, TAU),
+            windAngle: initialWindAngle,
+            windTargetAngle: initialWindAngle,
             windSpeed: randRange(rng, 0.78, 1.08),
-            windTimer: 5,
+            windTimer: randRange(rng, 16, 24),
             cameraTargetX: -250,
             cameraTargetZ: -190,
             cameraOrbit: Math.PI * 0.25,
@@ -1493,15 +1499,15 @@
 
         for (strip = 0; strip < stripCount; strip += 1) {
             seeds.push({
-                screenX: randRange(rng, -1, 1),
-                screenZ: randRange(rng, -1, 1),
+                screenAngle: randRange(rng, 0, TAU),
+                screenRadius: randRange(rng, 0.58, 1.08),
                 phaseA: randRange(rng, 0, TAU),
                 phaseB: randRange(rng, 0, TAU),
                 speed: randRange(rng, 0.72, 1.22),
-                wiggle: randRange(rng, 8, 18),
-                lengthMul: randRange(rng, 0.72, 1.25),
-                widthMul: randRange(rng, 0.70, 1.18),
-                opacity: randRange(rng, 0.34, 0.76),
+                wiggle: randRange(rng, 6, 18),
+                lengthMul: randRange(rng, 0.48, 1.25),
+                widthMul: randRange(rng, 0.45, 1.18),
+                opacity: randRange(rng, 0.30, 0.78),
                 life: randRange(rng, WIND_RIBBON_LIFE_MIN, WIND_RIBBON_LIFE_MAX),
                 cycle: randRange(rng, WIND_RIBBON_CYCLE_MIN, WIND_RIBBON_CYCLE_MAX),
                 cycleOffset: randRange(rng, 0, WIND_RIBBON_CYCLE_MAX),
@@ -1553,6 +1559,10 @@
         var viewZ;
         var screenRightX;
         var screenRightZ;
+        var dirScreenX;
+        var dirScreenZ;
+        var sideScreenX;
+        var sideScreenZ;
         var strip;
         var point;
         var sideIndex;
@@ -1567,6 +1577,7 @@
         var curl;
         var pulse;
         var endFade;
+        var centerFade;
         var alpha;
         var width;
         var centerX;
@@ -1576,7 +1587,11 @@
         var baseZ;
         var baseScreenX;
         var baseScreenZ;
+        var centerScreenX;
+        var centerScreenZ;
+        var centerDistance;
         var vertexIndex;
+        var activeCount;
 
         if (!mesh || !mesh.geometry) {
             return;
@@ -1597,16 +1612,17 @@
         viewZ = -Math.cos(state.cameraOrbit);
         screenRightX = Math.cos(state.cameraOrbit);
         screenRightZ = -Math.sin(state.cameraOrbit);
+        dirScreenX = dirX * screenRightX + dirZ * screenRightZ;
+        dirScreenZ = dirX * viewX + dirZ * viewZ;
+        sideScreenX = sideX * screenRightX + sideZ * screenRightZ;
+        sideScreenZ = sideX * viewX + sideZ * viewZ;
+        activeCount = 0;
 
         for (strip = 0; strip < seeds.length; strip += 1) {
             seed = seeds[strip];
             localTime = (renderTime * seed.speed + seed.cycleOffset) % seed.cycle;
-            baseScreenX = seed.screenX * WIND_RIBBON_SCREEN_X + Math.sin(renderTime * 0.09 * seed.speed + seed.phaseA) * 34;
-            baseScreenZ = seed.screenZ * WIND_RIBBON_SCREEN_Z + Math.cos(renderTime * 0.08 * seed.speed + seed.phaseB) * 30;
-            baseX = player.x + screenRightX * baseScreenX + viewX * baseScreenZ;
-            baseZ = player.z + screenRightZ * baseScreenX + viewZ * baseScreenZ;
 
-            if (localTime > seed.life) {
+            if (localTime > seed.life || activeCount >= WIND_RIBBON_VISIBLE_LIMIT) {
                 for (point = 0; point < WIND_RIBBON_POINTS; point += 1) {
                     vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
                     alphas[vertexIndex] = 0;
@@ -1615,6 +1631,13 @@
                 continue;
             }
 
+            activeCount += 1;
+            baseScreenX = Math.cos(seed.screenAngle) * seed.screenRadius * WIND_RIBBON_SCREEN_X;
+            baseScreenZ = Math.sin(seed.screenAngle) * seed.screenRadius * WIND_RIBBON_SCREEN_Z;
+            baseScreenX += Math.sin(renderTime * 0.07 * seed.speed + seed.phaseA) * 32;
+            baseScreenZ += Math.cos(renderTime * 0.06 * seed.speed + seed.phaseB) * 28;
+            baseX = player.x + screenRightX * baseScreenX + viewX * baseScreenZ;
+            baseZ = player.z + screenRightZ * baseScreenX + viewZ * baseScreenZ;
             lifeT = clamp(localTime / Math.max(0.001, seed.life), 0, 1);
             lifeFade = smoothstep(0.0, seed.fadeIn, localTime) * (1 - smoothstep(seed.life - seed.fadeOut, seed.life, localTime));
             moveFade = smoothstep(0.0, 0.25, lifeT) * (1 - smoothstep(0.86, 1.0, lifeT));
@@ -1631,8 +1654,12 @@
                 centerZ = baseZ + dirZ * centerOffset + sideZ * curl;
                 centerY = WIND_RIBBON_Y + Math.sin(t * TAU + renderTime * 0.42 + seed.phaseA) * 2.4;
                 width = WIND_RIBBON_WIDTH * seed.widthMul * (0.42 + Math.sin(t * Math.PI) * 0.72);
+                centerScreenX = baseScreenX + dirScreenX * centerOffset + sideScreenX * curl;
+                centerScreenZ = baseScreenZ + dirScreenZ * centerOffset + sideScreenZ * curl;
+                centerDistance = Math.sqrt(centerScreenX * centerScreenX + centerScreenZ * centerScreenZ);
+                centerFade = smoothstep(WIND_RIBBON_CENTER_CLEAR, WIND_RIBBON_CENTER_CLEAR + WIND_RIBBON_CENTER_FADE, centerDistance);
                 endFade = smoothstep(0.0, 0.28, t) * (1 - smoothstep(0.70, 1.0, t));
-                alpha = endFade * lifeFade * seed.opacity * pulse * clamp(0.72 + state.windSpeed * 0.20, 0.62, 1.0);
+                alpha = endFade * lifeFade * centerFade * seed.opacity * pulse * clamp(0.72 + state.windSpeed * 0.20, 0.62, 1.0);
                 vertexIndex = (strip * WIND_RIBBON_POINTS + point) * 2;
 
                 sideIndex = vertexIndex * 3;
@@ -1651,7 +1678,7 @@
 
         positionAttr.needsUpdate = true;
         alphaAttr.needsUpdate = true;
-        mesh.visible = true;
+        mesh.visible = activeCount > 0;
     }
 
     function createHealthBar() {
@@ -2017,9 +2044,9 @@
         if (state.windTimer <= 0) {
             state.windTargetAngle = randRange(state.rng, 0, TAU);
             state.windSpeed = randRange(state.rng, 0.74, 1.16);
-            state.windTimer = randRange(state.rng, 7, 12);
+            state.windTimer = randRange(state.rng, 18, 28);
         }
-        state.windAngle += wrapAngle(state.windTargetAngle - state.windAngle) * dt * 0.18;
+        state.windAngle += wrapAngle(state.windTargetAngle - state.windAngle) * dt * 0.10;
     }
 
     function resolveIslandCollision(ship) {
